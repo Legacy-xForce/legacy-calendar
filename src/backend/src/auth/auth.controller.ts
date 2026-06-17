@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Request, UseGuards, Inject } from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards, Inject, HttpException, HttpStatus, NotImplementedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService, AuthenticatedUser } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
@@ -16,14 +16,12 @@ export class AuthController {
         @Inject(UsersService) private usersService: UsersService
     ) {}
 
-    @UseGuards(AuthGuard('local'))
     @Post('login')
-    @ApiOperation({ summary: 'User login' })
+    @ApiOperation({ summary: 'User login (disabled here)' })
     @ApiBody({ type: AuthLoginDto })
-    @ApiResponse({ status: 200, description: 'Return JWT access token' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    login(@Request() req: RequestWithUser, @Body() _loginDto: AuthLoginDto) {
-        return this.authService.login(req.user as AuthenticatedUser);
+    @ApiResponse({ status: 501, description: 'Use external auth microservice' })
+    login(@Request() _req: RequestWithUser, @Body() _loginDto: AuthLoginDto) {
+        throw new NotImplementedException('Local login is disabled. Authenticate via https://auth.legacy-group.tech');
     }
 
     @ApiBearerAuth()
@@ -39,12 +37,41 @@ export class AuthController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post('change-password')
-    @ApiOperation({ summary: 'Change user password' })
+    @ApiOperation({ summary: "Change user password (proxied to auth service)" })
     @ApiBody({ type: ChangePasswordDto })
     @ApiResponse({ status: 200, description: 'Password changed successfully' })
-    @ApiResponse({ status: 400, description: 'Incorrect current password' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async changePassword(@Request() req: RequestWithUser, @Body() changePasswordDto: ChangePasswordDto) {
-        return this.authService.changePassword(req.user.userId!, changePasswordDto);
+        const authHeader = (req.headers?.authorization as string) || '';
+        const authHost = process.env.AUTH_HOST || 'https://auth.legacy-group.tech';
+
+        try {
+            const res = await fetch(`${authHost}/auth/change-password`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    ...(authHeader ? { Authorization: authHeader } : {}),
+                },
+                body: JSON.stringify({
+                    current_password: changePasswordDto.currentPassword,
+                    new_password: changePasswordDto.newPassword,
+                }),
+            });
+
+            let data: any = null;
+            try { data = await res.json(); } catch (e) { data = null; }
+
+            if (!res.ok) {
+                const msg = data && data.message ? data.message : 'Auth service error';
+                // forward the upstream body when available so clients receive the same JSON
+                throw new HttpException(data ?? { message: msg }, res.status || HttpStatus.BAD_GATEWAY);
+            }
+
+            // return upstream JSON body as-is
+            return data;
+        } catch (err: any) {
+            if (err instanceof HttpException) throw err;
+            throw new HttpException('Unable to contact auth service', HttpStatus.SERVICE_UNAVAILABLE);
+        }
     }
 }

@@ -10,7 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import * as jsonwebtoken from 'jsonwebtoken';
+import * as jwksRsa from 'jwks-rsa';
 import { Server, Socket } from 'socket.io';
 import { ChatMediaType } from '../../prisma/generated/client.js';
 import { ChatService } from './chat.service.js';
@@ -40,12 +41,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     server!: Server;
 
     private readonly logger = new AppLogger(ChatGateway.name);
+    private readonly jwksClient: jwksRsa.JwksClient;
 
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
-        @Inject(JwtService) private readonly jwtService: JwtService,
         @Inject(ConfigService) private readonly configService: ConfigService
-    ) {}
+    ) {
+        this.jwksClient = new jwksRsa.JwksClient({
+            jwksUri:
+                this.configService.get<string>('AUTH_JWKS_URI') ||
+                'https://auth.legacy-group.tech/.well-known/jwks.json'
+        });
+    }
 
     afterInit(server: Server) {
         server.use((socket, next) => {
@@ -323,9 +330,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return;
             }
 
-            const payload = (await this.jwtService.verifyAsync(token, {
-                secret: this.configService.getOrThrow<string>('JWT_SECRET')
-            })) as unknown as JwtPayload;
+            const payload = await this.verifySocketToken(token);
             const user: SocketUser = {
                 userId: Number(payload.userId ?? payload.sub),
                 username: String(payload.username ?? ''),
@@ -349,6 +354,36 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             this.logger.warn('Socket authentication failed', { socketId: socket.id, reason: message });
             next(this.buildHandshakeError(401, 'Unauthorized'));
         }
+    }
+
+    private async verifySocketToken(token: string): Promise<JwtPayload> {
+        const decoded = jsonwebtoken.decode(token, { complete: true }) as
+            | { header?: { kid?: string } }
+            | null;
+        const kid = decoded?.header?.kid;
+
+        if (!kid) {
+            throw new Error('Missing token key id');
+        }
+
+        const signingKey = await this.jwksClient.getSigningKey(kid);
+        const publicKey = signingKey.getPublicKey();
+
+        return await new Promise<JwtPayload>((resolve, reject) => {
+            jsonwebtoken.verify(token, publicKey, { algorithms: ['ES256'] }, (err, payload) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                if (!payload || typeof payload === 'string') {
+                    reject(new Error('Invalid token payload'));
+                    return;
+                }
+
+                resolve(payload as JwtPayload);
+            });
+        });
     }
 
     private extractHandshakeToken(socket: Socket): string | null {

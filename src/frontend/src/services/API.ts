@@ -5,6 +5,7 @@ export const baseURL = import.meta.env.VITE_API_URL;
 export const uploadsBaseURL = import.meta.env.VITE_UPLOADS_URL || baseURL;
 export const socketBaseURL = import.meta.env.VITE_WS_URL || baseURL;
 export const socketPath = '/socket.io';
+export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
 import type { CreateUserDto, UpdateUserDto, User } from '../types/User';
 import type { AuthLoginDto, ChangePasswordDto } from '../types/Auth';
@@ -93,7 +94,8 @@ class API {
     // --- Auth ---
 
     async login(dto: AuthLoginDto): Promise<AxiosResponse<{ access_token: string }>> {
-        return this.client.post('/auth/login', dto);
+        // Authenticate against the external auth microservice and return its token
+        return axios.post(`${authBaseURL}/auth/login`, dto);
     }
 
     async getProfile(): Promise<AxiosResponse<User>> {

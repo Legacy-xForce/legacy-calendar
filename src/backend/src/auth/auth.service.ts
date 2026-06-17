@@ -1,5 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { BadRequestException, Injectable, NotFoundException, Inject, NotImplementedException } from '@nestjs/common';
 import { User as UserModel } from '../../prisma/generated/client.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
@@ -12,10 +11,7 @@ export type AuthenticatedUser = Omit<UserModel, 'password'>;
 export class AuthService {
     private readonly logger = new AppLogger(AuthService.name);
 
-    constructor(
-        @Inject(UsersService) private readonly usersService: UsersService,
-        @Inject(JwtService) private readonly jwtService: JwtService
-    ) {}
+    constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
 
     async validateUser(username: string, pass: string): Promise<AuthenticatedUser | null> {
         this.logger.trace('Validating user credentials', { username });
@@ -30,30 +26,14 @@ export class AuthService {
         return null;
     }
 
-    login(user: AuthenticatedUser) {
-        this.logger.info('Issuing JWT token', { userId: user.id, username: user.username, isAdmin: user.isAdmin });
-        const payload = { username: user.username, sub: user.id, isAdmin: user.isAdmin };
-        return {
-            access_token: this.jwtService.sign(payload)
-        };
+    // Token issuance is handled by the external auth microservice.
+    // Keep this method for compatibility but mark as not implemented.
+    login(_user: AuthenticatedUser) {
+        throw new NotImplementedException('Local token issuance disabled. Use the auth microservice at AUTH_HOST');
     }
 
-    async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<UserDto> {
-        this.logger.info('Changing password', { userId });
-        const user = await this.usersService.findOneWithPassword(userId);
-        if (!user) {
-            this.logger.warn('Password change failed: user not found', { userId });
-            throw new NotFoundException('User not found');
-        }
-
-        const isPasswordValid = await Bun.password.verify(changePasswordDto.currentPassword, user.password);
-        if (!isPasswordValid) {
-            this.logger.warn('Password change rejected: current password invalid', { userId });
-            throw new BadRequestException('Current password is incorrect');
-        }
-
-        const updatedUser = await this.usersService.update(userId, { password: changePasswordDto.newPassword });
-        this.logger.info('Password changed successfully', { userId });
-        return updatedUser;
+    // Password changes are not supported in this service while auth is delegated.
+    async changePassword(_userId: number, _changePasswordDto: ChangePasswordDto): Promise<UserDto> {
+        throw new NotImplementedException('Password changes are handled by the auth microservice');
     }
 }
