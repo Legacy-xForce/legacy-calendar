@@ -12,8 +12,7 @@ datasource db {
 model User {
   id                         Int              @id @default(autoincrement())
   username                   String           @unique
-  password                   String
-  profilePicture             String?
+  authId                     String?          @unique
   invitations                Attendance[]
   hostedEvents               Event[]          @relation("EventHost")
   fcmTokens                  FcmToken[]

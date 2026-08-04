@@ -6,12 +6,14 @@ import { InviteStatus, ChatMediaType } from '../../prisma/generated/client.js';
 import * as path from 'path';
 import { AppLogger } from '../logging/app-logger.js';
 import { NotificationCode } from '../notifications/notification-codes.js';
+import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 
 export type ChatMessagePayload = {
     id: number;
     eventId: number;
     authorId: number;
     authorUsername: string;
+    authorProfilePictureUrl: string | null;
     text: string | null;
     mediaUrl: string | null;
     mediaType: ChatMediaType | null;
@@ -366,6 +368,7 @@ export class ChatService {
             eventId: message.eventId,
             authorId: message.authorId,
             authorUsername: message.author.username,
+            authorProfilePictureUrl: buildProfilePictureUrl(message.author.authId),
             text: message.text,
             mediaUrl: message.mediaUrl,
             mediaType: message.mediaType,

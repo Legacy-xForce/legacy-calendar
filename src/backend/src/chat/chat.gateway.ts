@@ -17,6 +17,7 @@ import { ChatMediaType } from '../../prisma/generated/client.js';
 import { ChatService } from './chat.service.js';
 import { HttpException } from '@nestjs/common';
 import { AppLogger } from '../logging/app-logger.js';
+import { UsersService } from '../users/users.service.js';
 
 type SocketUser = {
     userId: number;
@@ -25,10 +26,9 @@ type SocketUser = {
 };
 
 type JwtPayload = {
-    userId?: number;
-    sub?: string;
-    username?: string;
-    isAdmin?: boolean;
+    sub: string;
+    username: string;
+    role?: 'admin' | 'user';
 };
 
 @WebSocketGateway({
@@ -45,7 +45,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
-        @Inject(ConfigService) private readonly configService: ConfigService
+        @Inject(ConfigService) private readonly configService: ConfigService,
+        @Inject(UsersService) private readonly usersService: UsersService
     ) {
         this.jwksClient = new jwksRsa.JwksClient({
             jwksUri:
@@ -331,16 +332,28 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             }
 
             const payload = await this.verifySocketToken(token);
-            const user: SocketUser = {
-                userId: Number(payload.userId ?? payload.sub),
-                username: String(payload.username ?? ''),
-                isAdmin: Boolean(payload.isAdmin)
-            };
-
-            if (!Number.isFinite(user.userId) || !user.username) {
+            if (!payload.username) {
                 next(this.buildHandshakeError(401, 'Unauthorized'));
                 return;
             }
+
+            const isAdmin = payload.role === 'admin';
+            const localUser = await this.usersService.syncFromAuth({
+                authId: payload.sub,
+                username: payload.username,
+                isAdmin
+            });
+
+            if (!localUser) {
+                next(this.buildHandshakeError(401, 'Unauthorized'));
+                return;
+            }
+
+            const user: SocketUser = {
+                userId: localUser.id,
+                username: localUser.username,
+                isAdmin
+            };
 
             (socket.data as { user?: SocketUser }).user = user;
             this.logger.debug('Socket authenticated', {

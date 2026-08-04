@@ -7,10 +7,11 @@ import { EventsModule } from '../events/events.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { UsersModule } from '../users/users.module.js';
 import { MediaProcessorService } from './media-processor.service.js';
 
 @Module({
-    imports: [AuthModule, EventsModule, NotificationsModule, PrismaModule],
+    imports: [AuthModule, UsersModule, EventsModule, NotificationsModule, PrismaModule],
     providers: [ChatGateway, ChatService, ChatRepository, MediaProcessorService],
     controllers: [ChatController]
 })

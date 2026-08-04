@@ -1,13 +1,14 @@
 import { EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
+import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 import { EventWithRelations } from './events.repository.js';
 
-function mapUserDto(user: { id: number; username: string; profilePicture: string | null; isAdmin: boolean }): UserDto {
+function mapUserDto(user: { id: number; username: string; isAdmin: boolean; authId: string | null }): UserDto {
     return {
         id: user.id,
         username: user.username,
-        profilePicture: user.profilePicture,
-        isAdmin: user.isAdmin
+        isAdmin: user.isAdmin,
+        profilePictureUrl: buildProfilePictureUrl(user.authId)
     };
 }
 

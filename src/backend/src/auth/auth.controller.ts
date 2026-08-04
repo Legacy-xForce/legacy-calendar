@@ -1,9 +1,6 @@
-import { Body, Controller, Post, Request, UseGuards, Inject, HttpException, HttpStatus, NotImplementedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthService, AuthenticatedUser } from './auth.service.js';
+import { Body, Controller, Post, Request, UseGuards, Inject, HttpException, HttpStatus } from '@nestjs/common';
 import { UsersService } from '../users/users.service.js';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { AuthLoginDto } from './dto/auth-login.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { type RequestWithUser } from './interfaces/request-with-user.interface.js';
@@ -11,18 +8,7 @@ import { type RequestWithUser } from './interfaces/request-with-user.interface.j
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-    constructor(
-        @Inject(AuthService) private authService: AuthService,
-        @Inject(UsersService) private usersService: UsersService
-    ) {}
-
-    @Post('login')
-    @ApiOperation({ summary: 'User login (disabled here)' })
-    @ApiBody({ type: AuthLoginDto })
-    @ApiResponse({ status: 501, description: 'Use external auth microservice' })
-    login(@Request() _req: RequestWithUser, @Body() _loginDto: AuthLoginDto) {
-        throw new NotImplementedException('Local login is disabled. Authenticate via https://auth.legacy-group.tech');
-    }
+    constructor(@Inject(UsersService) private usersService: UsersService) {}
 
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)

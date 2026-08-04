@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '../../prisma/generated/client.js';
 
 export const CHAT_MESSAGE_INCLUDE = {
-    author: { select: { id: true, username: true } },
+    author: { select: { id: true, username: true, authId: true } },
     reactions: true
 } satisfies Prisma.ChatMessageInclude;
 

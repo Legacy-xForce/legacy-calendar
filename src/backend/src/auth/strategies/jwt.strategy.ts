@@ -25,25 +25,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: { sub: number | string; username?: string; isAdmin?: boolean; picture?: string }) {
-        const userId = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) || undefined : payload.sub;
+    async validate(payload: { sub: string; username: string; role?: 'admin' | 'user' }) {
+        const isAdmin = payload.role === 'admin';
 
-        // Ensure the user exists in our local DB. If not, create a minimal user record.
-        const username = payload.username ?? `user_${payload.sub}`;
-        let user = await this.usersService.findOneByUsername(username);
-        if (!user) {
-            // create a placeholder password so the record can be migrated later
-            const placeholderPassword = Math.random().toString(36).slice(2, 12);
-            const createDto = { username, password: placeholderPassword, profilePicture: payload.picture ?? null } as any;
-            try {
-                const created = await this.usersService.create(createDto);
-                user = await this.usersService.findOneWithPassword(created.id as number);
-            } catch {
-                // Ignore creation errors and attempt to fetch again
-                user = await this.usersService.findOneByUsername(username);
-            }
-        }
+        const user = await this.usersService.syncFromAuth({
+            authId: payload.sub,
+            username: payload.username,
+            isAdmin
+        });
 
-        return { userId: user?.id ?? userId, username: user?.username ?? username, isAdmin: payload.isAdmin ?? false };
+        return { userId: user?.id, username: user?.username ?? payload.username, isAdmin };
     }
 }
