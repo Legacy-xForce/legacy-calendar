@@ -106,7 +106,7 @@ export function useEventView(eventRef: Ref<Event | null>) {
             return {
                 ...participant,
                 username: participant.username || user?.username || `User ${participant.id}`,
-                profilePicture: participant.profilePicture || user?.profilePicture
+                profilePictureUrl: participant.profilePictureUrl || user?.profilePictureUrl
             };
         });
     });

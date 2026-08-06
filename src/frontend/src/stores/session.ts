@@ -128,42 +128,6 @@ export const useSessionStore = defineStore('session', () => {
         }
     }
 
-    async function uploadProfilePicture(file: File) {
-        try {
-            logger.info('Uploading profile picture', { fileName: file.name, size: file.size });
-            const response = await api.uploadProfilePicture(file);
-            if (session.value.user) {
-                session.value.user = {
-                    ...session.value.user,
-                    profilePicture: `${response.data.profilePicture}?t=${Date.now()}`
-                };
-            }
-            logger.info('Profile picture uploaded');
-            return true;
-        } catch (error) {
-            logger.error('Failed to upload profile picture', error);
-            throw error;
-        }
-    }
-
-    async function removeProfilePicture() {
-        try {
-            logger.info('Removing profile picture');
-            await api.removeProfilePicture();
-            if (session.value.user) {
-                session.value.user = {
-                    ...session.value.user,
-                    profilePicture: undefined
-                };
-            }
-            logger.info('Profile picture removed');
-            return true;
-        } catch (error) {
-            logger.error('Failed to remove profile picture', error);
-            throw error;
-        }
-    }
-
     return {
         session,
         loading,
@@ -176,8 +140,6 @@ export const useSessionStore = defineStore('session', () => {
         logout,
         clearError,
         updateProfile,
-        changePassword,
-        uploadProfilePicture,
-        removeProfilePicture
+        changePassword
     };
 });

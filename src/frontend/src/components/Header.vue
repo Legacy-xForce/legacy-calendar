@@ -92,7 +92,7 @@ const items = ref([
                     @click="router.push({ name: 'profile' })"
                 >
                     <UserAvatar
-                        :profilePicture="currentUser?.profilePicture"
+                        :profilePictureUrl="currentUser?.profilePictureUrl"
                         :username="currentUser?.username"
                         class="transition-all hover:brightness-110"
                     />

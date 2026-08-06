@@ -21,7 +21,7 @@ defineProps({
         <UserAvatar
             v-for="p in participants.slice(0, showLimit)"
             :key="p.id"
-            :profile-picture="p.profilePicture"
+            :profile-picture-url="p.profilePictureUrl"
             :username="p.username"
         />
         <Avatar v-if="participants.length > showLimit" :label="`+${participants.length - showLimit}`" shape="circle" />

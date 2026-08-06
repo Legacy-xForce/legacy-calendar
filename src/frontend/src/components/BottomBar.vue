@@ -49,7 +49,7 @@ const stopImpersonating = () => {
                 :class="route.name === 'profile' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'"
             >
                 <UserAvatar
-                    :profilePicture="currentUser?.profilePicture"
+                    :profilePictureUrl="currentUser?.profilePictureUrl"
                     :username="currentUser?.username"
                     class="size-6! text-[10px]"
                 />

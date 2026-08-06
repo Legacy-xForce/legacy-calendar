@@ -290,7 +290,7 @@ const onSave = () => {
                     <template #option="slotProps">
                         <div class="flex items-center gap-2">
                             <UserAvatar
-                                :profilePicture="slotProps.option.profilePicture"
+                                :profilePictureUrl="slotProps.option.profilePictureUrl"
                                 :username="slotProps.option.username"
                             />
                             <span>{{ slotProps.option.username }}</span>
@@ -299,7 +299,7 @@ const onSave = () => {
                     <template #chip="slotProps">
                         <div class="flex items-center gap-1 px-1">
                             <UserAvatar
-                                :profilePicture="userMap.get(slotProps.value)?.profilePicture"
+                                :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
                                 :username="userMap.get(slotProps.value)?.username"
                                 class="h-4! w-4! text-[10px]!"
                             />

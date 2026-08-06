@@ -4,7 +4,6 @@ import { clear } from 'idb-keyval';
 import { useSessionStore } from '../stores/session';
 import Button from 'primevue/button';
 import Password from 'primevue/password';
-import FileUpload from 'primevue/fileupload';
 import UserAvatar from '../components/UserAvatar.vue';
 import Panel from 'primevue/panel';
 import ToggleSwitch from 'primevue/toggleswitch';
@@ -59,13 +58,6 @@ const handleToggleSetting = async () => {
     }
 };
 
-// Profile Picture State
-const fileUpload = ref<any>(null);
-
-const triggerUpload = () => {
-    fileUpload.value?.choose();
-};
-
 const handlePasswordChange = async () => {
     if (newPassword.value !== confirmPassword.value) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Passwords do not match', life: 3000 });
@@ -90,46 +82,6 @@ const handlePasswordChange = async () => {
     } finally {
         passwordLoading.value = false;
     }
-};
-
-const onUpload = async (event: any) => {
-    try {
-        const file = event.files[0];
-        await sessionStore.uploadProfilePicture(file);
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Profile picture updated', life: 3000 });
-    } catch {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to upload profile picture', life: 3000 });
-    }
-};
-
-const handleDeletePicture = () => {
-    confirm.require({
-        message: 'Are you sure you want to remove your profile picture?',
-        header: 'Confirm Removal',
-        icon: 'pi pi-exclamation-triangle',
-        rejectProps: {
-            label: 'Cancel',
-            severity: 'secondary',
-            text: true
-        },
-        acceptProps: {
-            label: 'Remove',
-            severity: 'danger'
-        },
-        accept: async () => {
-            try {
-                await sessionStore.removeProfilePicture();
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Profile picture removed', life: 3000 });
-            } catch {
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to remove profile picture',
-                    life: 3000
-                });
-            }
-        }
-    });
 };
 
 const handleClearCache = () => {
@@ -185,58 +137,15 @@ const handleClearCache = () => {
             <h1 class="mb-4 text-4xl font-black tracking-tight">User Profile</h1>
 
             <div class="relative mt-4 h-[100px] w-[100px]">
-                <div
-                    class="group relative h-full w-full cursor-pointer transition-transform duration-300 lg:hover:scale-105"
-                    @click="triggerUpload"
-                >
-                    <UserAvatar
-                        :profilePicture="currentUser?.profilePicture"
-                        :username="currentUser?.username"
-                        class="h-full! w-full! border-4 border-zinc-800 text-3xl shadow-2xl"
-                    />
-                    <div
-                        class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    >
-                        <div class="flex flex-col items-center gap-1 p-2 text-center">
-                            <i class="pi pi-camera text-xl text-white"></i>
-                            <span class="text-[10px] leading-tight font-bold text-white uppercase">
-                                Change<br />Picture
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Remove Profile Picture Button -->
-                <Button
-                    v-if="currentUser?.profilePicture"
-                    icon="pi pi-times"
-                    severity="danger"
-                    @click.stop="handleDeletePicture"
-                    v-tooltip.right="'Remove Picture'"
-                    :pt="{
-                        root: {
-                            class: 'absolute! -top-2! -right-2! z-30! size-7! p-0! rounded-full! transition-all hover:scale-110 active:scale-95'
-                        },
-                        icon: { class: 'text-[10px]! font-bold' }
-                    }"
+                <UserAvatar
+                    :profilePictureUrl="currentUser?.profilePictureUrl"
+                    :username="currentUser?.username"
+                    class="h-full! w-full! border-4 border-zinc-800 text-3xl shadow-2xl"
                 />
             </div>
 
             <div class="mt-6 text-center">
                 <h2 class="text-2xl font-bold">{{ currentUser?.username }}</h2>
-                <div class="mt-2 mb-2 flex flex-col gap-2">
-                    <FileUpload
-                        ref="fileUpload"
-                        mode="basic"
-                        name="file"
-                        :customUpload="true"
-                        @uploader="onUpload"
-                        accept="image/*"
-                        :maxFileSize="10000000"
-                        :auto="true"
-                        style="display: none"
-                    />
-                </div>
             </div>
         </div>
 

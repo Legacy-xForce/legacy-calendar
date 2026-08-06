@@ -71,18 +71,6 @@ export const useUsersStore = defineStore('users', () => {
         await fetchUsers(true);
     }
 
-    async function uploadProfilePicture(file: File, userId: number) {
-        logger.info('Uploading profile picture', { userId, fileName: file.name });
-        await api.uploadProfilePicture(file, userId);
-        await fetchUsers(true);
-    }
-
-    async function removeProfilePicture(userId: number) {
-        logger.info('Removing profile picture', { userId });
-        await api.removeProfilePicture(userId);
-        await fetchUsers(true);
-    }
-
     function clearCache() {
         users.value = [];
         lastFetched.value = null;
@@ -96,8 +84,6 @@ export const useUsersStore = defineStore('users', () => {
         createUser,
         updateUser,
         removeUser,
-        uploadProfilePicture,
-        removeProfilePicture,
         clearCache
     };
 });

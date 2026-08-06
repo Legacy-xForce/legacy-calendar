@@ -33,7 +33,7 @@ export type TransportMode = (typeof TRANSPORT_MODES)[number];
 export interface EventPersonSummary {
     id: number;
     username: string;
-    profilePicture?: string;
+    profilePictureUrl?: string | null;
 }
 
 export interface EventParticipant extends EventPersonSummary {

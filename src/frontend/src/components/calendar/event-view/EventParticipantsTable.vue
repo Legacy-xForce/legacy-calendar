@@ -58,7 +58,7 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                             <template #body="slotProps">
                                 <div class="flex items-center gap-2">
                                     <UserAvatar
-                                        :profilePicture="slotProps.data.profilePicture"
+                                        :profilePictureUrl="slotProps.data.profilePictureUrl"
                                         :username="slotProps.data.username"
                                         class="h-8! w-8! lg:h-10! lg:w-10!"
                                     />

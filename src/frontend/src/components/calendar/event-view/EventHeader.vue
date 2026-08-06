@@ -98,7 +98,7 @@ const emit = defineEmits<{
         </div>
 
         <div v-if="eventHost" class="flex items-center gap-2">
-            <UserAvatar :profilePicture="eventHost.profilePicture" :username="eventHost.username" />
+            <UserAvatar :profilePictureUrl="eventHost.profilePictureUrl" :username="eventHost.username" />
             <span class="text-surface-600 dark:text-surface-400">
                 Hosted by
                 <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ eventHost.username }}</span>

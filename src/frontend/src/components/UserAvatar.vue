@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import Avatar from 'primevue/avatar';
-import { uploadsBaseURL } from '../services/API';
 
 defineProps<{
-    profilePicture?: string;
+    profilePictureUrl?: string | null;
     username?: string;
     size?: 'normal' | 'large' | 'xlarge';
     shape?: 'circle' | 'square';
@@ -12,8 +11,8 @@ defineProps<{
 
 <template>
     <Avatar
-        :image="profilePicture ? `${uploadsBaseURL}${profilePicture}` : undefined"
-        :label="!profilePicture ? username?.charAt(0)?.toUpperCase() || 'U' : undefined"
+        :image="profilePictureUrl || undefined"
+        :label="!profilePictureUrl ? username?.charAt(0)?.toUpperCase() || 'U' : undefined"
         :shape="shape || 'circle'"
         :size="size"
         class="bg-primary text-primary-contrast border border-white/10"

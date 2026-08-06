@@ -117,7 +117,7 @@ const canAssignToDriver = (driverId: number) => {
             >
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <UserAvatar :profilePicture="driver.profilePicture" :username="driver.username" />
+                        <UserAvatar :profilePictureUrl="driver.profilePictureUrl" :username="driver.username" />
                         <div class="flex flex-col">
                             <span class="text-sm font-bold">{{ driver.username }}</span>
                             <div class="flex items-center gap-2 text-[10px] font-bold uppercase">
@@ -151,7 +151,7 @@ const canAssignToDriver = (driverId: number) => {
                         class="group flex items-center gap-2 rounded-lg border border-zinc-300/30 bg-zinc-200/50 px-2 py-1 dark:border-zinc-700/30 dark:bg-zinc-800/50"
                     >
                         <UserAvatar
-                            :profilePicture="passenger.profilePicture"
+                            :profilePictureUrl="passenger.profilePictureUrl"
                             :username="passenger.username"
                             class="h-4! w-4!"
                         />
@@ -217,7 +217,7 @@ const canAssignToDriver = (driverId: number) => {
                 >
                     <div class="flex items-center gap-3">
                         <UserAvatar
-                            :profilePicture="passenger.profilePicture"
+                            :profilePictureUrl="passenger.profilePictureUrl"
                             :username="passenger.username"
                             :class="{ 'ring-2 ring-emerald-500': selectedPassengerIds.includes(passenger.id) }"
                         />
@@ -275,7 +275,7 @@ const canAssignToDriver = (driverId: number) => {
                     class="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800/50 dark:bg-zinc-900/30"
                 >
                     <div class="flex items-center gap-3">
-                        <UserAvatar :profilePicture="passenger.profilePicture" :username="passenger.username" />
+                        <UserAvatar :profilePictureUrl="passenger.profilePictureUrl" :username="passenger.username" />
                         <div class="flex flex-col">
                             <div class="text-sm font-medium">{{ passenger.username }}</div>
                         </div>

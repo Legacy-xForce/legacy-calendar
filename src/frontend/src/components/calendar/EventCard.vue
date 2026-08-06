@@ -41,7 +41,7 @@ const { cardRef, backgroundStyle } = useMagicCard({
             <template #icon>
                 <div class="z-10 ml-auto hidden shrink-0 items-center gap-1 md:flex">
                     <UserAvatar
-                        :profilePicture="event.host?.profilePicture"
+                        :profilePictureUrl="event.host?.profilePictureUrl"
                         :username="event.host?.username"
                         class="bg-surface-0/50 dark:bg-surface-900/50 h-6! w-6! text-[10px]! shadow-sm backdrop-blur-sm"
                     />

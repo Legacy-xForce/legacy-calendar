@@ -22,7 +22,7 @@ const toast = useToast();
 const confirm = useConfirm();
 const usersStore = useUsersStore();
 const { users, loading } = storeToRefs(usersStore);
-const { fetchUsers, createUser, updateUser, removeUser, uploadProfilePicture, removeProfilePicture } = usersStore;
+const { fetchUsers, createUser, updateUser, removeUser } = usersStore;
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -36,71 +36,24 @@ const userForm = ref<CreateUserDto>({
     isAdmin: false
 });
 const editingUserId = ref<number | null>(null);
-const existingPfp = ref<string | null>(null);
-
-const fileInput = ref<HTMLInputElement | null>(null);
-const selectedFile = ref<File | null>(null);
-const previewUrl = ref<string | null>(null);
-const shouldRemovePfp = ref(false);
-
-const triggerFileInput = () => {
-    fileInput.value?.click();
-};
-
-const onFileSelect = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        const file = target.files[0];
-
-        if (!file.type.startsWith('image/')) {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'Please select an image file',
-                life: 3000
-            });
-            return;
-        }
-
-        selectedFile.value = file;
-        shouldRemovePfp.value = false;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewUrl.value = e.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-    }
-};
-
-const removePicture = () => {
-    selectedFile.value = null;
-    previewUrl.value = null;
-    shouldRemovePfp.value = true;
-};
+const editingUser = ref<User | null>(null);
 
 const openAddUser = () => {
     isEditing.value = false;
+    editingUser.value = null;
     userForm.value = { username: '', password: '', isAdmin: false };
-    existingPfp.value = null;
-    selectedFile.value = null;
-    previewUrl.value = null;
-    shouldRemovePfp.value = false;
     showUserDialog.value = true;
 };
 
 const editUser = (user: User) => {
     isEditing.value = true;
     editingUserId.value = user.id;
-    existingPfp.value = user.profilePicture ?? null;
+    editingUser.value = user;
     userForm.value = {
         username: user.username,
         password: '',
         isAdmin: user.isAdmin
     };
-    selectedFile.value = null;
-    previewUrl.value = null;
-    shouldRemovePfp.value = false;
     showUserDialog.value = true;
 };
 
@@ -161,17 +114,7 @@ const saveUser = async () => {
             }
             await updateUser(userId, updateDto);
         } else {
-            const newUser = await createUser(userForm.value);
-            userId = newUser.id;
-        }
-
-        // Handle profile picture
-        if (userId) {
-            if (shouldRemovePfp.value) {
-                await removeProfilePicture(userId);
-            } else if (selectedFile.value) {
-                await uploadProfilePicture(selectedFile.value, userId);
-            }
+            await createUser(userForm.value);
         }
 
         toast.add({
@@ -242,7 +185,7 @@ onMounted(() => {
                         <template #body="slotProps">
                             <div class="flex items-center gap-3">
                                 <UserAvatar
-                                    :profilePicture="slotProps.data.profilePicture"
+                                    :profilePictureUrl="slotProps.data.profilePictureUrl"
                                     :username="slotProps.data.username"
                                     size="large"
                                 />
@@ -312,40 +255,12 @@ onMounted(() => {
         >
             <div class="flex flex-col gap-4 pt-4">
                 <div class="flex flex-col items-center gap-4 py-2">
-                    <div class="group relative">
-                        <UserAvatar
-                            :profilePicture="previewUrl || (existingPfp ? existingPfp : undefined)"
-                            :username="userForm.username"
-                            size="xlarge"
-                            class="h-24! w-24! border-2 border-zinc-800 shadow-lg"
-                        />
-                        <div
-                            class="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
-                            @click="triggerFileInput"
-                        >
-                            <i class="pi pi-camera text-2xl text-white"></i>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <Button
-                            v-if="previewUrl || existingPfp"
-                            icon="pi pi-trash"
-                            severity="danger"
-                            text
-                            rounded
-                            @click="removePicture"
-                            v-tooltip.bottom="'Remove Picture'"
-                            class="h-10! w-10!"
-                        />
-                        <Button
-                            :label="previewUrl || existingPfp ? 'Change' : 'Upload Picture'"
-                            :icon="previewUrl || existingPfp ? 'pi pi-pencil' : 'pi pi-upload'"
-                            text
-                            @click="triggerFileInput"
-                            class="rounded-xl! text-sm!"
-                        />
-                    </div>
-                    <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="onFileSelect" />
+                    <UserAvatar
+                        :profilePictureUrl="editingUser?.profilePictureUrl"
+                        :username="userForm.username"
+                        size="xlarge"
+                        class="h-24! w-24! border-2 border-zinc-800 shadow-lg"
+                    />
                 </div>
 
                 <div class="flex flex-col gap-2">

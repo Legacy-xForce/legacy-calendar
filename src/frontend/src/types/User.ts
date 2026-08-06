@@ -13,6 +13,6 @@ export interface UpdateUserDto {
 export interface User {
     id: number;
     username: string;
-    profilePicture?: string;
+    profilePictureUrl?: string | null;
     isAdmin: boolean;
 }
