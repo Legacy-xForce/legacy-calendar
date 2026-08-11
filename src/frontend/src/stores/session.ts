@@ -27,10 +27,13 @@ export const useSessionStore = defineStore('session', () => {
         try {
             const loginResponse = await api.login(credentials);
             const token = loginResponse.data.access_token;
+            const refreshToken = loginResponse.data.refresh_token;
 
-            // Store token
+            // Store tokens
             localStorage.setItem('token', token);
+            localStorage.setItem('refresh_token', refreshToken);
             session.value.token = token;
+            session.value.refreshToken = refreshToken;
 
             // Fetch user profile
             const profileResponse = await api.getProfile();
@@ -49,6 +52,7 @@ export const useSessionStore = defineStore('session', () => {
                 message: err.response?.data?.message ?? err.message
             });
             localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
             session.value = {} as Session;
             return false;
         } finally {
@@ -69,16 +73,18 @@ export const useSessionStore = defineStore('session', () => {
             session.value.token = token;
             const response = await api.getProfile();
             session.value = {
-                token,
+                token: localStorage.getItem('token')!,
+                refreshToken: localStorage.getItem('refresh_token') ?? undefined,
                 user: response.data
             };
             logger.info('Session restored', { userId: response.data.id, username: response.data.username });
             return true;
         } catch {
-            // Token is invalid or expired
+            // Token (and refresh token, if any) are invalid or expired
             error.value = 'Session expired. Please log in again.';
             logger.warn('Stored session expired');
             localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
             session.value = {} as Session;
             return false;
         } finally {
@@ -100,6 +106,7 @@ export const useSessionStore = defineStore('session', () => {
         }
         session.value = {} as Session;
         localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
         logger.info('Logged out');
     }
 

@@ -8,7 +8,7 @@ export const socketPath = '/socket.io';
 export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
 import type { CreateUserDto, UpdateUserDto, User } from '../types/User';
-import type { AuthLoginDto, ChangePasswordDto } from '../types/Auth';
+import type { AuthLoginDto, AuthTokens, ChangePasswordDto } from '../types/Auth';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
 import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat';
@@ -20,6 +20,7 @@ const logger = createLogger('API');
 
 class API {
     private client: AxiosInstance;
+    private refreshPromise: Promise<string> | null = null;
 
     constructor() {
         this.client = axios.create({
@@ -68,7 +69,7 @@ class API {
                 });
                 return response;
             },
-            (error) => {
+            async (error) => {
                 logger.warn('Request failed', {
                     method: error?.config?.method?.toUpperCase() ?? 'UNKNOWN',
                     url: error?.config?.url,
@@ -76,25 +77,74 @@ class API {
                     message: error?.response?.data?.message ?? error.message
                 });
 
-                if (error.response && error.response.status === 401) {
-                    // Session is invalid or expired
-                    localStorage.removeItem('token');
-                    localStorage.setItem('session_expired', 'true');
+                const originalRequest = error.config;
+                const refreshToken = localStorage.getItem('refresh_token');
 
-                    // Force redirect to login if not already there
-                    if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
-                        window.location.href = '/';
+                if (
+                    error.response &&
+                    error.response.status === 401 &&
+                    refreshToken &&
+                    originalRequest &&
+                    !originalRequest._retry
+                ) {
+                    originalRequest._retry = true;
+                    try {
+                        const newToken = await this.refreshAccessToken(refreshToken);
+                        originalRequest.headers = originalRequest.headers || {};
+                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        return this.client.request(originalRequest);
+                    } catch (refreshError) {
+                        logger.warn('Token refresh failed, clearing session', {
+                            message: (refreshError as any)?.response?.data?.message ?? (refreshError as any)?.message
+                        });
+                        this.clearSession();
+                        return Promise.reject(error);
                     }
+                }
+
+                if (error.response && error.response.status === 401) {
+                    // Session is invalid or expired, and no refresh was possible
+                    this.clearSession();
                 }
                 return Promise.reject(error);
             }
         );
     }
 
+    private clearSession() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        localStorage.setItem('session_expired', 'true');
+
+        // Force redirect to login if not already there
+        if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
+            window.location.href = '/';
+        }
+    }
+
+    private async refreshAccessToken(refreshToken: string): Promise<string> {
+        if (!this.refreshPromise) {
+            this.refreshPromise = axios
+                .post<AuthTokens>(`${authBaseURL}/auth/refresh`, { refresh_token: refreshToken })
+                .then((res) => {
+                    localStorage.setItem('token', res.data.access_token);
+                    if (res.data.refresh_token) {
+                        localStorage.setItem('refresh_token', res.data.refresh_token);
+                    }
+                    logger.info('Access token refreshed');
+                    return res.data.access_token;
+                })
+                .finally(() => {
+                    this.refreshPromise = null;
+                });
+        }
+        return this.refreshPromise;
+    }
+
     // --- Auth ---
 
-    async login(dto: AuthLoginDto): Promise<AxiosResponse<{ access_token: string }>> {
-        // Authenticate against the external auth microservice and return its token
+    async login(dto: AuthLoginDto): Promise<AxiosResponse<AuthTokens>> {
+        // Authenticate against the external auth microservice and return its tokens
         return axios.post(`${authBaseURL}/auth/login`, dto);
     }
 
