@@ -13,6 +13,7 @@ import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
 import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat';
 import type { AuditLogEntry } from '../types/AuditLog';
+import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
 
 // --- API Class ---
 
@@ -248,6 +249,24 @@ class API {
         return this.client.get(`/events/${eventId}/audit-log`, {
             timeout: 30000
         });
+    }
+
+    // --- Guest Invites ---
+
+    async createGuestInvite(eventId: number): Promise<AxiosResponse<CreateGuestInviteResponse>> {
+        return this.client.post(`/events/${eventId}/guest-invites`);
+    }
+
+    async getGuestInvite(token: string): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.get(`/guest-invites/${token}`);
+    }
+
+    async updateGuestInvite(token: string, dto: GuestParticipateDto): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.patch(`/guest-invites/${token}`, dto);
+    }
+
+    async leaveGuestInvite(token: string): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.delete(`/guest-invites/${token}`);
     }
 
     // --- Chat ---

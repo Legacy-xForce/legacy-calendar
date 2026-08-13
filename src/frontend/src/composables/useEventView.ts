@@ -83,12 +83,22 @@ export function useChatAccess(eventRef: Ref<Event | null>) {
     };
 }
 
-export function useEventView(eventRef: Ref<Event | null>) {
+export interface UseEventViewOptions {
+    // When set, used instead of the authenticated session's user - lets a guest
+    // (no session, no JWT) reuse this composable and the components built on it.
+    currentUser?: Ref<{ id: number; username: string; isAdmin: boolean } | null | undefined>;
+    // Guests have no JWT, so chat/audit-log access checks and the full users
+    // list (both JWT-gated endpoints) must be skipped rather than attempted.
+    guestMode?: boolean;
+}
+
+export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewOptions = {}) {
+    const isGuestMode = options.guestMode ?? false;
     const sessionStore = useSessionStore();
     const usersStore = useUsersStore();
     const { users: allUsers } = storeToRefs(usersStore);
 
-    const currentUser = computed(() => sessionStore.currentUser);
+    const currentUser = options.currentUser ?? computed(() => sessionStore.currentUser);
 
     const eventHost = computed(() => {
         const event = eventRef.value;
@@ -143,8 +153,10 @@ export function useEventView(eventRef: Ref<Event | null>) {
         });
     });
 
-    const { canAccessChat } = useChatAccess(eventRef);
-    const canAccessAuditLog = computed(() => hasLocalAuditLogAccess(eventRef.value, currentUser.value?.id));
+    const { canAccessChat } = isGuestMode ? { canAccessChat: ref(false) } : useChatAccess(eventRef);
+    const canAccessAuditLog = computed(
+        () => !isGuestMode && hasLocalAuditLogAccess(eventRef.value, currentUser.value?.id)
+    );
 
     const availableFeatureIds = computed(() => selectedFeaturesFromEvent(eventRef.value));
 
@@ -276,6 +288,6 @@ export function useEventView(eventRef: Ref<Event | null>) {
         openNavigation,
 
         // Actions
-        fetchUsers: () => usersStore.fetchUsers()
+        fetchUsers: () => (isGuestMode ? Promise.resolve() : usersStore.fetchUsers())
     };
 }

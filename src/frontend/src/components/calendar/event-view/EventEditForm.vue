@@ -12,6 +12,7 @@ import { VISIBILITY_OPTIONS } from '../../../constants/visibility';
 import UserAvatar from '../../UserAvatar.vue';
 import FeatureBudgetForm from '../FeatureBudgetForm.vue';
 import EventColorSelector from '../EventColorSelector.vue';
+import GuestInviteDialog from '../GuestInviteDialog.vue';
 import { DEFAULT_COLOR } from '../../../constants/colors';
 import {
     createNullFeatureRecord,
@@ -42,6 +43,7 @@ const eventVisibility = ref('open');
 const selectedFeatures = ref<EventFeature[]>([]);
 const featurePrices = ref<Record<EventFeature, number | null>>(createNullFeatureRecord());
 const selectedParticipants = ref<number[]>([]);
+const showGuestInviteDialog = ref(false);
 
 const eventColor = ref(DEFAULT_COLOR);
 const startDateOnly = ref<Date | null>(null);
@@ -257,6 +259,15 @@ defineExpose({
                             </div>
                         </template>
                     </MultiSelect>
+                    <Button
+                        label="Invite Guest"
+                        icon="pi pi-user-plus"
+                        severity="secondary"
+                        outlined
+                        size="small"
+                        class="mt-1 self-start rounded-xl!"
+                        @click="showGuestInviteDialog = true"
+                    />
                 </div>
 
                 <div class="flex flex-col">
@@ -301,6 +312,8 @@ defineExpose({
             </div>
         </div>
     </div>
+
+    <GuestInviteDialog v-model:visible="showGuestInviteDialog" :eventId="event.id" />
 </template>
 
 <style scoped></style>

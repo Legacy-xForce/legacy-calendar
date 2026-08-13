@@ -17,4 +17,11 @@ export class UserDto {
         description: 'URL of the user profile picture, served by the auth microservice'
     })
     profilePictureUrl!: string | null;
+
+    @ApiProperty({
+        type: Boolean,
+        example: false,
+        description: 'Whether this is a temporary guest account created via a magic-link invite'
+    })
+    isGuest!: boolean;
 }

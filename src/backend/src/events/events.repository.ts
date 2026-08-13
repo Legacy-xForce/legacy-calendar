@@ -3,17 +3,25 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
 import { ParticipateDto } from './dto/participate.dto.js';
 
+const USER_SUMMARY_SELECT = {
+    id: true,
+    username: true,
+    isAdmin: true,
+    authId: true,
+    isGuest: true
+} satisfies Prisma.UserSelect;
+
 export const EVENT_INCLUDE = {
-    host: { select: { id: true, username: true, isAdmin: true, authId: true } },
+    host: { select: USER_SUMMARY_SELECT },
     participants: {
         include: {
-            user: { select: { id: true, username: true, isAdmin: true, authId: true } }
+            user: { select: USER_SUMMARY_SELECT }
         }
     },
     rideAssignments: {
         include: {
-            driver: { select: { id: true, username: true, isAdmin: true, authId: true } },
-            passenger: { select: { id: true, username: true, isAdmin: true, authId: true } }
+            driver: { select: USER_SUMMARY_SELECT },
+            passenger: { select: USER_SUMMARY_SELECT }
         }
     }
 } satisfies Prisma.EventInclude;

@@ -13,6 +13,7 @@ model User {
   id                         Int              @id @default(autoincrement())
   username                   String           @unique
   authId                     String?          @unique
+  isGuest                    Boolean          @default(false)
   invitations                Attendance[]
   hostedEvents               Event[]          @relation("EventHost")
   fcmTokens                  FcmToken[]
@@ -24,6 +25,7 @@ model User {
   chatReactions              ChatReaction[]
   auditLogEntriesAsActor     AuditLogEntry[]  @relation("AuditLogActor")
   auditLogEntriesAsImpersonator AuditLogEntry[] @relation("AuditLogImpersonator")
+  guestInviteToken           GuestInviteToken?
 }
 
 model FcmToken {
@@ -62,6 +64,7 @@ model Event {
   chatMessages          ChatMessage[]
   chatMutes             ChatMute[]
   auditLogEntries       AuditLogEntry[]
+  guestInviteTokens     GuestInviteToken[]
 }
 
 model Attendance {
@@ -94,6 +97,20 @@ model RideAssignment {
 
   @@unique([eventId, passengerId])
   @@index([eventId, driverId])
+}
+
+model GuestInviteToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int      @unique
+  eventId   Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
 
 enum InviteStatus {

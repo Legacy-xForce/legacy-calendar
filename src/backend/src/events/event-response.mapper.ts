@@ -3,12 +3,19 @@ import { UserDto } from '../users/dto/user.dto.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 import { EventWithRelations } from './events.repository.js';
 
-function mapUserDto(user: { id: number; username: string; isAdmin: boolean; authId: string | null }): UserDto {
+function mapUserDto(user: {
+    id: number;
+    username: string;
+    isAdmin: boolean;
+    authId: string | null;
+    isGuest?: boolean;
+}): UserDto {
     return {
         id: user.id,
         username: user.username,
         isAdmin: user.isAdmin,
-        profilePictureUrl: buildProfilePictureUrl(user.authId)
+        profilePictureUrl: buildProfilePictureUrl(user.authId),
+        isGuest: user.isGuest ?? false
     };
 }
 

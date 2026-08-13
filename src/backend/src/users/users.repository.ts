@@ -2,9 +2,15 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, User as UserModel } from '../../prisma/generated/client.js';
 
-const USER_SELECT = { id: true, username: true, isAdmin: true, authId: true } satisfies Prisma.UserSelect;
+const USER_SELECT = {
+    id: true,
+    username: true,
+    isAdmin: true,
+    authId: true,
+    isGuest: true
+} satisfies Prisma.UserSelect;
 
-export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId'>;
+export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId' | 'isGuest'>;
 
 @Injectable()
 export class UsersRepository {

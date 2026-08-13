@@ -4,6 +4,7 @@ import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { EventsModule } from './events/events.module.js';
+import { InvitesModule } from './invites/invites.module.js';
 import { ConfigModule } from '@nestjs/config';
 
 import { NotificationsModule } from './notifications/notifications.module.js';
@@ -24,6 +25,7 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
         AuthModule,
         UsersModule,
         EventsModule,
+        InvitesModule,
         NotificationsModule,
         UploadsModule,
         ChatModule

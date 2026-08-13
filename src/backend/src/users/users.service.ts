@@ -110,7 +110,8 @@ export class UsersService {
             id: user.id,
             username: user.username,
             isAdmin: user.isAdmin,
-            profilePictureUrl: buildProfilePictureUrl(user.authId)
+            profilePictureUrl: buildProfilePictureUrl(user.authId),
+            isGuest: user.isGuest
         };
     }
 
