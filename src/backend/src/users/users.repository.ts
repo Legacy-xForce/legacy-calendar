@@ -25,6 +25,7 @@ export class UsersRepository {
 
     findAll(): Promise<UserRecord[]> {
         return this.prisma.user.findMany({
+            where: { isGuest: false },
             select: USER_SELECT
         });
     }
