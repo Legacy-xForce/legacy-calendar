@@ -18,14 +18,23 @@ export type AuditLogPayloadDiff = {
     after: Record<string, unknown>;
 };
 
+export interface AuditLogUserRef {
+    id: number;
+    username: string;
+    profilePictureUrl: string | null;
+}
+
 export interface AuditLogEntry {
     id: number;
     eventId: number;
     actorId: number;
     actorUsername: string;
+    actorProfilePictureUrl: string | null;
     impersonatorId: number | null;
     impersonatorUsername: string | null;
+    impersonatorProfilePictureUrl: string | null;
     actionType: AuditLogActionType;
     payloadDiff: AuditLogPayloadDiff;
+    resolvedUsers: Record<number, AuditLogUserRef>;
     createdAt: string;
 }

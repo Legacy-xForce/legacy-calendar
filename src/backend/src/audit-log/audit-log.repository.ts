@@ -3,8 +3,8 @@ import { Prisma } from '../../prisma/generated/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const AUDIT_LOG_INCLUDE = {
-    actor: { select: { id: true, username: true } },
-    impersonator: { select: { id: true, username: true } }
+    actor: { select: { id: true, username: true, authId: true } },
+    impersonator: { select: { id: true, username: true, authId: true } }
 } satisfies Prisma.AuditLogEntryInclude;
 
 export type AuditLogEntryWithRelations = Prisma.AuditLogEntryGetPayload<{

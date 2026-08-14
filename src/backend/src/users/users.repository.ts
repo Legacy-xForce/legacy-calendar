@@ -36,6 +36,17 @@ export class UsersRepository {
         });
     }
 
+    findManyByIds(ids: number[]): Promise<UserRecord[]> {
+        if (ids.length === 0) {
+            return Promise.resolve([]);
+        }
+
+        return this.prisma.user.findMany({
+            where: { id: { in: ids } },
+            select: USER_SELECT
+        });
+    }
+
     findOneByUsername(username: string): Promise<UserModel | null> {
         return this.prisma.user.findUnique({ where: { username } });
     }

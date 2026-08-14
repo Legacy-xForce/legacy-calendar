@@ -4,7 +4,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import { useRouter } from 'vue-router';
 import type { Event } from '../../../types/Event';
-import type { AuditLogActionType, AuditLogEntry } from '../../../types/AuditLog';
+import type { AuditLogActionType, AuditLogEntry, AuditLogUserRef } from '../../../types/AuditLog';
 import API from '../../../services/API';
 import UserAvatar from '../../UserAvatar.vue';
 
@@ -20,8 +20,12 @@ type DiffItem = {
     fieldName: string;
     beforeText: string;
     afterText: string;
+    beforeUser: AuditLogUserRef | null;
+    afterUser: AuditLogUserRef | null;
     kind: DiffKind;
 };
+
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId']);
 
 const props = defineProps<{
     visible: boolean;
@@ -311,10 +315,19 @@ const getDiffItems = (entry: AuditLogEntry): DiffItem[] => {
             kind = 'removed';
         }
 
+        const resolveUser = (value: unknown): AuditLogUserRef | null => {
+            if (!DIFF_USER_ID_FIELDS.has(fieldName) || typeof value !== 'number') {
+                return null;
+            }
+            return entry.resolvedUsers?.[value] ?? null;
+        };
+
         return {
             fieldName,
             beforeText: kind === 'added' ? '(none)' : formatDiffValue(beforeValue),
             afterText: kind === 'removed' ? '(removed)' : formatDiffValue(afterValue),
+            beforeUser: kind === 'added' ? null : resolveUser(beforeValue),
+            afterUser: kind === 'removed' ? null : resolveUser(afterValue),
             kind
         };
     });
@@ -324,6 +337,11 @@ const getEntryDiffItems = (entry: AuditLogEntry) => entryDiffItems.value.get(ent
 
 const getActorLabel = (entry: AuditLogEntry) =>
     entry.impersonatorUsername ? `${entry.impersonatorUsername} (as ${entry.actorUsername})` : entry.actorUsername;
+
+const getActorAvatarProps = (entry: AuditLogEntry) =>
+    entry.impersonatorUsername
+        ? { username: entry.impersonatorUsername, profilePictureUrl: entry.impersonatorProfilePictureUrl }
+        : { username: entry.actorUsername, profilePictureUrl: entry.actorProfilePictureUrl };
 </script>
 
 <template>
@@ -391,10 +409,7 @@ const getActorLabel = (entry: AuditLogEntry) =>
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                                 <div class="flex min-w-0 items-center gap-2">
-                                    <UserAvatar
-                                        :username="entry.impersonatorUsername || entry.actorUsername"
-                                        size="normal"
-                                    />
+                                    <UserAvatar v-bind="getActorAvatarProps(entry)" size="normal" />
                                     <p class="m-0 min-w-0 text-sm text-zinc-200">
                                         <span class="font-semibold text-white">{{ getActorLabel(entry) }}</span>
                                         {{ ' ' }}{{ actionMeta[entry.actionType].label }}
@@ -432,15 +447,47 @@ const getActorLabel = (entry: AuditLogEntry) =>
                                     <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="diffDotClass[item.kind]"></span>
                                     <span class="text-zinc-400">{{ getFieldLabel(item.fieldName) }}:</span>
                                     <template v-if="item.kind === 'added'">
-                                        <span class="text-zinc-100">{{ item.afterText }}</span>
+                                        <span v-if="item.afterUser" class="flex items-center gap-1">
+                                            <UserAvatar
+                                                :username="item.afterUser.username"
+                                                :profile-picture-url="item.afterUser.profilePictureUrl"
+                                                class="h-4! w-4! text-[10px]!"
+                                            />
+                                            <span class="text-zinc-100">{{ item.afterUser.username }}</span>
+                                        </span>
+                                        <span v-else class="text-zinc-100">{{ item.afterText }}</span>
                                     </template>
                                     <template v-else-if="item.kind === 'removed'">
-                                        <span class="text-zinc-500 line-through">{{ item.beforeText }}</span>
+                                        <span v-if="item.beforeUser" class="flex items-center gap-1">
+                                            <UserAvatar
+                                                :username="item.beforeUser.username"
+                                                :profile-picture-url="item.beforeUser.profilePictureUrl"
+                                                class="h-4! w-4! text-[10px]!"
+                                            />
+                                            <span class="text-zinc-500 line-through">{{ item.beforeUser.username }}</span>
+                                        </span>
+                                        <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
                                     </template>
                                     <template v-else>
-                                        <span class="text-zinc-500 line-through">{{ item.beforeText }}</span>
+                                        <span v-if="item.beforeUser" class="flex items-center gap-1">
+                                            <UserAvatar
+                                                :username="item.beforeUser.username"
+                                                :profile-picture-url="item.beforeUser.profilePictureUrl"
+                                                class="h-4! w-4! text-[10px]!"
+                                            />
+                                            <span class="text-zinc-500 line-through">{{ item.beforeUser.username }}</span>
+                                        </span>
+                                        <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
                                         <i class="pi pi-arrow-right text-[10px] text-zinc-600"></i>
-                                        <span class="text-zinc-100">{{ item.afterText }}</span>
+                                        <span v-if="item.afterUser" class="flex items-center gap-1">
+                                            <UserAvatar
+                                                :username="item.afterUser.username"
+                                                :profile-picture-url="item.afterUser.profilePictureUrl"
+                                                class="h-4! w-4! text-[10px]!"
+                                            />
+                                            <span class="text-zinc-100">{{ item.afterUser.username }}</span>
+                                        </span>
+                                        <span v-else class="text-zinc-100">{{ item.afterText }}</span>
                                     </template>
                                 </div>
                             </div>

@@ -3,10 +3,18 @@ import { ActionType, Prisma } from '../../prisma/generated/client.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogRepository, type AuditLogEntryWithRelations } from './audit-log.repository.js';
 import { EventsRepository, type EventWithRelations } from '../events/events.repository.js';
+import { UsersRepository, type UserRecord } from '../users/users.repository.js';
+import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 
 export type AuditLogPayload = {
     before: Record<string, unknown>;
     after: Record<string, unknown>;
+};
+
+export type AuditLogUserRef = {
+    id: number;
+    username: string;
+    profilePictureUrl: string | null;
 };
 
 export type AuditLogResponse = {
@@ -14,12 +22,17 @@ export type AuditLogResponse = {
     eventId: number;
     actorId: number;
     actorUsername: string;
+    actorProfilePictureUrl: string | null;
     impersonatorId: number | null;
     impersonatorUsername: string | null;
+    impersonatorProfilePictureUrl: string | null;
     actionType: ActionType;
     payloadDiff: AuditLogPayload;
+    resolvedUsers: Record<number, AuditLogUserRef>;
     createdAt: string;
 };
+
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId']);
 
 type AuditActor = {
     actorId: number;
@@ -32,7 +45,8 @@ export class AuditLogService {
 
     constructor(
         @Inject(AuditLogRepository) private readonly auditLogRepo: AuditLogRepository,
-        @Inject(EventsRepository) private readonly eventsRepo: EventsRepository
+        @Inject(EventsRepository) private readonly eventsRepo: EventsRepository,
+        @Inject(UsersRepository) private readonly usersRepo: UsersRepository
     ) {}
 
     async getEventAuditLog(eventId: number, userId: number): Promise<AuditLogResponse[]> {
@@ -46,7 +60,17 @@ export class AuditLogService {
         }
 
         const entries = await this.auditLogRepo.findManyByEventId(eventId);
-        return entries.map((entry) => this.toResponse(entry));
+        const referencedUserIds = new Set<number>();
+        for (const entry of entries) {
+            for (const id of this.collectDiffUserIds(this.normalizePayloadDiff(entry.payloadDiff))) {
+                referencedUserIds.add(id);
+            }
+        }
+
+        const referencedUsers = await this.usersRepo.findManyByIds([...referencedUserIds]);
+        const userMap = new Map(referencedUsers.map((user) => [user.id, user]));
+
+        return entries.map((entry) => this.toResponse(entry, userMap));
     }
 
     recordEventCreated(event: EventWithRelations, actor: AuditActor) {
@@ -190,18 +214,48 @@ export class AuditLogService {
         return event.hostId === userId || event.participants.some((participant) => participant.userId === userId);
     }
 
-    private toResponse(entry: AuditLogEntryWithRelations): AuditLogResponse {
+    private toResponse(entry: AuditLogEntryWithRelations, userMap: Map<number, UserRecord>): AuditLogResponse {
+        const payloadDiff = this.normalizePayloadDiff(entry.payloadDiff);
+        const resolvedUsers: Record<number, AuditLogUserRef> = {};
+        for (const id of this.collectDiffUserIds(payloadDiff)) {
+            const user = userMap.get(id);
+            if (user) {
+                resolvedUsers[id] = {
+                    id: user.id,
+                    username: user.username,
+                    profilePictureUrl: buildProfilePictureUrl(user.authId)
+                };
+            }
+        }
+
         return {
             id: entry.id,
             eventId: entry.eventId,
             actorId: entry.actorId,
             actorUsername: entry.actor.username,
+            actorProfilePictureUrl: buildProfilePictureUrl(entry.actor.authId),
             impersonatorId: entry.impersonatorId,
             impersonatorUsername: entry.impersonator?.username ?? null,
+            impersonatorProfilePictureUrl: entry.impersonator ? buildProfilePictureUrl(entry.impersonator.authId) : null,
             actionType: entry.actionType,
-            payloadDiff: this.normalizePayloadDiff(entry.payloadDiff),
+            payloadDiff,
+            resolvedUsers,
             createdAt: entry.createdAt.toISOString()
         };
+    }
+
+    private collectDiffUserIds(payloadDiff: AuditLogPayload): number[] {
+        const ids = new Set<number>();
+        for (const record of [payloadDiff.before, payloadDiff.after]) {
+            for (const field of DIFF_USER_ID_FIELDS) {
+                const value = record[field];
+                if (typeof value === 'number') {
+                    ids.add(value);
+                }
+            }
+        }
+
+        return [...ids];
     }
 
     private snapshotEvent(event: EventWithRelations): Record<string, unknown> {
