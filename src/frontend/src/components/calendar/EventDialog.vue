@@ -201,10 +201,11 @@ const onSave = () => {
         :draggable="false"
     >
         <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-2">
-                <label for="title" class="font-semibold">Title</label>
-                <InputText id="title" v-model="title" placeholder="Event Title" autofocus class="rounded-xl!" />
-            </div>
+                    <div class="flex flex-col gap-2">
+                        <label for="title" class="font-semibold">Title</label>
+                        <InputText id="title" v-model="title" placeholder="Event Title" autofocus class="rounded-xl!" :aria-invalid="saveAttempted && !!titleError" />
+                        <small v-if="saveAttempted && titleError" class="text-red-500">{{ titleError }}</small>
+                    </div>
 
             <div class="flex flex-col gap-2">
                 <label for="desc" class="font-semibold">Description</label>
@@ -252,7 +253,7 @@ const onSave = () => {
                         inputClass="rounded-xl!"
                     />
                 </div>
-                <small v-if="showValidationError" class="text-red-500">{{ validationError }}</small>
+                <small v-if="saveAttempted && startError" class="text-red-500">{{ startError }}</small>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -275,6 +276,7 @@ const onSave = () => {
                         inputClass="rounded-xl!"
                     />
                 </div>
+                <small v-if="saveAttempted && endError" class="text-red-500">{{ endError }}</small>
             </div>
 
             <div class="flex flex-col gap-2">
