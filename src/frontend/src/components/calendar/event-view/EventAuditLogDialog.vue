@@ -25,7 +25,7 @@ type DiffItem = {
     kind: DiffKind;
 };
 
-const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId']);
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId']);
 
 const props = defineProps<{
     visible: boolean;
@@ -195,6 +195,16 @@ const actionMeta: Record<AuditLogActionType, ActionMeta> = {
         icon: 'pi pi-envelope',
         colorClass: 'bg-emerald-500/10 text-emerald-400'
     },
+    CO_HOST_ADDED: {
+        label: 'added a co-host',
+        icon: 'pi pi-user-plus',
+        colorClass: 'bg-emerald-500/10 text-emerald-400'
+    },
+    CO_HOST_REMOVED: {
+        label: 'removed a co-host',
+        icon: 'pi pi-user-minus',
+        colorClass: 'bg-rose-500/10 text-rose-400'
+    },
     RIDE_ASSIGNED: { label: 'assigned a ride', icon: 'pi pi-car', colorClass: 'bg-sky-500/10 text-sky-400' },
     RIDE_UNASSIGNED: {
         label: 'unassigned a ride',
@@ -242,6 +252,7 @@ const fieldLabels: Record<string, string> = {
     vehicleSeats: 'Vehicle seats',
     passengerId: 'Passenger',
     driverId: 'Driver',
+    coHostId: 'Co-host',
     username: 'Username'
 };
 

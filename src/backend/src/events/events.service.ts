@@ -24,9 +24,10 @@ export class EventsService {
     ) {}
 
     async create(createEventDto: CreateEventDto, userId: number, impersonatorId: number | null = null): Promise<EventResponseDto> {
-        const { participants = [], ...eventData } = createEventDto;
+        const { participants = [], coHosts = [], ...eventData } = createEventDto;
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
+        const coHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== hostId);
         this.logger.info('Creating event', {
             hostId,
             title: eventData.title,
@@ -62,9 +63,15 @@ export class EventsService {
                 });
             }
 
-            await this.auditLogService.recordEventCreated(event, { actorId: hostId, impersonatorId });
+            let savedEvent = event;
+            if (coHostIds.length > 0) {
+                await this.applyCoHostDiff(event.id, [], coHostIds, { actorId: hostId, impersonatorId });
+                savedEvent = (await this.eventsRepo.findById(event.id)) ?? event;
+            }
+
+            await this.auditLogService.recordEventCreated(savedEvent, { actorId: hostId, impersonatorId });
             this.logger.info('Event created', { eventId: event.id, hostId, participantCount: participantIds.length });
-            return mapEventToDto(event);
+            return mapEventToDto(savedEvent);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
                 this.logger.warn('Event create failed: referenced user not found', {
@@ -149,14 +156,14 @@ export class EventsService {
         this.logger.info('Updating event', { eventId: id, userId, fields: Object.keys(updateEventDto) });
         const event = await this.findEventOrThrow(id, userId);
 
-        if (event.hostId !== userId) {
+        if (!this.canManageEvent(event, userId)) {
             this.logger.warn('Event update forbidden for non-host', { eventId: id, userId, hostId: event.hostId });
-            throw new ForbiddenException('Only the host can update this event');
+            throw new ForbiddenException('Only the host or a co-host can update this event');
         }
 
         this.validateEventNotEnded(event);
 
-        const { participants, ...eventData } = updateEventDto;
+        const { participants, coHosts, ...eventData } = updateEventDto;
         const updateData: Prisma.EventUpdateInput = this.buildUpdateEventInput(eventData);
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
 
@@ -182,7 +189,18 @@ export class EventsService {
 
         const updatedEvent = await this.eventsRepo.update(id, updateData);
 
-        await this.auditLogService.recordEventUpdated(id, event, updatedEvent, { actorId: userId, impersonatorId });
+        let finalEvent = updatedEvent;
+        if (coHosts) {
+            const existingCoHostIds = event.coHosts.map((coHost) => coHost.userId);
+            const nextCoHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== event.hostId);
+            const { toAdd, toRemove } = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
+            if (toAdd.length > 0 || toRemove.length > 0) {
+                await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId });
+                finalEvent = (await this.eventsRepo.findById(id)) ?? updatedEvent;
+            }
+        }
+
+        await this.auditLogService.recordEventUpdated(id, event, finalEvent, { actorId: userId, impersonatorId });
 
         if (participantDiff) {
             const { toAdd } = participantDiff;
@@ -236,9 +254,9 @@ export class EventsService {
         this.logger.info('Inviting user to event', { eventId, username, userId });
         const event = await this.findEventOrThrow(eventId, userId);
 
-        if (event.hostId !== userId) {
+        if (!this.canManageEvent(event, userId)) {
             this.logger.warn('Event invite forbidden for non-host', { eventId, userId, hostId: event.hostId });
-            throw new ForbiddenException('Only the host can invite users');
+            throw new ForbiddenException('Only the host or a co-host can invite users');
         }
 
         this.validateEventNotEnded(event);
@@ -284,12 +302,12 @@ export class EventsService {
 
         this.validateEventNotEnded(event);
 
-        if (!event.isOpen && !isParticipant && event.hostId !== userId) {
+        if (!event.isOpen && !isParticipant && !this.canManageEvent(event, userId)) {
             this.logger.warn('Join rejected: event is closed', { eventId, userId });
             throw new ForbiddenException('This event is closed and cannot be joined spontaneously');
         }
 
-        if (event.participationDeadline && new Date() > event.participationDeadline && event.hostId !== userId) {
+        if (event.participationDeadline && new Date() > event.participationDeadline && !this.canManageEvent(event, userId)) {
             this.logger.warn('Join rejected: participation deadline passed', { eventId, userId });
             throw new ForbiddenException('The participation deadline for this event has passed');
         }
@@ -430,7 +448,7 @@ export class EventsService {
 
         this.validateEventNotEnded(event);
 
-        const isHost = event.hostId === requestingUserId;
+        const isHost = this.canManageEvent(event, requestingUserId);
         const passenger = this.getParticipant(event, passengerId);
 
         if (!passenger) {
@@ -515,8 +533,41 @@ export class EventsService {
         return this.findOne(eventId, requestingUserId);
     }
 
+    private canManageEvent(event: EventWithRelations, userId: number): boolean {
+        return event.hostId === userId || event.coHosts.some((coHost) => coHost.userId === userId);
+    }
+
+    private async applyCoHostDiff(
+        eventId: number,
+        toAdd: number[],
+        toRemove: number[],
+        actor: { actorId: number; impersonatorId: number | null }
+    ) {
+        if (toAdd.length > 0 || toRemove.length > 0) {
+            const currentIds = await this.eventsRepo.getCoHostIds(eventId);
+            await this.eventsRepo.setCoHosts(
+                eventId,
+                [...currentIds.filter((id) => !toRemove.includes(id)), ...toAdd.filter((id) => !currentIds.includes(id))]
+            );
+        }
+
+        for (const coHostId of toAdd) {
+            const user = await this.eventsRepo.getUserById(coHostId);
+            if (user) {
+                await this.auditLogService.recordCoHostAdded(eventId, user, actor);
+            }
+        }
+
+        for (const coHostId of toRemove) {
+            const user = await this.eventsRepo.getUserById(coHostId);
+            if (user) {
+                await this.auditLogService.recordCoHostRemoved(eventId, user, actor);
+            }
+        }
+    }
+
     private buildCreateEventInput(
-        eventData: Omit<CreateEventDto, 'participants'>
+        eventData: Omit<CreateEventDto, 'participants' | 'coHosts'>
     ): Omit<Prisma.EventCreateInput, 'host'> {
         const { startTime, endTime, participationDeadline, ...rest } = eventData;
 
@@ -528,7 +579,7 @@ export class EventsService {
         };
     }
 
-    private buildUpdateEventInput(eventData: Omit<UpdateEventDto, 'participants'>): Prisma.EventUpdateInput {
+    private buildUpdateEventInput(eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>): Prisma.EventUpdateInput {
         const { startTime, endTime, participationDeadline, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };
 

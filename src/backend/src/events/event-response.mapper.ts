@@ -52,6 +52,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
         endTime: event.endTime ?? null,
         participationDeadline: event.participationDeadline ?? null,
         host: mapUserDto(event.host),
+        coHosts: (event.coHosts ?? []).map((coHost) => mapUserDto(coHost.user)),
         participants: participantsDto,
         isOpen: event.isOpen,
         isPrivate: event.isPrivate,

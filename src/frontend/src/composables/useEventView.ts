@@ -122,8 +122,13 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     });
 
     const isHost = computed(() => {
-        if (!currentUser.value || !eventRef.value) return false;
-        return eventRef.value.host?.id === currentUser.value.id || eventRef.value.hostId === currentUser.value.id;
+        const user = currentUser.value;
+        if (!user || !eventRef.value) return false;
+        return (
+            eventRef.value.host?.id === user.id ||
+            eventRef.value.hostId === user.id ||
+            (eventRef.value.coHosts?.some((coHost) => coHost.id === user.id) ?? false)
+        );
     });
 
     const userParticipantStatus = computed(() => {
@@ -257,6 +262,17 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         // State
         currentUser,
         eventHost,
+        coHosts: computed(() =>
+            (eventRef.value?.coHosts ?? []).map((coHost) => {
+                if (coHost.username && coHost.profilePictureUrl !== undefined) return coHost;
+                const user = allUsers.value.find((u) => u.id === coHost.id);
+                return {
+                    ...coHost,
+                    username: coHost.username || user?.username || `User ${coHost.id}`,
+                    profilePictureUrl: coHost.profilePictureUrl ?? user?.profilePictureUrl
+                };
+            })
+        ),
         selfTransport,
         resolvedInvitees,
         isHost,

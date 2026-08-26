@@ -16,6 +16,7 @@ model User {
   isGuest                    Boolean          @default(false)
   invitations                Attendance[]
   hostedEvents               Event[]          @relation("EventHost")
+  coHostedEvents             EventCoHost[]
   fcmTokens                  FcmToken[]
   chatMutes                  ChatMute[]
   rideAssignmentsAsDriver    RideAssignment[] @relation("RideAssignmentDriver")
@@ -65,7 +66,21 @@ model Event {
   chatMutes             ChatMute[]
   auditLogEntries       AuditLogEntry[]
   guestInviteTokens     GuestInviteToken[]
+  coHosts               EventCoHost[]
 }
+
+model EventCoHost {
+  eventId Int
+  userId  Int
+  addedAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+}
+
 
 model Attendance {
   id            Int           @id @default(autoincrement())
@@ -203,4 +218,6 @@ enum ActionType {
   PARTICIPANT_INVITED
   RIDE_ASSIGNED
   RIDE_UNASSIGNED
+  CO_HOST_ADDED
+  CO_HOST_REMOVED
 }

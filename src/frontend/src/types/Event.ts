@@ -6,6 +6,7 @@ export interface CreateEventDto {
     startTime: string;
     endTime?: string;
     participants?: number[];
+    coHosts?: number[];
     isOpen: boolean;
     isPrivate: boolean;
     hasFood?: boolean;
@@ -59,6 +60,7 @@ export interface Event {
     endTime?: string;
     hostId?: number;
     host?: EventPersonSummary;
+    coHosts?: EventPersonSummary[];
     participants?: EventParticipant[];
     isOpen: boolean;
     isPrivate: boolean;

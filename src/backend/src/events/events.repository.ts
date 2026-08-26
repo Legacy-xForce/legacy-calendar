@@ -13,6 +13,12 @@ const USER_SUMMARY_SELECT = {
 
 export const EVENT_INCLUDE = {
     host: { select: USER_SUMMARY_SELECT },
+    coHosts: {
+        include: {
+            user: { select: USER_SUMMARY_SELECT }
+        },
+        orderBy: { addedAt: 'asc' as const }
+    },
     participants: {
         include: {
             user: { select: USER_SUMMARY_SELECT }
@@ -192,6 +198,29 @@ export class EventsRepository {
         });
     }
 
+    async getCoHostIds(eventId: number): Promise<number[]> {
+        const coHosts = await this.prisma.eventCoHost.findMany({
+            where: { eventId },
+            select: { userId: true }
+        });
+        return coHosts.map((coHost) => coHost.userId);
+    }
+
+    async setCoHosts(eventId: number, userIds: number[]): Promise<void> {
+        await this.prisma.$transaction([
+            this.prisma.eventCoHost.deleteMany({
+                where: { eventId, userId: { notIn: userIds } }
+            }),
+            ...userIds.map((userId) =>
+                this.prisma.eventCoHost.upsert({
+                    where: { eventId_userId: { eventId, userId } },
+                    update: {},
+                    create: { eventId, userId }
+                })
+            )
+        ]);
+    }
+
     async inviteUser(eventId: number, username: string) {
         const user = await this.prisma.user.findUnique({ where: { username } });
         if (!user) {
@@ -246,7 +275,11 @@ export class EventsRepository {
         const visibilityClauses: Prisma.EventWhereInput[] = [{ isPrivate: false }];
 
         if (userId !== undefined) {
-            visibilityClauses.push({ hostId: userId }, { participants: { some: { userId } } });
+            visibilityClauses.push(
+                { hostId: userId },
+                { participants: { some: { userId } } },
+                { coHosts: { some: { userId } } }
+            );
         }
 
         return { OR: visibilityClauses };

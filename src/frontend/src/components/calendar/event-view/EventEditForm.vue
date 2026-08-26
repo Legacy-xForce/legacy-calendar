@@ -36,6 +36,14 @@ const emit = defineEmits<{
 
 const userMap = computed(() => new Map(props.users.map((u) => [u.id, u])));
 
+const coHostOptions = computed(() => {
+    const invitedIds = new Set(props.event?.participants?.map((participant) => participant.id) ?? []);
+    return props.users.filter(
+        (user) =>
+            invitedIds.has(user.id) && user.id !== props.event?.hostId && user.id !== props.event?.host?.id
+    );
+});
+
 const title = ref('');
 const description = ref('');
 const location = ref('');
@@ -43,6 +51,7 @@ const eventVisibility = ref('open');
 const selectedFeatures = ref<EventFeature[]>([]);
 const featurePrices = ref<Record<EventFeature, number | null>>(createNullFeatureRecord());
 const selectedParticipants = ref<number[]>([]);
+const selectedCoHosts = ref<number[]>([]);
 const showGuestInviteDialog = ref(false);
 
 const eventColor = ref(DEFAULT_COLOR);
@@ -71,6 +80,10 @@ const initialize = () => {
     featurePrices.value = featurePricesFromEvent(props.event);
 
     selectedParticipants.value = props.event.participants?.map((participant) => participant.id) || [];
+    selectedCoHosts.value =
+        props.event.coHosts?.map((coHost) => coHost.id) ||
+        (props.event as unknown as { coHostIds?: number[] }).coHostIds ||
+        [];
 
     if (props.event.startTime) {
         const start = new Date(props.event.startTime);
@@ -118,6 +131,7 @@ const onSave = () => {
                 ? combineDateAndTime(endDateOnly.value, endTimeOnly.value).toISOString()
                 : undefined,
         participants: selectedParticipants.value,
+        coHosts: selectedCoHosts.value,
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
         color: eventColor.value,
@@ -268,6 +282,46 @@ defineExpose({
                         class="mt-1 self-start rounded-xl!"
                         @click="showGuestInviteDialog = true"
                     />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label for="edit-cohosts" class="text-sm font-bold tracking-wider text-zinc-500 uppercase">
+                        Co-Hosts ({{ selectedCoHosts.length }})
+                    </label>
+                    <MultiSelect
+                        id="edit-cohosts"
+                        v-model="selectedCoHosts"
+                        :options="coHostOptions"
+                        optionLabel="username"
+                        optionValue="id"
+                        placeholder="Select Co-Hosts"
+                        display="chip"
+                        filter
+                        class="w-full rounded-xl!"
+                    >
+                        <template #option="slotProps">
+                            <div class="flex items-center gap-2">
+                                <UserAvatar
+                                    :profilePictureUrl="slotProps.option.profilePictureUrl"
+                                    :username="slotProps.option.username"
+                                />
+                                <span>{{ slotProps.option.username }}</span>
+                            </div>
+                        </template>
+                        <template #chip="slotProps">
+                            <div class="flex items-center gap-1 px-1">
+                                <UserAvatar
+                                    :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
+                                    :username="userMap.get(slotProps.value)?.username"
+                                    class="h-4! w-4! text-[10px]!"
+                                />
+                                <span>{{ userMap.get(slotProps.value)?.username }}</span>
+                            </div>
+                        </template>
+                    </MultiSelect>
+                    <small class="text-center text-zinc-500">
+                        Co-hosts can edit this event and manage its participants just like the host.
+                    </small>
                 </div>
 
                 <div class="flex flex-col">

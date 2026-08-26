@@ -32,7 +32,7 @@ export type AuditLogResponse = {
     createdAt: string;
 };
 
-const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId']);
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId']);
 
 type AuditActor = {
     actorId: number;
@@ -158,6 +158,20 @@ export class AuditLogService {
         });
     }
 
+    recordCoHostAdded(eventId: number, coHostUser: { id: number; username: string }, actor: AuditActor) {
+        return this.safeRecord('CO_HOST_ADDED', eventId, actor, {
+            before: {},
+            after: { coHostId: coHostUser.id }
+        });
+    }
+
+    recordCoHostRemoved(eventId: number, before: { id: number; username: string }, actor: AuditActor) {
+        return this.safeRecord('CO_HOST_REMOVED', eventId, actor, {
+            before: { coHostId: before.id },
+            after: {}
+        });
+    }
+
     recordRideAssigned(
         eventId: number,
         before: { passengerId: number; driverId: number } | null,
@@ -211,7 +225,11 @@ export class AuditLogService {
     }
 
     private canViewEventAuditLog(event: EventWithRelations, userId: number) {
-        return event.hostId === userId || event.participants.some((participant) => participant.userId === userId);
+        return (
+            event.hostId === userId ||
+            event.coHosts.some((coHost) => coHost.userId === userId) ||
+            event.participants.some((participant) => participant.userId === userId)
+        );
     }
 
     private toResponse(entry: AuditLogEntryWithRelations, userMap: Map<number, UserRecord>): AuditLogResponse {

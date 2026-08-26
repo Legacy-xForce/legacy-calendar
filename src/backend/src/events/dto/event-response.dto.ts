@@ -80,6 +80,9 @@ export class EventResponseDto {
     @ApiProperty({ type: () => UserDto, description: 'Host of the event' })
     host!: UserDto;
 
+    @ApiProperty({ type: () => [UserDto], description: 'Co-hosts of the event (can edit it like the host)' })
+    coHosts!: UserDto[];
+
     @ApiProperty({ type: () => [EventParticipantDto], description: 'List of participants' })
     participants!: EventParticipantDto[];
 

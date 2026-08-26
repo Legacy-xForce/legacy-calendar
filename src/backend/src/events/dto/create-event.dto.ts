@@ -50,6 +50,16 @@ export class CreateEventDto {
     participants?: number[];
 
     @ApiProperty({
+        type: [Number],
+        example: [3],
+        description: 'List of co-host user IDs (they can edit the event like the host)',
+        required: false
+    })
+    @IsOptional()
+    @IsInt({ each: true })
+    coHosts?: number[];
+
+    @ApiProperty({
         type: String,
         example: '2026-02-04T09:00:00Z',
         description: 'Deadline for participation (ISO 8601).',

@@ -61,13 +61,28 @@ const deadlineDateOnly = ref<Date | null>(null);
 const deadlineTimeOnly = ref<Date | null>(null);
 
 const selectedParticipants = ref<number[]>([]);
+const selectedCoHosts = ref<number[]>([]);
 const saveAttempted = ref(false);
 const startDateBounds = getEventStartDateBounds();
 
 const availableParticipants = computed(() => users.value.filter((user) => user.id !== sessionStore.currentUser?.id));
 
-const validationError = computed(() => {
+const coHostOptions = computed(() =>
+    users.value.filter(
+        (user) => selectedParticipants.value.includes(user.id) && user.id !== sessionStore.currentUser?.id
+    )
+);
+
+watch(selectedParticipants, () => {
+    selectedCoHosts.value = selectedCoHosts.value.filter((id) => selectedParticipants.value.includes(id));
+});
+
+const titleError = computed(() => {
     if (!title.value) return 'Title is required.';
+    return null;
+});
+
+const startError = computed(() => {
     if (!startDateOnly.value || !startTimeOnly.value) return 'Start date and time are required.';
 
     const start = combineDateAndTime(startDateOnly.value, startTimeOnly.value);
@@ -75,6 +90,10 @@ const validationError = computed(() => {
         return 'Start date must be today or within 1 year from today.';
     }
 
+    return null;
+});
+
+const endError = computed(() => {
     if (endDateOnly.value && endTimeOnly.value) {
         const end = combineDateAndTime(endDateOnly.value, endTimeOnly.value);
         if (!isEventStartTimeWithinAllowedRange(end)) {
@@ -82,6 +101,10 @@ const validationError = computed(() => {
         }
     }
 
+    return null;
+});
+
+const deadlineError = computed(() => {
     if (deadlineDateOnly.value && deadlineTimeOnly.value) {
         const deadline = combineDateAndTime(deadlineDateOnly.value, deadlineTimeOnly.value);
         const start = combineDateAndTime(startDateOnly.value!, startTimeOnly.value!);
@@ -92,6 +115,8 @@ const validationError = computed(() => {
 
     return null;
 });
+
+const validationError = computed(() => titleError.value ?? startError.value ?? endError.value ?? deadlineError.value);
 
 const showValidationError = computed(() => saveAttempted.value && validationError.value !== null);
 
@@ -104,6 +129,7 @@ watch(
             description.value = '';
             location.value = '';
             selectedParticipants.value = [];
+            selectedCoHosts.value = [];
             eventVisibility.value = 'open';
             selectedFeatures.value = [];
             featurePrices.value = createNullFeatureRecord();
@@ -144,6 +170,7 @@ const onSave = () => {
         startTime: start.toISOString(),
         endTime: end ? end.toISOString() : undefined,
         participants: selectedParticipants.value.length > 0 ? selectedParticipants.value : undefined,
+        coHosts: selectedCoHosts.value.length > 0 ? selectedCoHosts.value : undefined,
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
         ...featureFlagsFromSelection(selectedFeatures.value),
@@ -307,6 +334,44 @@ const onSave = () => {
                         </div>
                     </template>
                 </MultiSelect>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label for="cohosts" class="font-semibold">Co-Hosts ({{ coHostOptions.length }} available)</label>
+                <MultiSelect
+                    id="cohosts"
+                    v-model="selectedCoHosts"
+                    :options="coHostOptions"
+                    optionLabel="username"
+                    optionValue="id"
+                    placeholder="Select Co-Hosts"
+                    display="chip"
+                    filter
+                    class="w-full rounded-xl!"
+                >
+                    <template #option="slotProps">
+                        <div class="flex items-center gap-2">
+                            <UserAvatar
+                                :profilePictureUrl="slotProps.option.profilePictureUrl"
+                                :username="slotProps.option.username"
+                            />
+                            <span>{{ slotProps.option.username }}</span>
+                        </div>
+                    </template>
+                    <template #chip="slotProps">
+                        <div class="flex items-center gap-1 px-1">
+                            <UserAvatar
+                                :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
+                                :username="userMap.get(slotProps.value)?.username"
+                                class="h-4! w-4! text-[10px]!"
+                            />
+                            <span>{{ userMap.get(slotProps.value)?.username }}</span>
+                        </div>
+                    </template>
+                </MultiSelect>
+                <small class="text-center text-zinc-500">
+                    Only invited participants can be made co-hosts. They can edit the event like you.
+                </small>
             </div>
 
             <div class="flex flex-col gap-2">

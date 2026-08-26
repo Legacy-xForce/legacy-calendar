@@ -11,7 +11,7 @@ defineProps<{
     event: Event;
 }>();
 
-const { eventHost, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } = injectEventView();
+const { eventHost, coHosts, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } = injectEventView();
 const { shareEvent } = useShareEvent();
 
 const emit = defineEmits<{
@@ -103,6 +103,19 @@ const emit = defineEmits<{
                 Hosted by
                 <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ eventHost.username }}</span>
             </span>
+            <template v-if="coHosts.length > 0">
+                <div
+                    v-for="coHost in coHosts"
+                    :key="coHost.id"
+                    class="flex items-center gap-2"
+                >
+                    <span class="text-surface-600 dark:text-surface-400">Co-host:</span>
+                    <UserAvatar :profilePictureUrl="coHost.profilePictureUrl" :username="coHost.username" />
+                    <span class="text-surface-600 dark:text-surface-400">
+                        <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ coHost.username }}</span>
+                    </span>
+                </div>
+            </template>
         </div>
     </div>
 </template>
