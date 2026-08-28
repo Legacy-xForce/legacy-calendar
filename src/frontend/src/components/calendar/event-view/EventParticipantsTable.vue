@@ -41,7 +41,16 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                         </div>
                     </div>
                 </AccordionHeader>
-                <AccordionContent :pt="{ content: 'px-0! pt-2! pb-0!' }">
+                <AccordionContent
+                    :pt="{
+                        root: {
+                            class: 'grid-cols-[minmax(0,1fr)]'
+                        },
+                        content: {
+                            class: 'min-w-0 px-0! pt-2! pb-0!'
+                        }
+                    }"
+                >
                     <DataTable
                         :value="resolvedInvitees"
                         scrollable
