@@ -12,7 +12,9 @@ import { useEventWeather } from '../composables/useEventWeather';
 
 const EventViewDialog = defineAsyncComponent(() => import('../components/calendar/EventViewDialog.vue'));
 const EventChatDialog = defineAsyncComponent(() => import('../components/calendar/event-view/EventChatDialog.vue'));
-const EventAuditLogDialog = defineAsyncComponent(() => import('../components/calendar/event-view/EventAuditLogDialog.vue'));
+const EventAuditLogDialog = defineAsyncComponent(
+    () => import('../components/calendar/event-view/EventAuditLogDialog.vue')
+);
 const EventEditDialog = defineAsyncComponent(() => import('../components/calendar/EventEditDialog.vue'));
 
 const eventsStore = useEventsStore();

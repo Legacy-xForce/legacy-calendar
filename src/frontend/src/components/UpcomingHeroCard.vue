@@ -144,7 +144,7 @@ const weather = computed(() => getWeatherForEvent(props.event.id));
                         <div class="flex h-8 w-8 items-center justify-center rounded-lg border" :style="locationStyle">
                             <i :class="isLocationUrl ? 'pi pi-external-link' : 'pi pi-map-marker'"></i>
                         </div>
-                        <span class="max-w-[200px] truncate font-medium">{{ event.location }}</span>
+                        <span class="max-w-50 truncate font-medium">{{ event.location }}</span>
                         <UpcomingEventWeatherBadge
                             :event="event"
                             :compact="false"
@@ -166,7 +166,7 @@ const weather = computed(() => getWeatherForEvent(props.event.id));
             </div>
 
             <!-- Primary Action Button -->
-            <div class="mt-4 flex shrink-0 flex-col gap-3 md:mt-0 md:min-w-[200px]">
+            <div class="mt-4 flex shrink-0 flex-col gap-3 md:mt-0 md:min-w-50">
                 <Button
                     :label="primaryAction.label"
                     :icon="primaryAction.icon"

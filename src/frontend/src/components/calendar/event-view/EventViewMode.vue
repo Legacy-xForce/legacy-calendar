@@ -32,11 +32,7 @@ const { isHost, isEnded, availableFeatureIds } = injectEventView();
 
 <template>
     <div class="flex flex-col gap-4 pt-2">
-        <EventHeader
-            :event="event"
-            @open-chat="emit('open-chat')"
-            @open-audit-log="emit('open-audit-log')"
-        />
+        <EventHeader :event="event" @open-chat="emit('open-chat')" @open-audit-log="emit('open-audit-log')" />
 
         <Divider class="my-2!" />
 

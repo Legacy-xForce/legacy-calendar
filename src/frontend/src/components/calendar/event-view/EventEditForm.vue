@@ -39,8 +39,7 @@ const userMap = computed(() => new Map(props.users.map((u) => [u.id, u])));
 const coHostOptions = computed(() => {
     const invitedIds = new Set(props.event?.participants?.map((participant) => participant.id) ?? []);
     return props.users.filter(
-        (user) =>
-            invitedIds.has(user.id) && user.id !== props.event?.hostId && user.id !== props.event?.host?.id
+        (user) => invitedIds.has(user.id) && user.id !== props.event?.hostId && user.id !== props.event?.host?.id
     );
 });
 

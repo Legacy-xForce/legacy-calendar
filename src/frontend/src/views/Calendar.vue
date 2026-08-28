@@ -13,7 +13,9 @@ import type { CreateEventDto } from '../types/Event';
 const EventDialog = defineAsyncComponent(() => import('../components/calendar/EventDialog.vue'));
 const EventViewDialog = defineAsyncComponent(() => import('../components/calendar/EventViewDialog.vue'));
 const EventChatDialog = defineAsyncComponent(() => import('../components/calendar/event-view/EventChatDialog.vue'));
-const EventAuditLogDialog = defineAsyncComponent(() => import('../components/calendar/event-view/EventAuditLogDialog.vue'));
+const EventAuditLogDialog = defineAsyncComponent(
+    () => import('../components/calendar/event-view/EventAuditLogDialog.vue')
+);
 const EventEditDialog = defineAsyncComponent(() => import('../components/calendar/EventEditDialog.vue'));
 const DayViewDialog = defineAsyncComponent(() => import('../components/calendar/DayViewDialog.vue'));
 

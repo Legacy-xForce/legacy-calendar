@@ -201,11 +201,18 @@ const onSave = () => {
         :draggable="false"
     >
         <div class="flex flex-col gap-4">
-                    <div class="flex flex-col gap-2">
-                        <label for="title" class="font-semibold">Title</label>
-                        <InputText id="title" v-model="title" placeholder="Event Title" autofocus class="rounded-xl!" :aria-invalid="saveAttempted && !!titleError" />
-                        <small v-if="saveAttempted && titleError" class="text-red-500">{{ titleError }}</small>
-                    </div>
+            <div class="flex flex-col gap-2">
+                <label for="title" class="font-semibold">Title</label>
+                <InputText
+                    id="title"
+                    v-model="title"
+                    placeholder="Event Title"
+                    autofocus
+                    class="rounded-xl!"
+                    :aria-invalid="saveAttempted && !!titleError"
+                />
+                <small v-if="saveAttempted && titleError" class="text-red-500">{{ titleError }}</small>
+            </div>
 
             <div class="flex flex-col gap-2">
                 <label for="desc" class="font-semibold">Description</label>

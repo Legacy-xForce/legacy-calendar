@@ -455,7 +455,10 @@ const getActorAvatarProps = (entry: AuditLogEntry) =>
                                     :key="item.fieldName"
                                     class="flex flex-wrap items-center gap-1.5"
                                 >
-                                    <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="diffDotClass[item.kind]"></span>
+                                    <span
+                                        class="h-1.5 w-1.5 shrink-0 rounded-full"
+                                        :class="diffDotClass[item.kind]"
+                                    ></span>
                                     <span class="text-zinc-400">{{ getFieldLabel(item.fieldName) }}:</span>
                                     <template v-if="item.kind === 'added'">
                                         <span v-if="item.afterUser" class="flex items-center gap-1">
@@ -475,7 +478,9 @@ const getActorAvatarProps = (entry: AuditLogEntry) =>
                                                 :profile-picture-url="item.beforeUser.profilePictureUrl"
                                                 class="h-4! w-4! text-[10px]!"
                                             />
-                                            <span class="text-zinc-500 line-through">{{ item.beforeUser.username }}</span>
+                                            <span class="text-zinc-500 line-through">{{
+                                                item.beforeUser.username
+                                            }}</span>
                                         </span>
                                         <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
                                     </template>
@@ -486,7 +491,9 @@ const getActorAvatarProps = (entry: AuditLogEntry) =>
                                                 :profile-picture-url="item.beforeUser.profilePictureUrl"
                                                 class="h-4! w-4! text-[10px]!"
                                             />
-                                            <span class="text-zinc-500 line-through">{{ item.beforeUser.username }}</span>
+                                            <span class="text-zinc-500 line-through">{{
+                                                item.beforeUser.username
+                                            }}</span>
                                         </span>
                                         <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
                                         <i class="pi pi-arrow-right text-[10px] text-zinc-600"></i>
