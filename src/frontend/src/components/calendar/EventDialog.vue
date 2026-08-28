@@ -118,7 +118,7 @@ const deadlineError = computed(() => {
 
 const validationError = computed(() => titleError.value ?? startError.value ?? endError.value ?? deadlineError.value);
 
-const showValidationError = computed(() => saveAttempted.value && validationError.value !== null);
+// const showValidationError = computed(() => saveAttempted.value && validationError.value !== null);
 
 watch(
     () => props.visible,
