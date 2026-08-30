@@ -54,8 +54,12 @@ export class InvitesRepository {
     }
 
     async updateGuestParticipation(userId: number, eventId: number, dto: GuestParticipateDto) {
-        const { username, wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode, vehicleSeats } =
-            dto;
+        const { username, wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = dto;
+        let vehicleSeats = dto.vehicleSeats;
+
+        if (transportMode === TransportMode.DRIVER && (!vehicleSeats || vehicleSeats < 2)) {
+            vehicleSeats = 2;
+        }
 
         return this.prisma.$transaction(async (tx) => {
             if (username) {

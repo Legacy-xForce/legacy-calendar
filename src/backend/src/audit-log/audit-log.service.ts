@@ -80,12 +80,7 @@ export class AuditLogService {
         });
     }
 
-    recordEventUpdated(
-        eventId: number,
-        before: EventWithRelations,
-        after: EventWithRelations,
-        actor: AuditActor
-    ) {
+    recordEventUpdated(eventId: number, before: EventWithRelations, after: EventWithRelations, actor: AuditActor) {
         const payloadDiff = this.buildObjectDiff(this.snapshotEvent(before), this.snapshotEvent(after));
         if (Object.keys(payloadDiff.before).length === 0 && Object.keys(payloadDiff.after).length === 0) {
             return;
@@ -184,11 +179,7 @@ export class AuditLogService {
         });
     }
 
-    recordRideUnassigned(
-        eventId: number,
-        before: { passengerId: number; driverId: number } | null,
-        actor: AuditActor
-    ) {
+    recordRideUnassigned(eventId: number, before: { passengerId: number; driverId: number } | null, actor: AuditActor) {
         return this.safeRecord('RIDE_UNASSIGNED', eventId, actor, {
             before: before ? { passengerId: before.passengerId, driverId: before.driverId } : {},
             after: {}
@@ -211,14 +202,11 @@ export class AuditLogService {
 
     private logAuditFailure(actionType: ActionType, eventId: number, error: unknown) {
         try {
-            this.logger.error(
-                'Failed to write audit log entry',
-                {
-                    actionType,
-                    eventId,
-                    error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error
-                }
-            );
+            this.logger.error('Failed to write audit log entry', {
+                actionType,
+                eventId,
+                error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error
+            });
         } catch {
             // Original request must continue even if audit logging or logging the failure breaks.
         }
@@ -254,7 +242,9 @@ export class AuditLogService {
             actorProfilePictureUrl: buildProfilePictureUrl(entry.actor.authId),
             impersonatorId: entry.impersonatorId,
             impersonatorUsername: entry.impersonator?.username ?? null,
-            impersonatorProfilePictureUrl: entry.impersonator ? buildProfilePictureUrl(entry.impersonator.authId) : null,
+            impersonatorProfilePictureUrl: entry.impersonator
+                ? buildProfilePictureUrl(entry.impersonator.authId)
+                : null,
             actionType: entry.actionType,
             payloadDiff,
             resolvedUsers,

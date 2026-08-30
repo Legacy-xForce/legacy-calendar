@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, NestInterceptor, ExecutionContext, CallHandler, Inject } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    NestInterceptor,
+    ExecutionContext,
+    CallHandler,
+    Inject
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { UsersService } from '../../users/users.service.js';
 import { RequestWithUser } from '../interfaces/request-with-user.interface.js';

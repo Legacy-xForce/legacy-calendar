@@ -12,7 +12,7 @@ export function injectEventView() {
     }
     return context;
 }
-import type { Event, EventFeature, EventParticipant } from '../types/Event';
+import type { Event, EventFeature, EventParticipant, EventPersonSummary } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
 import { FEATURES } from '../constants/features';

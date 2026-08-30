@@ -31,7 +31,7 @@ const emit = defineEmits<{
 
 const selectedFeatures = ref<EventFeature[]>([]);
 const transportMode = ref<TransportMode>('NEEDS_RIDE');
-const vehicleSeats = ref(4);
+const vehicleSeats = ref(2);
 
 const isFeatureAvailable = (id: EventFeature) => {
     // If availableFeatures is undefined, show all (backward compatibility)
@@ -47,6 +47,9 @@ const toggleFeature = (feature: EventFeature) => {
 
 const selectTransportMode = (mode: TransportMode) => {
     transportMode.value = mode;
+    if (mode === 'DRIVER' && (!vehicleSeats.value || vehicleSeats.value < 2)) {
+        vehicleSeats.value = 2;
+    }
 };
 
 const onConfirm = () => {
@@ -65,7 +68,8 @@ watch(
         if (newVal) {
             selectedFeatures.value = props.initialFeatures ? [...props.initialFeatures] : [];
             transportMode.value = props.initialTransportMode ?? 'NEEDS_RIDE';
-            vehicleSeats.value = props.initialVehicleSeats ?? 4;
+            vehicleSeats.value =
+                props.initialVehicleSeats && props.initialVehicleSeats >= 2 ? props.initialVehicleSeats : 2;
         }
     }
 );

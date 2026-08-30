@@ -23,7 +23,11 @@ export class EventsService {
         @Inject(AuditLogService) private readonly auditLogService: AuditLogService
     ) {}
 
-    async create(createEventDto: CreateEventDto, userId: number, impersonatorId: number | null = null): Promise<EventResponseDto> {
+    async create(
+        createEventDto: CreateEventDto,
+        userId: number,
+        impersonatorId: number | null = null
+    ): Promise<EventResponseDto> {
         const { participants = [], coHosts = [], ...eventData } = createEventDto;
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
@@ -221,7 +225,9 @@ export class EventsService {
 
         if (participantDiff?.toRemove?.length) {
             for (const participantId of participantDiff.toRemove) {
-                const removedParticipant = event.participants.find((participant) => participant.userId === participantId);
+                const removedParticipant = event.participants.find(
+                    (participant) => participant.userId === participantId
+                );
                 if (removedParticipant) {
                     await this.auditLogService.recordParticipantRemoved(id, removedParticipant, {
                         actorId: userId,
@@ -264,11 +270,10 @@ export class EventsService {
         const invitedUser = await this.eventsRepo.inviteUser(eventId, username);
 
         if (invitedUser) {
-            await this.auditLogService.recordParticipantInvited(
-                eventId,
-                invitedUser,
-                { actorId: userId, impersonatorId }
-            );
+            await this.auditLogService.recordParticipantInvited(eventId, invitedUser, {
+                actorId: userId,
+                impersonatorId
+            });
             await this.notifyUserIds([invitedUser.id], {
                 eventId,
                 type: NotificationCode.INVITATION_NEW,
@@ -289,12 +294,7 @@ export class EventsService {
         return { message: 'User invited' };
     }
 
-    async join(
-        eventId: number,
-        userId: number,
-        participateDto: ParticipateDto,
-        impersonatorId: number | null = null
-    ) {
+    async join(eventId: number, userId: number, participateDto: ParticipateDto, impersonatorId: number | null = null) {
         this.logger.info('Joining event', { eventId, userId });
         const event = await this.findEventOrThrow(eventId, userId);
         const participant = this.getParticipant(event, userId);
@@ -307,7 +307,11 @@ export class EventsService {
             throw new ForbiddenException('This event is closed and cannot be joined spontaneously');
         }
 
-        if (event.participationDeadline && new Date() > event.participationDeadline && !this.canManageEvent(event, userId)) {
+        if (
+            event.participationDeadline &&
+            new Date() > event.participationDeadline &&
+            !this.canManageEvent(event, userId)
+        ) {
             this.logger.warn('Join rejected: participation deadline passed', { eventId, userId });
             throw new ForbiddenException('The participation deadline for this event has passed');
         }
@@ -318,19 +322,16 @@ export class EventsService {
 
         if (!participant) {
             if (savedParticipant) {
-                await this.auditLogService.recordParticipantJoined(
-                    eventId,
-                    savedParticipant,
-                    { actorId: userId, impersonatorId }
-                );
+                await this.auditLogService.recordParticipantJoined(eventId, savedParticipant, {
+                    actorId: userId,
+                    impersonatorId
+                });
             }
         } else if (savedParticipant) {
-            await this.auditLogService.recordParticipantUpdated(
-                eventId,
-                participant,
-                savedParticipant,
-                { actorId: userId, impersonatorId }
-            );
+            await this.auditLogService.recordParticipantUpdated(eventId, participant, savedParticipant, {
+                actorId: userId,
+                impersonatorId
+            });
         }
 
         if (event.hostId !== userId) {
@@ -503,7 +504,9 @@ export class EventsService {
             }
         }
 
-        const previousAssignment = passengerAssignment ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId } : null;
+        const previousAssignment = passengerAssignment
+            ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId }
+            : null;
         await this.eventsRepo.assignRide(eventId, passengerId, driverId);
 
         if (driverId !== null) {
@@ -545,10 +548,10 @@ export class EventsService {
     ) {
         if (toAdd.length > 0 || toRemove.length > 0) {
             const currentIds = await this.eventsRepo.getCoHostIds(eventId);
-            await this.eventsRepo.setCoHosts(
-                eventId,
-                [...currentIds.filter((id) => !toRemove.includes(id)), ...toAdd.filter((id) => !currentIds.includes(id))]
-            );
+            await this.eventsRepo.setCoHosts(eventId, [
+                ...currentIds.filter((id) => !toRemove.includes(id)),
+                ...toAdd.filter((id) => !currentIds.includes(id))
+            ]);
         }
 
         for (const coHostId of toAdd) {
@@ -579,7 +582,9 @@ export class EventsService {
         };
     }
 
-    private buildUpdateEventInput(eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>): Prisma.EventUpdateInput {
+    private buildUpdateEventInput(
+        eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>
+    ): Prisma.EventUpdateInput {
         const { startTime, endTime, participationDeadline, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };
 

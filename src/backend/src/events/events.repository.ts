@@ -102,8 +102,12 @@ export class EventsRepository {
     }
 
     async join(userId: number, eventId: number, participateDto: ParticipateDto) {
-        const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode, vehicleSeats } =
-            participateDto;
+        const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = participateDto;
+        let vehicleSeats = participateDto.vehicleSeats;
+
+        if (transportMode === TransportMode.DRIVER && (!vehicleSeats || vehicleSeats < 2)) {
+            vehicleSeats = 2;
+        }
 
         return this.prisma.attendance.upsert({
             where: {

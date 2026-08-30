@@ -12,7 +12,8 @@ defineProps<{
     event: Event;
 }>();
 
-const { allEventHosts, hostedByText, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } = injectEventView();
+const { allEventHosts, hostedByText, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } =
+    injectEventView();
 const { shareEvent } = useShareEvent();
 
 const emit = defineEmits<{

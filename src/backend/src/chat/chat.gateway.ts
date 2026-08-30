@@ -370,9 +370,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     private async verifySocketToken(token: string): Promise<JwtPayload> {
-        const decoded = jsonwebtoken.decode(token, { complete: true }) as
-            | { header?: { kid?: string } }
-            | null;
+        const decoded = jsonwebtoken.decode(token, { complete: true }) as { header?: { kid?: string } } | null;
         const kid = decoded?.header?.kid;
 
         if (!kid) {

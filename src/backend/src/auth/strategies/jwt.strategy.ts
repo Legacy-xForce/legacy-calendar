@@ -19,7 +19,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 cache: true,
                 rateLimit: true,
                 jwksRequestsPerMinute: 10,
-                jwksUri: configService.get<string>('AUTH_JWKS_URI') || 'https://auth.legacy-group.tech/.well-known/jwks.json'
+                jwksUri:
+                    configService.get<string>('AUTH_JWKS_URI') || 'https://auth.legacy-group.tech/.well-known/jwks.json'
             }) as any,
             algorithms: ['ES256']
         });

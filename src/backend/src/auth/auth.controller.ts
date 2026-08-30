@@ -23,7 +23,7 @@ export class AuthController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post('change-password')
-    @ApiOperation({ summary: "Change user password (proxied to auth service)" })
+    @ApiOperation({ summary: 'Change user password (proxied to auth service)' })
     @ApiBody({ type: ChangePasswordDto })
     @ApiResponse({ status: 200, description: 'Password changed successfully' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -36,16 +36,20 @@ export class AuthController {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
-                    ...(authHeader ? { Authorization: authHeader } : {}),
+                    ...(authHeader ? { Authorization: authHeader } : {})
                 },
                 body: JSON.stringify({
                     current_password: changePasswordDto.currentPassword,
-                    new_password: changePasswordDto.newPassword,
-                }),
+                    new_password: changePasswordDto.newPassword
+                })
             });
 
             let data: any = null;
-            try { data = await res.json(); } catch (e) { data = null; }
+            try {
+                data = await res.json();
+            } catch (e) {
+                data = null;
+            }
 
             if (!res.ok) {
                 const msg = data && data.message ? data.message : 'Auth service error';
