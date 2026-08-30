@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Slider from 'primevue/slider';
@@ -32,6 +32,7 @@ const emit = defineEmits<{
 const selectedFeatures = ref<EventFeature[]>([]);
 const transportMode = ref<TransportMode>('NEEDS_RIDE');
 const vehicleSeats = ref(2);
+const driverSectionRef = ref<HTMLElement | null>(null);
 
 const isFeatureAvailable = (id: EventFeature) => {
     // If availableFeatures is undefined, show all (backward compatibility)
@@ -47,8 +48,13 @@ const toggleFeature = (feature: EventFeature) => {
 
 const selectTransportMode = (mode: TransportMode) => {
     transportMode.value = mode;
-    if (mode === 'DRIVER' && (!vehicleSeats.value || vehicleSeats.value < 2)) {
-        vehicleSeats.value = 2;
+    if (mode === 'DRIVER') {
+        if (!vehicleSeats.value || vehicleSeats.value < 2) {
+            vehicleSeats.value = 2;
+        }
+        nextTick(() => {
+            driverSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        });
     }
 };
 
@@ -169,6 +175,7 @@ watch(
 
                 <div
                     v-if="transportMode === 'DRIVER'"
+                    ref="driverSectionRef"
                     class="animate-in fade-in slide-in-from-top-2 flex flex-col gap-4 duration-300"
                 >
                     <div class="flex flex-col items-start gap-2 px-2">
