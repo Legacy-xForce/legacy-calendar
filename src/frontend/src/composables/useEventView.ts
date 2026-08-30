@@ -258,21 +258,43 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         return participantFeatures(resolvedInvitees.value.find((participant) => participant.id === userId));
     };
 
+    const resolvedCoHosts = computed(() =>
+        (eventRef.value?.coHosts ?? []).map((coHost) => {
+            if (coHost.username && coHost.profilePictureUrl !== undefined) return coHost;
+            const user = allUsers.value.find((u) => u.id === coHost.id);
+            return {
+                ...coHost,
+                username: coHost.username || user?.username || `User ${coHost.id}`,
+                profilePictureUrl: coHost.profilePictureUrl ?? user?.profilePictureUrl
+            };
+        })
+    );
+
+    const allEventHosts = computed(() => {
+        const hosts: EventPersonSummary[] = [];
+        if (eventHost.value) {
+            hosts.push(eventHost.value);
+        }
+        for (const coHost of resolvedCoHosts.value) {
+            if (!hosts.some((h) => h.id === coHost.id)) {
+                hosts.push(coHost);
+            }
+        }
+        return hosts;
+    });
+
+    const hostedByText = computed(() => {
+        if (allEventHosts.value.length === 0) return '';
+        return allEventHosts.value.map((h) => h.username).join(', ');
+    });
+
     return {
         // State
         currentUser,
         eventHost,
-        coHosts: computed(() =>
-            (eventRef.value?.coHosts ?? []).map((coHost) => {
-                if (coHost.username && coHost.profilePictureUrl !== undefined) return coHost;
-                const user = allUsers.value.find((u) => u.id === coHost.id);
-                return {
-                    ...coHost,
-                    username: coHost.username || user?.username || `User ${coHost.id}`,
-                    profilePictureUrl: coHost.profilePictureUrl ?? user?.profilePictureUrl
-                };
-            })
-        ),
+        coHosts: resolvedCoHosts,
+        allEventHosts,
+        hostedByText,
         selfTransport,
         resolvedInvitees,
         isHost,

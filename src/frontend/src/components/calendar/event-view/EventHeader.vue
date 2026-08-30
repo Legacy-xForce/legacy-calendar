@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AvatarGroup from 'primevue/avatargroup';
 import type { Event } from '../../../types/Event';
 import Tag from 'primevue/tag';
 import UserAvatar from '../../UserAvatar.vue';
@@ -11,7 +12,7 @@ defineProps<{
     event: Event;
 }>();
 
-const { eventHost, coHosts, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } = injectEventView();
+const { allEventHosts, hostedByText, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } = injectEventView();
 const { shareEvent } = useShareEvent();
 
 const emit = defineEmits<{
@@ -97,21 +98,24 @@ const emit = defineEmits<{
             </div>
         </div>
 
-        <div v-if="eventHost" class="flex items-center gap-2">
-            <UserAvatar :profilePictureUrl="eventHost.profilePictureUrl" :username="eventHost.username" />
+        <div v-if="allEventHosts.length > 0" class="flex items-center gap-2">
+            <AvatarGroup v-if="allEventHosts.length > 1">
+                <UserAvatar
+                    v-for="host in allEventHosts"
+                    :key="host.id"
+                    :profilePictureUrl="host.profilePictureUrl"
+                    :username="host.username"
+                />
+            </AvatarGroup>
+            <UserAvatar
+                v-else
+                :profilePictureUrl="allEventHosts[0].profilePictureUrl"
+                :username="allEventHosts[0].username"
+            />
             <span class="text-surface-600 dark:text-surface-400">
                 Hosted by
-                <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ eventHost.username }}</span>
+                <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ hostedByText }}</span>
             </span>
-            <template v-if="coHosts.length > 0">
-                <div v-for="coHost in coHosts" :key="coHost.id" class="flex items-center gap-2">
-                    <span class="text-surface-600 dark:text-surface-400">Co-host:</span>
-                    <UserAvatar :profilePictureUrl="coHost.profilePictureUrl" :username="coHost.username" />
-                    <span class="text-surface-600 dark:text-surface-400">
-                        <span class="text-surface-900 dark:text-surface-0 font-semibold">{{ coHost.username }}</span>
-                    </span>
-                </div>
-            </template>
         </div>
     </div>
 </template>
