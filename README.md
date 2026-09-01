@@ -272,7 +272,3 @@ The frontend registers for notifications through Firebase Messaging and stores l
 - Profile images and chat media are stored under `uploads/`
 - The backend can redirect file requests to a remote uploads origin
 - The frontend caches some weather and geolocation data locally for smoother repeat visits
-
-## License
-
-UNLICENSED
