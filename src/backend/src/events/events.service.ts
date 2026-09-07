@@ -536,6 +536,44 @@ export class EventsService {
         return this.findOne(eventId, requestingUserId);
     }
 
+    async updatePaymentStatus(
+        eventId: number,
+        targetUserId: number,
+        hasPaid: boolean,
+        requestingUserId: number,
+        isAdmin = false,
+        impersonatorId: number | null = null
+    ) {
+        this.logger.info('Updating participant payment status', { eventId, targetUserId, hasPaid, requestingUserId });
+        const event = await this.findEventOrThrow(eventId, requestingUserId);
+
+        const isHost = this.canManageEvent(event, requestingUserId);
+        if (!isHost && !isAdmin) {
+            this.logger.warn('Payment update forbidden for non-host/non-admin', {
+                eventId,
+                requestingUserId,
+                hostId: event.hostId
+            });
+            throw new ForbiddenException('Only the host or a co-host can update payment status');
+        }
+
+        const participant = this.getParticipant(event, targetUserId);
+        if (!participant) {
+            throw new NotFoundException(`Participant with userId ${targetUserId} not found in event ${eventId}`);
+        }
+
+        const updated = await this.eventsRepo.updatePaymentStatus(eventId, targetUserId, hasPaid);
+        await this.auditLogService.recordParticipantUpdated(
+            eventId,
+            participant,
+            { ...participant, hasPaid },
+            { actorId: requestingUserId, impersonatorId }
+        );
+
+        this.logger.info('Participant payment status updated', { eventId, targetUserId, hasPaid });
+        return { success: true, hasPaid: updated.hasPaid };
+    }
+
     private canManageEvent(event: EventWithRelations, userId: number): boolean {
         return event.hostId === userId || event.coHosts.some((coHost) => coHost.userId === userId);
     }

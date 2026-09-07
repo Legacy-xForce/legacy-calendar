@@ -15,11 +15,16 @@ import { notificationStorage } from '../services/notificationStorage';
 import { NotificationLabel, type NotificationSettings } from '../types/Notification';
 import { router } from '../router/router';
 import { createLogger } from '../services/logger';
+import api from '../services/API';
+import { isPasskeySupported } from '../services/webauthn';
 
 const sessionStore = useSessionStore();
 const toast = useToast();
 const confirm = useConfirm();
 const logger = createLogger('ProfileView');
+const passkeySupported = isPasskeySupported();
+const passkeys = ref<{ id: string; deviceName: string; createdAt: string }[]>([]);
+const passkeyLoading = ref(false);
 
 const currentUser = computed(() => sessionStore.currentUser);
 const isAdmin = computed(() => currentUser.value?.isAdmin);
@@ -40,7 +45,38 @@ const notificationSettings = ref<NotificationSettings | null>(null);
 
 onMounted(async () => {
     notificationSettings.value = await notificationStorage.getSettings();
+    if (passkeySupported) {
+        try {
+            passkeys.value = (await api.getPasskeys()).data;
+        } catch (error) {
+            logger.warn('Failed to load passkeys', error);
+        }
+    }
 });
+
+const handleRegisterPasskey = async () => {
+    passkeyLoading.value = true;
+    try {
+        const deviceName = window.prompt('Name this passkey', 'My device') || undefined;
+        await sessionStore.registerPasskey(deviceName);
+        passkeys.value = (await api.getPasskeys()).data;
+        toast.add({ severity: 'success', summary: 'Passkey added', detail: 'This device can now sign you in.', life: 3000 });
+    } catch (error: any) {
+        toast.add({ severity: 'error', summary: 'Passkey registration failed', detail: error.message, life: 4000 });
+    } finally {
+        passkeyLoading.value = false;
+    }
+};
+
+const handleDeletePasskey = async (id: string) => {
+    try {
+        await api.deletePasskey(id);
+        passkeys.value = passkeys.value.filter((passkey) => passkey.id !== id);
+        toast.add({ severity: 'success', summary: 'Passkey removed', life: 2500 });
+    } catch (error: any) {
+        toast.add({ severity: 'error', summary: 'Could not remove passkey', detail: error.message, life: 3500 });
+    }
+};
 
 const handleToggleSetting = async () => {
     if (notificationSettings.value) {
@@ -136,7 +172,7 @@ const handleClearCache = () => {
             </div>
             <h1 class="mb-4 text-4xl font-black tracking-tight">User Profile</h1>
 
-            <div class="relative mt-4 h-[100px] w-[100px]">
+            <div class="relative mt-4 h-25 w-25">
                 <UserAvatar
                     :profilePictureUrl="currentUser?.profilePictureUrl"
                     :username="currentUser?.username"
@@ -253,6 +289,37 @@ const handleClearCache = () => {
                         />
                     </div>
                 </form>
+            </Panel>
+
+            <Panel
+                v-if="passkeySupported"
+                class="bg-section border border-zinc-800/50! bg-zinc-950/40 shadow-2xl backdrop-blur-xl"
+                :pt="{ header: { class: 'bg-transparent border-none px-6 py-5' }, content: { class: 'bg-transparent border-none px-6 pb-6 pt-0' } }"
+            >
+                <template #header>
+                    <div class="flex items-center gap-2 text-xl font-bold">
+                        <i class="pi pi-key text-primary"></i>
+                        Passkeys &amp; Biometrics
+                    </div>
+                </template>
+                <div class="flex flex-col gap-3 pt-2">
+                    <Button
+                        label="Register this device"
+                        icon="pi pi-plus"
+                        :loading="passkeyLoading"
+                        @click="handleRegisterPasskey"
+                    />
+                    <div v-if="passkeys.length" class="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+                        <div v-for="passkey in passkeys" :key="passkey.id" class="flex items-center justify-between gap-3 p-3">
+                            <div class="min-w-0">
+                                <div class="truncate font-medium">{{ passkey.deviceName }}</div>
+                                <div class="text-xs text-zinc-500">Added {{ new Date(passkey.createdAt).toLocaleDateString() }}</div>
+                            </div>
+                            <Button icon="pi pi-trash" severity="danger" text rounded aria-label="Remove passkey" @click="handleDeletePasskey(passkey.id)" />
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-zinc-500">No passkeys registered yet.</p>
+                </div>
             </Panel>
 
             <!-- Notification Preferences Section -->

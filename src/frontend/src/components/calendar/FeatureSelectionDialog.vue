@@ -19,19 +19,32 @@ const props = defineProps<{
     featureSplitPrices?: Record<EventFeature, number | null>;
     initialTransportMode?: TransportMode;
     initialVehicleSeats?: number;
+    initialVehicleSeatsOutbound?: number;
+    initialVehicleSeatsReturn?: number;
 }>();
 
 const emit = defineEmits<{
     (e: 'update:visible', value: boolean): void;
     (
         e: 'confirm',
-        data: { features: EventFeature[]; transport: { transportMode: TransportMode; vehicleSeats?: number } }
+        data: {
+            features: EventFeature[];
+            transport: {
+                transportMode: TransportMode;
+                vehicleSeats?: number;
+                vehicleSeatsOutbound?: number;
+                vehicleSeatsReturn?: number;
+            };
+        }
     ): void;
 }>();
 
 const selectedFeatures = ref<EventFeature[]>([]);
 const transportMode = ref<TransportMode>('NEEDS_RIDE');
 const vehicleSeats = ref(2);
+const vehicleSeatsOutbound = ref(2);
+const vehicleSeatsReturn = ref(2);
+const sameReturnTrip = ref(true);
 const driverSectionRef = ref<HTMLElement | null>(null);
 
 const isFeatureAvailable = (id: EventFeature) => {
@@ -52,6 +65,7 @@ const selectTransportMode = (mode: TransportMode) => {
         if (!vehicleSeats.value || vehicleSeats.value < 2) {
             vehicleSeats.value = 2;
         }
+        if (sameReturnTrip.value) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
         nextTick(() => {
             driverSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
         });
@@ -63,7 +77,9 @@ const onConfirm = () => {
         features: selectedFeatures.value,
         transport: {
             transportMode: transportMode.value,
-            vehicleSeats: transportMode.value === 'DRIVER' ? vehicleSeats.value : undefined
+            vehicleSeats: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
+            vehicleSeatsOutbound: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
+            vehicleSeatsReturn: transportMode.value === 'DRIVER' ? vehicleSeatsReturn.value : undefined
         }
     });
 };
@@ -76,6 +92,15 @@ watch(
             transportMode.value = props.initialTransportMode ?? 'NEEDS_RIDE';
             vehicleSeats.value =
                 props.initialVehicleSeats && props.initialVehicleSeats >= 2 ? props.initialVehicleSeats : 2;
+            vehicleSeatsOutbound.value =
+                props.initialVehicleSeatsOutbound && props.initialVehicleSeatsOutbound >= 2
+                    ? props.initialVehicleSeatsOutbound
+                    : vehicleSeats.value;
+            vehicleSeatsReturn.value =
+                props.initialVehicleSeatsReturn && props.initialVehicleSeatsReturn >= 2
+                    ? props.initialVehicleSeatsReturn
+                    : vehicleSeatsOutbound.value;
+            sameReturnTrip.value = vehicleSeatsOutbound.value === vehicleSeatsReturn.value;
         }
     }
 );
@@ -179,11 +204,24 @@ watch(
                     class="animate-in fade-in slide-in-from-top-2 flex flex-col gap-4 duration-300"
                 >
                     <div class="flex flex-col items-start gap-2 px-2">
-                        <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Total Seats</span>
+                        <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Outbound Seats</span>
                         <span class="text-xs text-zinc-500">Including yourself</span>
                         <div class="flex w-full items-center gap-4">
-                            <Slider v-model="vehicleSeats" :min="2" :max="9" class="flex-1" />
-                            <span class="w-8 text-xl font-black text-emerald-500">{{ vehicleSeats }}</span>
+                            <Slider v-model="vehicleSeatsOutbound" :min="2" :max="9" class="flex-1" @update:model-value="sameReturnTrip && (vehicleSeatsReturn = vehicleSeatsOutbound)" />
+                            <span class="w-8 text-xl font-black text-emerald-500">{{ vehicleSeatsOutbound }}</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-start gap-2 px-2">
+                        <div class="flex w-full items-center justify-between">
+                            <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Return Seats</span>
+                            <label class="flex items-center gap-2 text-xs text-zinc-500">
+                                <input v-model="sameReturnTrip" type="checkbox" class="accent-emerald-500" />
+                                Same as outbound
+                            </label>
+                        </div>
+                        <div class="flex w-full items-center gap-4">
+                            <Slider v-model="vehicleSeatsReturn" :min="2" :max="9" class="flex-1" :disabled="sameReturnTrip" />
+                            <span class="w-8 text-xl font-black text-emerald-500">{{ vehicleSeatsReturn }}</span>
                         </div>
                     </div>
                 </div>

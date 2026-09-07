@@ -27,6 +27,8 @@ model User {
   auditLogEntriesAsActor     AuditLogEntry[]  @relation("AuditLogActor")
   auditLogEntriesAsImpersonator AuditLogEntry[] @relation("AuditLogImpersonator")
   guestInviteToken           GuestInviteToken?
+  userGroups                 UserGroup[]
+  passkeyCredentials         PasskeyCredential[]
 }
 
 model FcmToken {
@@ -93,8 +95,11 @@ model Attendance {
   wantsSleep    Boolean       @default(false)
   wantsWeed     Boolean       @default(false)
   wantsBeer     Boolean       @default(false)
-  transportMode TransportMode @default(NEEDS_RIDE)
-  vehicleSeats  Int           @default(0)
+  transportMode        TransportMode @default(NEEDS_RIDE)
+  vehicleSeats         Int           @default(0)
+  vehicleSeatsOutbound Int           @default(0)
+  vehicleSeatsReturn   Int           @default(0)
+  hasPaid              Boolean       @default(false)
   event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id])
 
@@ -220,4 +225,31 @@ enum ActionType {
   RIDE_UNASSIGNED
   CO_HOST_ADDED
   CO_HOST_REMOVED
+}
+
+model UserGroup {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  memberIds Int[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model PasskeyCredential {
+  id         String   @id
+  userId     Int
+  publicKey  String
+  counter    BigInt   @default(0)
+  deviceName String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

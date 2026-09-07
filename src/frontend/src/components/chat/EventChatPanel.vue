@@ -167,7 +167,7 @@ const onEmojiSelect = (emoji: any) => {
                         >
                             <UserAvatar
                                 :username="row.message.authorUsername"
-                                :profilePictureUrl="undefined"
+                                :profilePictureUrl="row.message.authorProfilePictureUrl"
                                 class="shrink-0"
                             />
                             <div

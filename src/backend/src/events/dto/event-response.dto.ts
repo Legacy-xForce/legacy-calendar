@@ -27,6 +27,15 @@ export class EventParticipantDto extends UserDto {
     @ApiProperty({ type: Number, example: 4, description: 'Number of available seats' })
     vehicleSeats?: number;
 
+    @ApiProperty({ type: Number, example: 4, description: 'Number of available outbound seats' })
+    vehicleSeatsOutbound?: number;
+
+    @ApiProperty({ type: Number, example: 4, description: 'Number of available return seats' })
+    vehicleSeatsReturn?: number;
+
+    @ApiProperty({ type: Boolean, example: false, description: 'Payment status tracked by host/co-host' })
+    hasPaid?: boolean;
+
     @ApiProperty({ type: Number, example: 1, description: 'Driver ID', required: false })
     driverId?: number;
 

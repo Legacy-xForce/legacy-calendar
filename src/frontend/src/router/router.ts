@@ -8,6 +8,8 @@ const Profile = () => import('../views/Profile.vue');
 const Upcoming = () => import('../views/Upcoming.vue');
 const ErrorPage = () => import('../views/ErrorPage.vue');
 const GuestInviteView = () => import('../views/GuestInviteView.vue');
+const DisabledAccountView = () => import('../views/DisabledAccountView.vue');
+const InsufficientScopeView = () => import('../views/InsufficientScopeView.vue');
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -19,6 +21,8 @@ declare module 'vue-router' {
 
 const routes: RouteRecordRaw[] = [
     { path: '/', name: 'login', component: Login, meta: { requiresGuest: true } },
+    { path: '/disabled', name: 'disabled-account', component: DisabledAccountView },
+    { path: '/insufficient-scope', name: 'insufficient-scope', component: InsufficientScopeView },
     {
         path: '/calendar',
         name: 'calendar',
@@ -76,8 +80,25 @@ router.beforeEach(async (to: any, from: any) => {
         return { name: 'login' };
     }
 
+    if (to.meta.requiresAuth && isAuthenticated && token) {
+        const { hasCalendarScope, isAccountDisabled } = await import('../stores/session');
+        if (isAccountDisabled(token)) {
+            return { name: 'disabled-account' };
+        }
+        if (!hasCalendarScope(token)) {
+            return { name: 'insufficient-scope' };
+        }
+    }
+
     // Redirect to calendar if user is already authenticated and tries to access login
     if (to.meta.requiresGuest && isAuthenticated) {
+        const { hasCalendarScope, isAccountDisabled } = await import('../stores/session');
+        if (token && isAccountDisabled(token)) {
+            return { name: 'disabled-account' };
+        }
+        if (token && !hasCalendarScope(token)) {
+            return { name: 'insufficient-scope' };
+        }
         return { name: 'calendar' };
     }
 

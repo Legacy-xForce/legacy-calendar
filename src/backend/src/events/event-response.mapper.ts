@@ -37,6 +37,9 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             wantsBeer: attendance.wantsBeer,
             transportMode: attendance.transportMode,
             vehicleSeats: attendance.vehicleSeats,
+            vehicleSeatsOutbound: attendance.vehicleSeatsOutbound,
+            vehicleSeatsReturn: attendance.vehicleSeatsReturn,
+            hasPaid: attendance.hasPaid,
             driverId: rideAssignment?.driverId,
             driver: rideAssignment?.driver ? mapUserDto(rideAssignment.driver) : undefined
         };

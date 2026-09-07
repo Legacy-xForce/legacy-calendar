@@ -16,6 +16,7 @@ import UserAvatar from '../UserAvatar.vue';
 import FeatureBudgetForm from './FeatureBudgetForm.vue';
 import EventColorSelector from './EventColorSelector.vue';
 import { DEFAULT_COLOR } from '../../constants/colors';
+import { useUserGroupsStore } from '../../stores/userGroups';
 import {
     combineDateAndTime,
     createNullFeatureRecord,
@@ -39,6 +40,8 @@ const sessionStore = useSessionStore();
 const usersStore = useUsersStore();
 const { users } = storeToRefs(usersStore);
 const { fetchUsers } = usersStore;
+const userGroupsStore = useUserGroupsStore();
+const { groups: userGroups } = storeToRefs(userGroupsStore);
 
 const userMap = computed(() => new Map(users.value.map((u) => [u.id, u])));
 
@@ -72,6 +75,19 @@ const coHostOptions = computed(() =>
         (user) => selectedParticipants.value.includes(user.id) && user.id !== sessionStore.currentUser?.id
     )
 );
+
+const applyGroup = (memberIds: number[]) => {
+    selectedParticipants.value = [...new Set([...selectedParticipants.value, ...memberIds])].filter((id) =>
+        availableParticipants.value.some((user) => user.id === id)
+    );
+};
+
+const saveParticipantsAsGroup = async () => {
+    if (selectedParticipants.value.length === 0) return;
+    const name = window.prompt('Name this invitation group');
+    if (!name?.trim()) return;
+    await userGroupsStore.createGroup({ name: name.trim(), memberIds: selectedParticipants.value });
+};
 
 watch(selectedParticipants, () => {
     selectedCoHosts.value = selectedCoHosts.value.filter((id) => selectedParticipants.value.includes(id));
@@ -145,6 +161,7 @@ watch(
             deadlineTimeOnly.value = null;
 
             fetchUsers();
+            userGroupsStore.fetchGroups();
         }
     }
 );
@@ -311,7 +328,29 @@ const onSave = () => {
             </div>
 
             <div class="flex flex-col gap-2">
-                <label for="participants" class="font-semibold">Participants</label>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label for="participants" class="font-semibold">Participants</label>
+                    <Button
+                        v-if="selectedParticipants.length"
+                        label="Save as group"
+                        icon="pi pi-bookmark"
+                        text
+                        size="small"
+                        @click="saveParticipantsAsGroup"
+                    />
+                </div>
+                <div v-if="userGroups.length" class="flex flex-wrap gap-2">
+                    <Button
+                        v-for="group in userGroups"
+                        :key="group.id"
+                        :label="group.name"
+                        icon="pi pi-users"
+                        severity="secondary"
+                        outlined
+                        size="small"
+                        @click="applyGroup(group.memberIds)"
+                    />
+                </div>
                 <MultiSelect
                     id="participants"
                     v-model="selectedParticipants"

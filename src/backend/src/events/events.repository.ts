@@ -103,10 +103,24 @@ export class EventsRepository {
 
     async join(userId: number, eventId: number, participateDto: ParticipateDto) {
         const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = participateDto;
-        let vehicleSeats = participateDto.vehicleSeats;
+        let vehicleSeats = participateDto.vehicleSeats ?? 0;
+        let vehicleSeatsOutbound = participateDto.vehicleSeatsOutbound ?? 0;
+        let vehicleSeatsReturn = participateDto.vehicleSeatsReturn ?? 0;
 
-        if (transportMode === TransportMode.DRIVER && (!vehicleSeats || vehicleSeats < 2)) {
-            vehicleSeats = 2;
+        if (transportMode === TransportMode.DRIVER) {
+            if (vehicleSeats < 2 && vehicleSeatsOutbound < 2 && vehicleSeatsReturn < 2) {
+                vehicleSeats = 2;
+                vehicleSeatsOutbound = 2;
+                vehicleSeatsReturn = 2;
+            } else {
+                if (vehicleSeatsOutbound < 2 && vehicleSeats >= 2) {
+                    vehicleSeatsOutbound = vehicleSeats;
+                }
+                if (vehicleSeatsReturn < 2 && vehicleSeats >= 2) {
+                    vehicleSeatsReturn = vehicleSeats;
+                }
+                vehicleSeats = Math.max(vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn);
+            }
         }
 
         return this.prisma.attendance.upsert({
@@ -121,7 +135,9 @@ export class EventsRepository {
                 wantsAlcohol,
                 wantsBeer,
                 transportMode,
-                vehicleSeats
+                vehicleSeats,
+                vehicleSeatsOutbound,
+                vehicleSeatsReturn
             },
             create: {
                 userId,
@@ -133,7 +149,20 @@ export class EventsRepository {
                 wantsAlcohol,
                 wantsBeer,
                 transportMode,
-                vehicleSeats
+                vehicleSeats,
+                vehicleSeatsOutbound,
+                vehicleSeatsReturn
+            }
+        });
+    }
+
+    async updatePaymentStatus(eventId: number, userId: number, hasPaid: boolean) {
+        return this.prisma.attendance.update({
+            where: {
+                userId_eventId: { userId, eventId }
+            },
+            data: {
+                hasPaid
             }
         });
     }

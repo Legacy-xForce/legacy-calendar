@@ -414,6 +414,7 @@ export function useEventChat(
 function normalizeMessage(message: ChatMessageEventPayload): ChatMessage {
     return {
         ...message,
+        authorProfilePictureUrl: message.authorProfilePictureUrl ?? null,
         createdAt: message.createdAt instanceof Date ? message.createdAt.toISOString() : message.createdAt,
         ...(message && 'updatedAt' in message && message.updatedAt
             ? { updatedAt: message.updatedAt instanceof Date ? message.updatedAt.toISOString() : message.updatedAt }

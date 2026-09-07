@@ -55,7 +55,7 @@ export class ImpersonateInterceptor implements NestInterceptor {
                     username: user.username,
                     isAdmin: user.isAdmin
                 };
-            } catch (error) {
+            } catch (_error) {
                 this.logger.warn('Impersonation rejected: target user not found', {
                     adminUsername: request.user.username,
                     targetUserId: userId

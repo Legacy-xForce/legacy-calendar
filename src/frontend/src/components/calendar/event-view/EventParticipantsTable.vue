@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import type { Event } from '../../../types/Event';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -10,13 +11,44 @@ import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
 import UserAvatar from '../../UserAvatar.vue';
 import { injectEventView } from '../../../composables/useEventView';
+import api from '../../../services/API';
 
-defineProps<{
+const props = defineProps<{
     event: Event;
 }>();
 
 const { resolvedInvitees, featuresListColumns, getFeatureCount, hasFeature, getStatusSeverity, getStatusIcon } =
     injectEventView();
+const { isHost, currentUser } = injectEventView();
+const toast = useToast();
+const paymentOverrides = ref<Record<number, boolean>>({});
+
+const canUpdatePayment = computed(() => isHost.value || currentUser.value?.isAdmin === true);
+const getPaymentStatus = (participant: (typeof resolvedInvitees.value)[number]) =>
+    paymentOverrides.value[participant.id] ?? participant.hasPaid === true;
+
+const togglePayment = async (participant: (typeof resolvedInvitees.value)[number]) => {
+    if (!canUpdatePayment.value) return;
+
+    const previousValue = getPaymentStatus(participant);
+    const nextValue = !previousValue;
+    paymentOverrides.value[participant.id] = nextValue;
+
+    try {
+        await api.updateParticipantPayment(props.event.id, participant.id, nextValue);
+        const sourceParticipant = props.event.participants?.find((item) => item.id === participant.id);
+        if (sourceParticipant) sourceParticipant.hasPaid = nextValue;
+        toast.add({
+            severity: 'success',
+            summary: nextValue ? 'Payment recorded' : 'Payment cleared',
+            detail: `${participant.username} is marked ${nextValue ? 'paid' : 'unpaid'}`,
+            life: 2200
+        });
+    } catch {
+        paymentOverrides.value[participant.id] = previousValue;
+        toast.add({ severity: 'error', summary: 'Payment update failed', detail: 'Please try again.', life: 3000 });
+    }
+};
 
 const acceptedCount = computed(() => resolvedInvitees.value.filter((i) => i.status === 'ACCEPTED').length);
 const pendingCount = computed(() => resolvedInvitees.value.filter((i) => i.status === 'PENDING').length);
@@ -107,6 +139,30 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                                     </template>
                                 </div>
                                 <div v-else class="text-surface-400 text-center">-</div>
+                            </template>
+                        </Column>
+                        <Column field="hasPaid" header="Payment" class="w-24 text-center sm:w-32" sortable>
+                            <template #body="slotProps">
+                                <button
+                                    v-if="canUpdatePayment"
+                                    type="button"
+                                    class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
+                                    :class="
+                                        getPaymentStatus(slotProps.data)
+                                            ? 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25'
+                                            : 'bg-zinc-500/15 text-zinc-400 hover:bg-zinc-500/25'
+                                    "
+                                    @click="togglePayment(slotProps.data)"
+                                >
+                                    <i :class="getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'"></i>
+                                    {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
+                                </button>
+                                <Tag
+                                    v-else
+                                    :severity="getPaymentStatus(slotProps.data) ? 'success' : 'secondary'"
+                                    :value="getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid'"
+                                    size="small"
+                                />
                             </template>
                         </Column>
                         <Column field="status" header="Status" class="w-16 text-center sm:w-24" sortable>

@@ -121,9 +121,9 @@ const canAssignToDriver = (driverId: number) => {
                         <div class="flex flex-col">
                             <span class="text-sm font-bold">{{ driver.username }}</span>
                             <div class="flex items-center gap-2 text-[10px] font-bold uppercase">
-                                <span>
-                                    {{ driver.vehicleSeats }} total seat{{ driver.vehicleSeats !== 1 ? 's' : '' }}
-                                </span>
+                                <span>Outbound: {{ driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0 }}</span>
+                                <span class="font-black">·</span>
+                                <span>Return: {{ driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0 }}</span>
                                 <span class="font-black">·</span>
                                 <span :class="getAvailableSeats(driver) > 0 ? 'text-emerald-500' : 'text-red-500'">
                                     {{ getAvailableSeats(driver) > 0 ? getAvailableSeats(driver) + ' left' : 'Full' }}

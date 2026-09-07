@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import type { Event, EventFeature, CreateEventDto } from '../../../types/Event';
 import type { User } from '../../../types/User';
 import InputText from 'primevue/inputtext';
@@ -14,6 +15,7 @@ import FeatureBudgetForm from '../FeatureBudgetForm.vue';
 import EventColorSelector from '../EventColorSelector.vue';
 import GuestInviteDialog from '../GuestInviteDialog.vue';
 import { DEFAULT_COLOR } from '../../../constants/colors';
+import { useUserGroupsStore } from '../../../stores/userGroups';
 import {
     createNullFeatureRecord,
     featureFlagsFromSelection,
@@ -35,6 +37,8 @@ const emit = defineEmits<{
 }>();
 
 const userMap = computed(() => new Map(props.users.map((u) => [u.id, u])));
+const userGroupsStore = useUserGroupsStore();
+const { groups: userGroups } = storeToRefs(userGroupsStore);
 
 const coHostOptions = computed(() => {
     const invitedIds = new Set(props.event?.participants?.map((participant) => participant.id) ?? []);
@@ -60,6 +64,12 @@ const endDateOnly = ref<Date | null>(null);
 const endTimeOnly = ref<Date | null>(null);
 const deadlineDateOnly = ref<Date | null>(null);
 const deadlineTimeOnly = ref<Date | null>(null);
+
+const applyGroup = (memberIds: number[]) => {
+    selectedParticipants.value = [...new Set([...selectedParticipants.value, ...memberIds])].filter((id) =>
+        props.users.some((user) => user.id === id)
+    );
+};
 
 const initialize = () => {
     title.value = props.event.title;
@@ -113,6 +123,11 @@ const initialize = () => {
 };
 
 watch(() => props.event, initialize, { immediate: true });
+watch(
+    () => props.event.id,
+    () => userGroupsStore.fetchGroups(),
+    { immediate: true }
+);
 
 const onSave = () => {
     if (!title.value) return;
@@ -238,9 +253,23 @@ defineExpose({
                 </div>
 
                 <div class="mt-2 flex flex-col gap-2">
-                    <label for="edit-participants" class="text-sm font-bold tracking-wider text-zinc-500 uppercase">
-                        Participants ({{ selectedParticipants.length }})
-                    </label>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label for="edit-participants" class="text-sm font-bold tracking-wider text-zinc-500 uppercase">
+                            Participants ({{ selectedParticipants.length }})
+                        </label>
+                        <div v-if="userGroups.length" class="flex flex-wrap gap-2">
+                            <Button
+                                v-for="group in userGroups"
+                                :key="group.id"
+                                :label="group.name"
+                                icon="pi pi-users"
+                                severity="secondary"
+                                outlined
+                                size="small"
+                                @click="applyGroup(group.memberIds)"
+                            />
+                        </div>
+                    </div>
                     <MultiSelect
                         id="edit-participants"
                         v-model="selectedParticipants"

@@ -46,6 +46,9 @@ export interface EventParticipant extends EventPersonSummary {
     wantsBeer?: boolean;
     transportMode?: TransportMode;
     vehicleSeats?: number;
+    vehicleSeatsOutbound?: number;
+    vehicleSeatsReturn?: number;
+    hasPaid?: boolean;
     driverId?: number;
     driver?: EventPersonSummary;
 }
@@ -85,4 +88,6 @@ export interface ParticipateDto {
     wantsBeer?: boolean;
     transportMode?: TransportMode;
     vehicleSeats?: number;
+    vehicleSeatsOutbound?: number;
+    vehicleSeatsReturn?: number;
 }

@@ -11,6 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 import { ChatModule } from './chat/chat.module.js';
+import { UserGroupsModule } from './user-groups/user-groups.module.js';
 import { LoggerModule } from 'nestjs-pino';
 import { createLoggerModuleParams } from './logging/pino.js';
 
@@ -28,7 +29,8 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
         InvitesModule,
         NotificationsModule,
         UploadsModule,
-        ChatModule
+        ChatModule,
+        UserGroupsModule
     ],
     controllers: [AppController],
     providers: [

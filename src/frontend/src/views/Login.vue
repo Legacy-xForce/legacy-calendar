@@ -8,6 +8,9 @@ import { router } from '../router/router';
 import { useSessionStore } from '../stores/session';
 
 import { requestNotificationPermission } from '../services/firebase';
+import { isPasskeySupported } from '../services/webauthn';
+
+const passkeySupported = isPasskeySupported();
 
 const toast = useToast();
 const sessionStore = useSessionStore();
@@ -42,11 +45,26 @@ const handleLogin = async () => {
         router.push('/calendar');
 
         await requestNotificationPermission();
-    } else {
+    } else if (sessionStore.error) {
         toast.add({
             severity: 'error',
             summary: 'Login Failed',
             detail: sessionStore.error || 'Please check your credentials',
+            life: 4000
+        });
+    }
+};
+
+const handlePasskeyLogin = async () => {
+    const success = await sessionStore.loginWithPasskey(username.value || undefined);
+    if (success) {
+        router.push('/calendar');
+        await requestNotificationPermission();
+    } else {
+        toast.add({
+            severity: 'error',
+            summary: 'Passkey sign-in failed',
+            detail: sessionStore.error || 'The passkey could not be verified.',
             life: 4000
         });
     }
@@ -108,6 +126,19 @@ const handleLogin = async () => {
                         class="mt-8! w-full rounded-xl py-3 font-semibold shadow-[0_0_15px_rgba(52,211,153,0.15)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(52,211,153,0.3)]"
                         :loading="sessionStore.loading"
                         :disabled="sessionStore.loading"
+                    />
+
+                    <Button
+                        v-if="passkeySupported"
+                        type="button"
+                        label="Sign in with Passkey"
+                        icon="pi pi-key"
+                        severity="secondary"
+                        outlined
+                        :loading="sessionStore.loading"
+                        :disabled="sessionStore.loading"
+                        class="w-full rounded-xl py-3 font-semibold"
+                        @click="handlePasskeyLogin"
                     />
                 </form>
 

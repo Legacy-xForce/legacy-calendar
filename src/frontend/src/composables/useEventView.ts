@@ -236,7 +236,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     const getAvailableSeats = (driver: EventParticipant | undefined) => {
         if (!driver) return 0;
         const assigned = getAssignedPassengers(driver.id).length;
-        const totalSeats = driver.vehicleSeats || 0;
+        const totalSeats = driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0;
         // -1 for the driver themselves usually? The original code had: Math.max(0, totalSeats! - 1 - assigned);
         return Math.max(0, totalSeats - 1 - assigned);
     };
@@ -248,7 +248,8 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         if (rideNeedingParticipants.length === 0) return false;
 
         const totalSeats = drivers.value.reduce(
-            (acc, participant) => acc + Math.max(0, (participant.vehicleSeats || 0) - 1),
+            (acc, participant) =>
+                acc + Math.max(0, (participant.vehicleSeatsOutbound ?? participant.vehicleSeats ?? 0) - 1),
             0
         );
         return totalSeats < rideNeedingParticipants.length;

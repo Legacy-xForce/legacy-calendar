@@ -44,22 +44,22 @@ export class AuthController {
                 })
             });
 
-            let data: any = null;
+            let data: Record<string, unknown> | null = null;
             try {
-                data = await res.json();
-            } catch (e) {
+                data = (await res.json()) as Record<string, unknown>;
+            } catch {
                 data = null;
             }
 
             if (!res.ok) {
-                const msg = data && data.message ? data.message : 'Auth service error';
+                const msg = typeof data?.message === 'string' ? data.message : 'Auth service error';
                 // forward the upstream body when available so clients receive the same JSON
                 throw new HttpException(data ?? { message: msg }, res.status || HttpStatus.BAD_GATEWAY);
             }
 
             // return upstream JSON body as-is
             return data;
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (err instanceof HttpException) throw err;
             throw new HttpException('Unable to contact auth service', HttpStatus.SERVICE_UNAVAILABLE);
         }
