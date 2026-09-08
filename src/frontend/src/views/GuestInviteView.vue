@@ -201,6 +201,8 @@ const onLeave = () => {
             :initialFeatures="guestUserId ? getParticipantFeatures(guestUserId) : []"
             :initialTransportMode="guestParticipant?.transportMode"
             :initialVehicleSeats="guestParticipant?.vehicleSeats"
+            :initialVehicleSeatsOutbound="guestParticipant?.vehicleSeatsOutbound"
+            :initialVehicleSeatsReturn="guestParticipant?.vehicleSeatsReturn"
             :submitLabel="hasJoined ? 'Save Changes' : 'Join Event'"
             :featurePrices="eventPrices"
             :featureSplitPrices="eventSplitPrices"

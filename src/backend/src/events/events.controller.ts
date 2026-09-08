@@ -179,12 +179,14 @@ export class EventsController {
         @Param('id', ParseIntPipe) id: number,
         @Body('passengerId') passengerId: number,
         @Body('driverId') driverId: number | null,
+        @Body('direction') direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
         @Request() req: RequestWithUser
     ) {
         return this.eventsService.assignRide(
             id,
             passengerId,
             driverId,
+            direction,
             req.user.userId as number,
             req.impersonatorUserId ?? null
         );

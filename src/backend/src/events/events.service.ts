@@ -436,6 +436,7 @@ export class EventsService {
         eventId: number,
         passengerId: number,
         driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
         requestingUserId: number,
         impersonatorId: number | null = null
     ) {
@@ -456,7 +457,7 @@ export class EventsService {
             throw new NotFoundException(`Passenger with id ${passengerId} is not in this event`);
         }
 
-        const passengerAssignment = this.getRideAssignment(event, passengerId);
+        const passengerAssignment = this.getRideAssignment(event, passengerId, direction);
         const isCurrentDriver = passengerAssignment?.driverId === requestingUserId;
         const isAssigningToSelf = driverId === requestingUserId;
         const isUnassigningFromSelf = driverId === null && isCurrentDriver;
@@ -507,7 +508,7 @@ export class EventsService {
         const previousAssignment = passengerAssignment
             ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId }
             : null;
-        await this.eventsRepo.assignRide(eventId, passengerId, driverId);
+        await this.eventsRepo.assignRide(eventId, passengerId, driverId, direction);
 
         if (driverId !== null) {
             await this.auditLogService.recordRideAssigned(
@@ -679,8 +680,14 @@ export class EventsService {
         return event.participants.find((participant) => participant.userId === userId);
     }
 
-    private getRideAssignment(event: EventWithRelations, passengerId: number) {
-        return event.rideAssignments.find((assignment) => assignment.passengerId === passengerId);
+    private getRideAssignment(
+        event: EventWithRelations,
+        passengerId: number,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ) {
+        return event.rideAssignments.find(
+            (assignment) => assignment.passengerId === passengerId && assignment.direction === direction
+        );
     }
 
     private normalizeUserIds(userIds: number[]): number[] {

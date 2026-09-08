@@ -39,8 +39,20 @@ export class EventParticipantDto extends UserDto {
     @ApiProperty({ type: Number, example: 1, description: 'Driver ID', required: false })
     driverId?: number;
 
+    @ApiProperty({ type: Number, example: 1, description: 'Outbound driver ID', required: false })
+    driverIdOutbound?: number;
+
+    @ApiProperty({ type: Number, example: 1, description: 'Return driver ID', required: false })
+    driverIdReturn?: number;
+
     @ApiProperty({ type: () => UserDto, description: 'Driver details', required: false })
     driver?: UserDto;
+
+    @ApiProperty({ type: () => UserDto, description: 'Outbound driver details', required: false })
+    driverOutbound?: UserDto;
+
+    @ApiProperty({ type: () => UserDto, description: 'Return driver details', required: false })
+    driverReturn?: UserDto;
 }
 
 export class EventResponseDto {

@@ -30,6 +30,7 @@ export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
 
 export const TRANSPORT_MODES = ['NEEDS_RIDE', 'SELF', 'DRIVER'] as const;
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
+export type RideDirection = 'OUTBOUND' | 'RETURN';
 
 export interface EventPersonSummary {
     id: number;
@@ -51,6 +52,10 @@ export interface EventParticipant extends EventPersonSummary {
     hasPaid?: boolean;
     driverId?: number;
     driver?: EventPersonSummary;
+    driverIdOutbound?: number;
+    driverOutbound?: EventPersonSummary;
+    driverIdReturn?: number;
+    driverReturn?: EventPersonSummary;
 }
 
 export interface Event {

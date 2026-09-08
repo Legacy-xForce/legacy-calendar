@@ -260,8 +260,13 @@ class API {
         return this.client.delete(`/notifications/mute/${eventId}`);
     }
 
-    async assignRide(eventId: number, passengerId: number, driverId: number | null): Promise<AxiosResponse<void>> {
-        return this.client.post(`/events/${eventId}/assign-ride`, { passengerId, driverId });
+    async assignRide(
+        eventId: number,
+        passengerId: number,
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ): Promise<AxiosResponse<void>> {
+        return this.client.post(`/events/${eventId}/assign-ride`, { passengerId, driverId, direction });
     }
 
     async getEventAuditLog(eventId: number): Promise<AxiosResponse<AuditLogEntry[]>> {

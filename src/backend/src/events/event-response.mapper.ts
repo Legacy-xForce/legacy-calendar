@@ -20,12 +20,21 @@ function mapUserDto(user: {
 }
 
 export function mapEventToDto(event: EventWithRelations): EventResponseDto {
-    const rideAssignmentsByPassengerId = new Map(
-        event.rideAssignments.map((assignment) => [assignment.passengerId, assignment])
-    );
+    const rideAssignmentsByPassengerId = new Map<
+        number,
+        { outbound?: (typeof event.rideAssignments)[number]; return?: (typeof event.rideAssignments)[number] }
+    >();
+    event.rideAssignments.forEach((assignment) => {
+        const existing = rideAssignmentsByPassengerId.get(assignment.passengerId) ?? {};
+        if (assignment.direction === 'RETURN') existing.return = assignment;
+        else existing.outbound = assignment;
+        rideAssignmentsByPassengerId.set(assignment.passengerId, existing);
+    });
 
     const participantsDto: EventParticipantDto[] = event.participants.map((attendance) => {
-        const rideAssignment = rideAssignmentsByPassengerId.get(attendance.userId);
+        const assignments = rideAssignmentsByPassengerId.get(attendance.userId);
+        const outboundAssignment = assignments?.outbound;
+        const returnAssignment = assignments?.return;
 
         return {
             ...mapUserDto(attendance.user),
@@ -40,8 +49,12 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             vehicleSeatsOutbound: attendance.vehicleSeatsOutbound,
             vehicleSeatsReturn: attendance.vehicleSeatsReturn,
             hasPaid: attendance.hasPaid,
-            driverId: rideAssignment?.driverId,
-            driver: rideAssignment?.driver ? mapUserDto(rideAssignment.driver) : undefined
+            driverId: outboundAssignment?.driverId,
+            driver: outboundAssignment?.driver ? mapUserDto(outboundAssignment.driver) : undefined,
+            driverIdOutbound: outboundAssignment?.driverId,
+            driverOutbound: outboundAssignment?.driver ? mapUserDto(outboundAssignment.driver) : undefined,
+            driverIdReturn: returnAssignment?.driverId,
+            driverReturn: returnAssignment?.driver ? mapUserDto(returnAssignment.driver) : undefined
         };
     });
 

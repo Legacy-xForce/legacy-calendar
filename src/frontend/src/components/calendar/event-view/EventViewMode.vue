@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Event } from '../../../types/Event';
+import type { Event, RideDirection } from '../../../types/Event';
 import Divider from 'primevue/divider';
 import { injectEventView } from '../../../composables/useEventView';
 
@@ -17,12 +17,12 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'edit', event: Event): void;
     (e: 'delete'): void;
-    (e: 'drag-start', event: DragEvent, passengerId: number): void;
+    (e: 'drag-start', event: DragEvent, passengerId: number, direction: RideDirection): void;
     (e: 'drag-over', event: DragEvent, driverId: number): void;
     (e: 'drag-leave'): void;
-    (e: 'drop', event: DragEvent, driverId: number): void;
-    (e: 'assign-ride', passengerId: number, driverId: number | null): void;
-    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null): void;
+    (e: 'drop', event: DragEvent, driverId: number, direction: RideDirection): void;
+    (e: 'assign-ride', passengerId: number, driverId: number | null, direction: RideDirection): void;
+    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null, direction: RideDirection): void;
     (e: 'open-chat'): void;
     (e: 'open-audit-log'): void;
 }>();
@@ -50,12 +50,12 @@ const { isHost, isEnded, availableFeatureIds } = injectEventView();
 
         <EventTransportSection
             :event="event"
-            @drag-start="(ev, pid) => emit('drag-start', ev, pid)"
+            @drag-start="(ev, pid, direction) => emit('drag-start', ev, pid, direction)"
             @drag-over="(ev, did) => emit('drag-over', ev, did)"
             @drag-leave="emit('drag-leave')"
-            @drop="(ev, did) => emit('drop', ev, did)"
-            @assign-ride="(pid, did) => emit('assign-ride', pid, did)"
-            @assign-rides-batch="(pids, did) => emit('assign-rides-batch', pids, did)"
+            @drop="(ev, did, direction) => emit('drop', ev, did, direction)"
+            @assign-ride="(pid, did, direction) => emit('assign-ride', pid, did, direction)"
+            @assign-rides-batch="(pids, did, direction) => emit('assign-rides-batch', pids, did, direction)"
         />
 
         <EventActions

@@ -167,19 +167,25 @@ export class EventsRepository {
         });
     }
 
-    async assignRide(eventId: number, passengerId: number, driverId: number | null) {
+    async assignRide(
+        eventId: number,
+        passengerId: number,
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ) {
         if (driverId === null) {
             return this.prisma.rideAssignment.deleteMany({
                 where: {
                     eventId,
-                    passengerId
+                    passengerId,
+                    direction
                 }
             });
         }
 
         return this.prisma.rideAssignment.upsert({
             where: {
-                eventId_passengerId: { eventId, passengerId }
+                eventId_passengerId_direction: { eventId, passengerId, direction }
             },
             update: {
                 driverId
@@ -187,7 +193,8 @@ export class EventsRepository {
             create: {
                 eventId,
                 passengerId,
-                driverId
+                driverId,
+                direction
             }
         });
     }

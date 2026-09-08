@@ -309,15 +309,27 @@ export const useEventsStore = defineStore('events', () => {
         return mutateAndRefresh('Failed to leave event', () => api.leaveEvent(id));
     }
 
-    async function assignRide(eventId: number, passengerId: number, driverId: number | null) {
-        logger.info('Assigning ride', { eventId, passengerId, driverId });
-        return mutateAndRefresh('Failed to assign ride', () => api.assignRide(eventId, passengerId, driverId));
+    async function assignRide(
+        eventId: number,
+        passengerId: number,
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ) {
+        logger.info('Assigning ride', { eventId, passengerId, driverId, direction });
+        return mutateAndRefresh('Failed to assign ride', () =>
+            api.assignRide(eventId, passengerId, driverId, direction)
+        );
     }
 
-    async function assignRidesBatch(eventId: number, passengerIds: number[], driverId: number | null) {
-        logger.info('Assigning rides batch', { eventId, passengerCount: passengerIds.length, driverId });
+    async function assignRidesBatch(
+        eventId: number,
+        passengerIds: number[],
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ) {
+        logger.info('Assigning rides batch', { eventId, passengerCount: passengerIds.length, driverId, direction });
         return mutateAndRefresh('Failed to assign rides', () =>
-            Promise.all(passengerIds.map((id) => api.assignRide(eventId, id, driverId)))
+            Promise.all(passengerIds.map((id) => api.assignRide(eventId, id, driverId, direction)))
         );
     }
 

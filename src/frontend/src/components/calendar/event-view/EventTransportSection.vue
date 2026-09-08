@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { Event, EventParticipant } from '../../../types/Event';
+import type { Event, EventParticipant, RideDirection } from '../../../types/Event';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import UserAvatar from '../../UserAvatar.vue';
@@ -12,7 +12,7 @@ defineProps<{
 
 const {
     drivers,
-    needsRide,
+    getNeedsRide,
     selfTransport,
     resolvedInvitees,
     dragOverDriverId,
@@ -32,22 +32,32 @@ const canEditRide = (driverId: number) => {
 };
 
 const emit = defineEmits<{
-    (e: 'drag-start', event: DragEvent, passengerId: number): void;
+    (e: 'drag-start', event: DragEvent, passengerId: number, direction: RideDirection): void;
     (e: 'drag-over', event: DragEvent, driverId: number): void;
     (e: 'drag-leave'): void;
-    (e: 'drop', event: DragEvent, driverId: number): void;
-    (e: 'assign-ride', passengerId: number, driverId: number | null): void;
-    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null): void;
+    (e: 'drop', event: DragEvent, driverId: number, direction: RideDirection): void;
+    (e: 'assign-ride', passengerId: number, driverId: number | null, direction: RideDirection): void;
+    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null, direction: RideDirection): void;
 }>();
 
 const selectedPassengerIds = ref<number[]>([]);
+const activeDirection = ref<RideDirection>('OUTBOUND');
+const hasDifferentSeatCounts = computed(() =>
+    drivers.value.some(
+        (driver) =>
+            (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0) !==
+            (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0)
+    )
+);
+const activeNeedsRide = computed(() => getNeedsRide(activeDirection.value));
 
 const passengersMap = computed(() => {
     const map: Record<number, EventParticipant[]> = {};
     resolvedInvitees.value.forEach((p) => {
-        if (p.driver?.id) {
-            if (!map[p.driver.id]) map[p.driver.id] = [];
-            map[p.driver.id].push(p);
+        const driverId = activeDirection.value === 'RETURN' ? p.driverIdReturn : (p.driverIdOutbound ?? p.driverId);
+        if (driverId) {
+            if (!map[driverId]) map[driverId] = [];
+            map[driverId].push(p);
         }
     });
     return map;
@@ -71,10 +81,10 @@ const handleDriverClick = (driverId: number) => {
     if (selectedPassengerIds.value.length === 0) return;
 
     const driver = drivers.value.find((d) => d.id === driverId);
-    const availableSeats = getAvailableSeats(driver);
+    const availableSeats = getAvailableSeats(driver, activeDirection.value);
 
     if (selectedPassengerIds.value.length <= availableSeats) {
-        emit('assign-rides-batch', [...selectedPassengerIds.value], driverId);
+        emit('assign-rides-batch', [...selectedPassengerIds.value], driverId, activeDirection.value);
         selectedPassengerIds.value = [];
     }
 };
@@ -82,7 +92,7 @@ const handleDriverClick = (driverId: number) => {
 const canAssignToDriver = (driverId: number) => {
     if (selectedPassengerIds.value.length === 0) return false;
     const driver = drivers.value.find((d) => d.id === driverId);
-    return selectedPassengerIds.value.length <= getAvailableSeats(driver);
+    return selectedPassengerIds.value.length <= getAvailableSeats(driver, activeDirection.value);
 };
 </script>
 
@@ -94,7 +104,35 @@ const canAssignToDriver = (driverId: number) => {
                 <span class="text-sm font-semibold tracking-wider uppercase">Transport & Rides</span>
             </div>
 
-            <Tag v-if="needsRide.length > 0" severity="warn" :value="`${needsRide.length} needing ride`" size="small" />
+            <Tag
+                v-if="activeNeedsRide.length > 0"
+                severity="warn"
+                :value="`${activeNeedsRide.length} needing ride`"
+                size="small"
+            />
+        </div>
+
+        <div
+            v-if="hasDifferentSeatCounts"
+            class="flex w-full gap-1 rounded-xl border border-zinc-800 bg-zinc-950 p-1 sm:w-fit"
+            role="tablist"
+            aria-label="Ride direction"
+        >
+            <button
+                v-for="direction in ['OUTBOUND', 'RETURN'] as RideDirection[]"
+                :key="direction"
+                type="button"
+                role="tab"
+                :aria-selected="activeDirection === direction"
+                class="flex-1 rounded-lg px-3 py-2 text-xs font-bold tracking-wide uppercase transition-colors sm:flex-none"
+                :class="activeDirection === direction ? 'bg-blue-500 text-black' : 'text-zinc-400 hover:text-white'"
+                @click="
+                    activeDirection = direction;
+                    selectedPassengerIds = [];
+                "
+            >
+                {{ direction === 'OUTBOUND' ? 'Outbound' : 'Return' }}
+            </button>
         </div>
 
         <div v-if="drivers.length > 0" class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -106,13 +144,14 @@ const canAssignToDriver = (driverId: number) => {
                     dragOverDriverId === driver.id
                         ? 'scale-[1.02] border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
                         : 'border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-900/50',
-                    dragOverDriverId === driver.id && (getAvailableSeats(driver) === 0 || !canEditRide(driver.id))
+                    dragOverDriverId === driver.id &&
+                    (getAvailableSeats(driver, activeDirection) === 0 || !canEditRide(driver.id))
                         ? 'border-red-500 bg-red-500/10'
                         : ''
                 ]"
                 @dragover="emit('drag-over', $event, driver.id)"
                 @dragleave="emit('drag-leave')"
-                @drop="emit('drop', $event, driver.id)"
+                @drop="emit('drop', $event, driver.id, activeDirection)"
                 @click="handleDriverClick(driver.id)"
             >
                 <div class="flex items-center justify-between">
@@ -121,12 +160,27 @@ const canAssignToDriver = (driverId: number) => {
                         <div class="flex flex-col">
                             <span class="text-sm font-bold">{{ driver.username }}</span>
                             <div class="flex items-center gap-2 text-[10px] font-bold uppercase">
-                                <span>Outbound: {{ driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0 }}</span>
+                                <span
+                                    >{{ activeDirection === 'OUTBOUND' ? 'Outbound' : 'Return' }}:
+                                    {{
+                                        activeDirection === 'OUTBOUND'
+                                            ? (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0)
+                                            : (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0)
+                                    }}</span
+                                >
                                 <span class="font-black">·</span>
-                                <span>Return: {{ driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0 }}</span>
-                                <span class="font-black">·</span>
-                                <span :class="getAvailableSeats(driver) > 0 ? 'text-emerald-500' : 'text-red-500'">
-                                    {{ getAvailableSeats(driver) > 0 ? getAvailableSeats(driver) + ' left' : 'Full' }}
+                                <span
+                                    :class="
+                                        getAvailableSeats(driver, activeDirection) > 0
+                                            ? 'text-emerald-500'
+                                            : 'text-red-500'
+                                    "
+                                >
+                                    {{
+                                        getAvailableSeats(driver, activeDirection) > 0
+                                            ? getAvailableSeats(driver, activeDirection) + ' left'
+                                            : 'Full'
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -162,7 +216,7 @@ const canAssignToDriver = (driverId: number) => {
                             severity="danger"
                             text
                             class="size-3.5! p-0!"
-                            @click.stop="emit('assign-ride', passenger.id, null)"
+                            @click.stop="emit('assign-ride', passenger.id, null, activeDirection)"
                         />
                     </div>
                     <div
@@ -195,17 +249,17 @@ const canAssignToDriver = (driverId: number) => {
                 </button>
             </div>
             <div
-                v-if="needsRide.length === 0"
+                v-if="activeNeedsRide.length === 0"
                 class="rounded-2xl border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500 dark:border-zinc-800"
             >
                 Everyone has a ride
             </div>
             <div v-else class="flex flex-col gap-1">
                 <div
-                    v-for="passenger in needsRide"
+                    v-for="passenger in activeNeedsRide"
                     :key="passenger.id"
                     :draggable="canEditRides"
-                    @dragstart="emit('drag-start', $event, passenger.id)"
+                    @dragstart="emit('drag-start', $event, passenger.id, activeDirection)"
                     @click="togglePassengerSelection(passenger.id)"
                     class="group flex items-center justify-between rounded-xl border p-3 transition-all duration-300"
                     :class="[

@@ -12,7 +12,7 @@ export function injectEventView() {
     }
     return context;
 }
-import type { Event, EventFeature, EventParticipant, EventPersonSummary } from '../types/Event';
+import type { Event, EventFeature, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
 import { FEATURES } from '../constants/features';
@@ -198,6 +198,16 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
             .sort((a, b) => a.username.localeCompare(b.username));
     });
 
+    const getNeedsRide = (direction: RideDirection) =>
+        resolvedInvitees.value
+            .filter(
+                (participant) =>
+                    participant.status === 'ACCEPTED' &&
+                    participant.transportMode === 'NEEDS_RIDE' &&
+                    !getAssignedPassengers(participant.id, direction).length
+            )
+            .sort((a, b) => a.username.localeCompare(b.username));
+
     const selfTransport = computed(() => {
         if (!eventRef.value?.participants) return [];
         return resolvedInvitees.value
@@ -227,16 +237,22 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         return participantFeatures(participant).reduce((total, feature) => total + getFeatureSplitPrice(feature), 0);
     });
 
-    const getAssignedPassengers = (driverId: number) => {
+    const getAssignedPassengers = (driverId: number, direction: RideDirection = 'OUTBOUND') => {
         return resolvedInvitees.value.filter(
-            (participant) => participant.driverId === driverId || participant.driver?.id === driverId
+            (participant) =>
+                (direction === 'RETURN'
+                    ? participant.driverIdReturn
+                    : (participant.driverIdOutbound ?? participant.driverId)) === driverId
         );
     };
 
-    const getAvailableSeats = (driver: EventParticipant | undefined) => {
+    const getAvailableSeats = (driver: EventParticipant | undefined, direction: RideDirection = 'OUTBOUND') => {
         if (!driver) return 0;
-        const assigned = getAssignedPassengers(driver.id).length;
-        const totalSeats = driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0;
+        const assigned = getAssignedPassengers(driver.id, direction).length;
+        const totalSeats =
+            direction === 'RETURN'
+                ? (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0)
+                : (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0);
         // -1 for the driver themselves usually? The original code had: Math.max(0, totalSeats! - 1 - assigned);
         return Math.max(0, totalSeats - 1 - assigned);
     };
@@ -311,6 +327,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         featuresListColumns,
         drivers,
         needsRide,
+        getNeedsRide,
         eventTotalBudget,
         userTotalShare,
         isAldoMoro,

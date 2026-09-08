@@ -111,12 +111,18 @@ model RideAssignment {
   eventId     Int
   driverId    Int
   passengerId Int
+  direction   RideDirection @default(OUTBOUND)
   driver      User  @relation("RideAssignmentDriver", fields: [driverId], references: [id], onDelete: Cascade)
   event       Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   passenger   User  @relation("RideAssignmentPassenger", fields: [passengerId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, passengerId])
+  @@unique([eventId, passengerId, direction])
   @@index([eventId, driverId])
+}
+
+enum RideDirection {
+  OUTBOUND
+  RETURN
 }
 
 model GuestInviteToken {

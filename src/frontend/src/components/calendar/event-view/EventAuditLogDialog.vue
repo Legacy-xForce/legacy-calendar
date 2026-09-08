@@ -256,34 +256,50 @@ const fieldLabels: Record<string, string> = {
     username: 'Username'
 };
 
+const DATE_FIELDS = new Set(['startTime', 'endTime', 'joinedAt', 'participationDeadline']);
+
+const getLocale = () => navigator.language || 'en-GB';
+
 const formatTimestamp = (value: string) => {
     const date = new Date(value);
-    const locale = navigator.language || 'en-GB';
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const parts = new Intl.DateTimeFormat(locale, {
-        timeZone,
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    }).formatToParts(date);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
 
-    const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return `${lookup.day} ${lookup.month} ${lookup.year}, ${lookup.hour}:${lookup.minute}`;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return new Intl.DateTimeFormat(getLocale(), {
+        timeZone,
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    }).format(date);
 };
 
-const formatDiffValue = (value: unknown) => {
+const formatDiffValue = (value: unknown, fieldName: string) => {
     if (value === null || value === undefined) {
         return '(none)';
     }
 
+    if (typeof value === 'boolean') {
+        return value ? 'Yes' : 'No';
+    }
+
     if (typeof value === 'string') {
+        if (DATE_FIELDS.has(fieldName)) {
+            return formatTimestamp(value);
+        }
+
+        if (/^[A-Z][A-Z0-9_]*$/.test(value)) {
+            return value
+                .toLowerCase()
+                .split('_')
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+        }
+
         return value;
     }
 
-    if (typeof value === 'number' || typeof value === 'boolean') {
+    if (typeof value === 'number') {
         return String(value);
     }
 
@@ -335,8 +351,8 @@ const getDiffItems = (entry: AuditLogEntry): DiffItem[] => {
 
         return {
             fieldName,
-            beforeText: kind === 'added' ? '(none)' : formatDiffValue(beforeValue),
-            afterText: kind === 'removed' ? '(removed)' : formatDiffValue(afterValue),
+            beforeText: kind === 'added' ? '(none)' : formatDiffValue(beforeValue, fieldName),
+            afterText: kind === 'removed' ? '(removed)' : formatDiffValue(afterValue, fieldName),
             beforeUser: kind === 'added' ? null : resolveUser(beforeValue),
             afterUser: kind === 'removed' ? null : resolveUser(afterValue),
             kind
