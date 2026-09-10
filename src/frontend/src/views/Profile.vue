@@ -4,6 +4,8 @@ import { clear } from 'idb-keyval';
 import { useSessionStore } from '../stores/session';
 import Button from 'primevue/button';
 import Password from 'primevue/password';
+import InputText from 'primevue/inputtext';
+import MultiSelect from 'primevue/multiselect';
 import UserAvatar from '../components/UserAvatar.vue';
 import Panel from 'primevue/panel';
 import ToggleSwitch from 'primevue/toggleswitch';
@@ -17,6 +19,9 @@ import { router } from '../router/router';
 import { createLogger } from '../services/logger';
 import api from '../services/API';
 import { isPasskeySupported } from '../services/webauthn';
+import { useUsersStore } from '../stores/users';
+import { useUserGroupsStore } from '../stores/userGroups';
+import { storeToRefs } from 'pinia';
 
 const sessionStore = useSessionStore();
 const toast = useToast();
@@ -25,9 +30,83 @@ const logger = createLogger('ProfileView');
 const passkeySupported = isPasskeySupported();
 const passkeys = ref<{ id: string; deviceName: string; createdAt: string }[]>([]);
 const passkeyLoading = ref(false);
+const usersStore = useUsersStore();
+const userGroupsStore = useUserGroupsStore();
+const { users } = storeToRefs(usersStore);
+const { groups: userGroups, loading: groupsLoading } = storeToRefs(userGroupsStore);
 
 const currentUser = computed(() => sessionStore.currentUser);
 const isAdmin = computed(() => currentUser.value?.isAdmin);
+const groupName = ref('');
+const groupMembers = ref<number[]>([]);
+const editingGroupId = ref<number | null>(null);
+const groupEditorOpen = ref(false);
+const groupSaving = ref(false);
+
+const groupMemberOptions = computed(() => users.value.filter((user) => user.id !== currentUser.value?.id));
+
+const startGroupEditor = (group?: (typeof userGroups.value)[number]) => {
+    editingGroupId.value = group?.id ?? null;
+    groupName.value = group?.name ?? '';
+    groupMembers.value = group?.memberIds ?? [];
+    groupEditorOpen.value = true;
+};
+
+const cancelGroupEditor = () => {
+    groupEditorOpen.value = false;
+    editingGroupId.value = null;
+    groupName.value = '';
+    groupMembers.value = [];
+};
+
+const saveGroup = async () => {
+    const name = groupName.value.trim();
+    if (!name) return;
+
+    groupSaving.value = true;
+    try {
+        if (editingGroupId.value === null) {
+            await userGroupsStore.createGroup({ name, memberIds: groupMembers.value });
+            toast.add({ severity: 'success', summary: 'Invitation group created', life: 2500 });
+        } else {
+            await userGroupsStore.updateGroup(editingGroupId.value, { name, memberIds: groupMembers.value });
+            toast.add({ severity: 'success', summary: 'Invitation group updated', life: 2500 });
+        }
+        cancelGroupEditor();
+    } catch {
+        toast.add({
+            severity: 'error',
+            summary: 'Could not save invitation group',
+            detail: 'Please try again.',
+            life: 3500
+        });
+    } finally {
+        groupSaving.value = false;
+    }
+};
+
+const deleteGroup = (group: (typeof userGroups.value)[number]) => {
+    confirm.require({
+        message: `Delete the "${group.name}" invitation group?`,
+        header: 'Delete invitation group',
+        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+        acceptProps: { label: 'Delete', severity: 'danger' },
+        accept: async () => {
+            try {
+                await userGroupsStore.deleteGroup(group.id);
+                if (editingGroupId.value === group.id) cancelGroupEditor();
+                toast.add({ severity: 'success', summary: 'Invitation group deleted', life: 2500 });
+            } catch {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Could not delete invitation group',
+                    detail: 'Please try again.',
+                    life: 3500
+                });
+            }
+        }
+    });
+};
 
 const handleLogout = async () => {
     await sessionStore.logout();
@@ -45,6 +124,7 @@ const notificationSettings = ref<NotificationSettings | null>(null);
 
 onMounted(async () => {
     notificationSettings.value = await notificationStorage.getSettings();
+    await Promise.all([usersStore.fetchUsers(), userGroupsStore.fetchGroups()]);
     if (passkeySupported) {
         try {
             passkeys.value = (await api.getPasskeys()).data;
@@ -60,7 +140,12 @@ const handleRegisterPasskey = async () => {
         const deviceName = window.prompt('Name this passkey', 'My device') || undefined;
         await sessionStore.registerPasskey(deviceName);
         passkeys.value = (await api.getPasskeys()).data;
-        toast.add({ severity: 'success', summary: 'Passkey added', detail: 'This device can now sign you in.', life: 3000 });
+        toast.add({
+            severity: 'success',
+            summary: 'Passkey added',
+            detail: 'This device can now sign you in.',
+            life: 3000
+        });
     } catch (error: any) {
         toast.add({ severity: 'error', summary: 'Passkey registration failed', detail: error.message, life: 4000 });
     } finally {
@@ -213,6 +298,141 @@ const handleClearCache = () => {
                 </div>
             </Panel>
 
+            <Panel
+                class="bg-section border border-zinc-800/50! bg-zinc-950/40 shadow-2xl backdrop-blur-xl"
+                :pt="{
+                    header: { class: 'bg-transparent border-none px-6 py-5' },
+                    content: { class: 'bg-transparent border-none px-6 pb-6 pt-0' }
+                }"
+            >
+                <template #header>
+                    <div class="flex w-full items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-xl font-bold">
+                            <i class="pi pi-users text-primary"></i>
+                            Invitation Groups
+                        </div>
+                        <Button
+                            v-if="!groupEditorOpen"
+                            icon="pi pi-plus"
+                            label="New group"
+                            size="small"
+                            outlined
+                            @click="startGroupEditor()"
+                        />
+                    </div>
+                </template>
+
+                <div class="flex flex-col gap-4 pt-2">
+                    <p class="text-sm text-zinc-400">
+                        Save recurring invite lists once, then apply them to any event in one click.
+                    </p>
+
+                    <div
+                        v-if="groupEditorOpen"
+                        class="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
+                    >
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="font-semibold">{{ editingGroupId === null ? 'Create group' : 'Edit group' }}</h3>
+                            <Button
+                                icon="pi pi-times"
+                                text
+                                rounded
+                                aria-label="Close group editor"
+                                @click="cancelGroupEditor"
+                            />
+                        </div>
+                        <InputText v-model="groupName" placeholder="Group name" class="w-full rounded-xl!" autofocus />
+                        <MultiSelect
+                            v-model="groupMembers"
+                            :options="groupMemberOptions"
+                            optionLabel="username"
+                            optionValue="id"
+                            display="chip"
+                            filter
+                            placeholder="Choose people"
+                            class="w-full rounded-xl!"
+                        >
+                            <template #option="slotProps">
+                                <div class="flex items-center gap-2">
+                                    <UserAvatar
+                                        :profilePictureUrl="slotProps.option.profilePictureUrl"
+                                        :username="slotProps.option.username"
+                                    />
+                                    <span>{{ slotProps.option.username }}</span>
+                                </div>
+                            </template>
+                            <template #chip="slotProps">
+                                <div class="flex items-center gap-1 px-1">
+                                    <UserAvatar
+                                        :profilePictureUrl="
+                                            groupMemberOptions.find((user) => user.id === slotProps.value)
+                                                ?.profilePictureUrl
+                                        "
+                                        :username="
+                                            groupMemberOptions.find((user) => user.id === slotProps.value)?.username
+                                        "
+                                        class="h-4! w-4! text-[10px]!"
+                                    />
+                                    <span>{{
+                                        groupMemberOptions.find((user) => user.id === slotProps.value)?.username
+                                    }}</span>
+                                </div>
+                            </template>
+                        </MultiSelect>
+                        <div class="flex justify-end gap-2">
+                            <Button label="Cancel" text severity="secondary" @click="cancelGroupEditor" />
+                            <Button
+                                label="Save group"
+                                icon="pi pi-check"
+                                :loading="groupSaving"
+                                :disabled="!groupName.trim()"
+                                @click="saveGroup"
+                            />
+                        </div>
+                    </div>
+
+                    <div v-if="groupsLoading" class="text-sm text-zinc-500">Loading invitation groups...</div>
+                    <div
+                        v-else-if="userGroups.length"
+                        class="divide-y divide-zinc-800 rounded-xl border border-zinc-800"
+                    >
+                        <div
+                            v-for="group in userGroups"
+                            :key="group.id"
+                            class="flex items-center justify-between gap-3 p-3"
+                        >
+                            <div class="min-w-0">
+                                <div class="truncate font-medium">{{ group.name }}</div>
+                                <div class="text-xs text-zinc-500">
+                                    {{ group.memberIds.length }}
+                                    {{ group.memberIds.length === 1 ? 'person' : 'people' }}
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1">
+                                <Button
+                                    icon="pi pi-pencil"
+                                    text
+                                    rounded
+                                    aria-label="Edit invitation group"
+                                    @click="startGroupEditor(group)"
+                                />
+                                <Button
+                                    icon="pi pi-trash"
+                                    text
+                                    rounded
+                                    severity="danger"
+                                    aria-label="Delete invitation group"
+                                    @click="deleteGroup(group)"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-zinc-500">
+                        No invitation groups yet. Create one for your regular invite lists.
+                    </p>
+                </div>
+            </Panel>
+
             <!-- Security Section -->
             <Panel
                 class="bg-section border border-zinc-800/50! bg-zinc-950/40 shadow-2xl backdrop-blur-xl"
@@ -294,7 +514,10 @@ const handleClearCache = () => {
             <Panel
                 v-if="passkeySupported"
                 class="bg-section border border-zinc-800/50! bg-zinc-950/40 shadow-2xl backdrop-blur-xl"
-                :pt="{ header: { class: 'bg-transparent border-none px-6 py-5' }, content: { class: 'bg-transparent border-none px-6 pb-6 pt-0' } }"
+                :pt="{
+                    header: { class: 'bg-transparent border-none px-6 py-5' },
+                    content: { class: 'bg-transparent border-none px-6 pb-6 pt-0' }
+                }"
             >
                 <template #header>
                     <div class="flex items-center gap-2 text-xl font-bold">
@@ -310,12 +533,25 @@ const handleClearCache = () => {
                         @click="handleRegisterPasskey"
                     />
                     <div v-if="passkeys.length" class="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-                        <div v-for="passkey in passkeys" :key="passkey.id" class="flex items-center justify-between gap-3 p-3">
+                        <div
+                            v-for="passkey in passkeys"
+                            :key="passkey.id"
+                            class="flex items-center justify-between gap-3 p-3"
+                        >
                             <div class="min-w-0">
                                 <div class="truncate font-medium">{{ passkey.deviceName }}</div>
-                                <div class="text-xs text-zinc-500">Added {{ new Date(passkey.createdAt).toLocaleDateString() }}</div>
+                                <div class="text-xs text-zinc-500">
+                                    Added {{ new Date(passkey.createdAt).toLocaleDateString() }}
+                                </div>
                             </div>
-                            <Button icon="pi pi-trash" severity="danger" text rounded aria-label="Remove passkey" @click="handleDeletePasskey(passkey.id)" />
+                            <Button
+                                icon="pi pi-trash"
+                                severity="danger"
+                                text
+                                rounded
+                                aria-label="Remove passkey"
+                                @click="handleDeletePasskey(passkey.id)"
+                            />
                         </div>
                     </div>
                     <p v-else class="text-sm text-zinc-500">No passkeys registered yet.</p>
