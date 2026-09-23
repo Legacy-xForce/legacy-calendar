@@ -44,27 +44,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: { sub: string; username: string; role?: 'admin' | 'user' }) {
-        const isAdmin = payload.role === 'admin';
-
-        let user: { id?: number; username?: string } | null = null;
-        const numericId = Number(payload.sub);
-        if (Number.isFinite(numericId) && numericId > 0) {
-            user = await this.usersService.findOne(numericId).catch(() => null);
-        }
-
-        if (!user) {
-            user = await this.usersService.syncFromAuth({
-                authId: payload.sub,
-                username: payload.username,
-                isAdmin
-            });
-        }
+    async validate(payload: { sub: string; username: string }) {
+        const user = await this.usersService.syncFromAuth({
+            authId: payload.sub,
+            username: payload.username
+        });
 
         return {
-            userId: user?.id ?? (numericId > 0 ? numericId : undefined),
+            userId: user?.id,
             username: user?.username ?? payload.username,
-            isAdmin
+            isAdmin: user?.isAdmin ?? false
         };
     }
 }

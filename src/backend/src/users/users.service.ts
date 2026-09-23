@@ -51,32 +51,41 @@ export class UsersService {
         return this.usersRepo.findOneByUsername(username);
     }
 
-    // Keeps the local user record in sync with the identity asserted by the auth
-    // microservice's JWT (sub = authId), creating it on first sight.
-    async syncFromAuth(params: { authId: string; username: string; isAdmin: boolean }): Promise<UserRecord | null> {
-        const { authId, username, isAdmin } = params;
+    // Provision an app-local record on the first authenticated request. Identity
+    // comes from authId; authorization roles remain managed by this application.
+    async syncFromAuth(params: { authId: string; username: string }): Promise<UserRecord | null> {
+        const { authId, username } = params;
 
-        let user = await this.usersRepo.findOneByUsername(username);
-        if (!user) {
-            try {
-                user = await this.usersRepo.create({ username, isAdmin, authId });
-            } catch {
-                user = await this.usersRepo.findOneByUsername(username);
-            }
+        const byAuthId = await this.usersRepo.findOneByAuthId(authId);
+        if (byAuthId) {
+            return byAuthId;
         }
 
-        if (!user) {
+        const byUsername = await this.usersRepo.findOneByUsername(username);
+        if (byUsername) {
+            // Link legacy app users that have not yet been associated with an auth
+            // identity, while never moving an existing identity to another account.
+            if (byUsername.authId && byUsername.authId !== authId) {
+                return null;
+            }
+            return this.usersRepo.update(byUsername.id, { authId });
+        }
+
+        try {
+            return await this.usersRepo.create({ username, authId, isAdmin: false, isGuest: false });
+        } catch {
+            // Concurrent first requests can race on either unique key.
+            const racedByAuthId = await this.usersRepo.findOneByAuthId(authId);
+            if (racedByAuthId) {
+                return racedByAuthId;
+            }
+
+            const racedByUsername = await this.usersRepo.findOneByUsername(username);
+            if (racedByUsername && !racedByUsername.authId) {
+                return this.usersRepo.update(racedByUsername.id, { authId });
+            }
             return null;
         }
-
-        if (user.isAdmin !== isAdmin || user.authId !== authId) {
-            user = await this.usersRepo.update(user.id, {
-                isAdmin,
-                authId
-            });
-        }
-
-        return user;
     }
 
     async update(id: number, updateUserDto: UpdateUserDto): Promise<UserDto> {

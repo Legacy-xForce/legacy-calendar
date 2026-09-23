@@ -52,6 +52,10 @@ export class UsersRepository {
         return this.prisma.user.findUnique({ where: { username } });
     }
 
+    findOneByAuthId(authId: string): Promise<UserRecord | null> {
+        return this.prisma.user.findUnique({ where: { authId }, select: USER_SELECT });
+    }
+
     update(id: number, data: Prisma.UserUpdateInput): Promise<UserRecord> {
         return this.prisma.user.update({
             where: { id },
