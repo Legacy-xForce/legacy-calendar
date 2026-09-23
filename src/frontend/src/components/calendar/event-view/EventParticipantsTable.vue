@@ -12,6 +12,7 @@ import AccordionContent from 'primevue/accordioncontent';
 import UserAvatar from '../../UserAvatar.vue';
 import { injectEventView } from '../../../composables/useEventView';
 import api from '../../../services/API';
+import { totalEventBudget } from '../../../utils/event';
 
 const props = defineProps<{
     event: Event;
@@ -24,6 +25,7 @@ const toast = useToast();
 const paymentOverrides = ref<Record<number, boolean>>({});
 
 const canUpdatePayment = computed(() => isHost.value || currentUser.value?.isAdmin === true);
+const hasPaymentDue = computed(() => totalEventBudget(props.event) > 0);
 const getPaymentStatus = (participant: (typeof resolvedInvitees.value)[number]) =>
     paymentOverrides.value[participant.id] ?? participant.hasPaid === true;
 
@@ -141,7 +143,13 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                                 <div v-else class="text-surface-400 text-center">-</div>
                             </template>
                         </Column>
-                        <Column field="hasPaid" header="Payment" class="w-24 text-center sm:w-32" sortable>
+                        <Column
+                            v-if="hasPaymentDue"
+                            field="hasPaid"
+                            header="Payment"
+                            class="w-24 text-center sm:w-32"
+                            sortable
+                        >
                             <template #body="slotProps">
                                 <button
                                     v-if="canUpdatePayment"
