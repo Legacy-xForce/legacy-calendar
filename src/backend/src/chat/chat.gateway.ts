@@ -370,9 +370,31 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     private async verifySocketToken(token: string): Promise<JwtPayload> {
-        const decoded = jsonwebtoken.decode(token, { complete: true }) as { header?: { kid?: string } } | null;
-        const kid = decoded?.header?.kid;
+        const decoded = jsonwebtoken.decode(token, { complete: true }) as {
+            header?: { alg?: string; kid?: string };
+        } | null;
+        const algorithm = decoded?.header?.alg;
 
+        if (algorithm === 'HS256') {
+            const secret = this.configService.get<string>('JWT_SECRET') || 'legacy-calendar-default-secret';
+            return await new Promise<JwtPayload>((resolve, reject) => {
+                jsonwebtoken.verify(token, secret, { algorithms: ['HS256'] }, (err, payload) => {
+                    if (err) {
+                        reject(err);
+                    } else if (!payload || typeof payload === 'string') {
+                        reject(new Error('Invalid token payload'));
+                    } else {
+                        resolve(payload as JwtPayload);
+                    }
+                });
+            });
+        }
+
+        if (algorithm !== 'ES256') {
+            throw new Error('Unsupported token algorithm');
+        }
+
+        const kid = decoded?.header?.kid;
         if (!kid) {
             throw new Error('Missing token key id');
         }
