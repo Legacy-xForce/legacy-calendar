@@ -152,7 +152,7 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                         >
                             <template #body="slotProps">
                                 <button
-                                    v-if="canUpdatePayment"
+                                    v-if="canUpdatePayment && !slotProps.data.isGuest"
                                     type="button"
                                     class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
                                     :class="

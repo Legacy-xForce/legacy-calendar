@@ -6,11 +6,10 @@ const USER_SELECT = {
     id: true,
     username: true,
     isAdmin: true,
-    authId: true,
-    isGuest: true
+    authId: true
 } satisfies Prisma.UserSelect;
 
-export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId' | 'isGuest'>;
+export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId'>;
 
 @Injectable()
 export class UsersRepository {
@@ -25,7 +24,6 @@ export class UsersRepository {
 
     findAll(): Promise<UserRecord[]> {
         return this.prisma.user.findMany({
-            where: { isGuest: false },
             select: USER_SELECT
         });
     }

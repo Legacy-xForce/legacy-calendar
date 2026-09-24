@@ -4,7 +4,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 export const AUDIT_LOG_INCLUDE = {
     actor: { select: { id: true, username: true, authId: true } },
-    impersonator: { select: { id: true, username: true, authId: true } }
+    impersonator: { select: { id: true, username: true, authId: true } },
+    actorGuestParticipant: { select: { id: true, displayName: true } }
 } satisfies Prisma.AuditLogEntryInclude;
 
 export type AuditLogEntryWithRelations = Prisma.AuditLogEntryGetPayload<{
@@ -28,5 +29,11 @@ export class AuditLogRepository {
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: AUDIT_LOG_INCLUDE
         });
+    }
+
+    async findGuestParticipantsByIds(ids: number[]): Promise<Array<{ id: number; displayName: string }>> {
+        if (ids.length === 0) return [];
+        const guests = await this.prisma.guestParticipant.findMany({ where: { id: { in: ids } } });
+        return guests;
     }
 }

@@ -53,7 +53,7 @@ export class UsersService {
 
     // Provision an app-local record on the first authenticated request. Identity
     // comes from authId; authorization roles remain managed by this application.
-    async syncFromAuth(params: { authId: string; username: string }): Promise<UserRecord | null> {
+    async syncFromAuth(params: { authId: string; username: string; isAdmin?: boolean }): Promise<UserRecord | null> {
         const { authId, username } = params;
 
         const byAuthId = await this.usersRepo.findOneByAuthId(authId);
@@ -72,7 +72,7 @@ export class UsersService {
         }
 
         try {
-            return await this.usersRepo.create({ username, authId, isAdmin: false, isGuest: false });
+            return await this.usersRepo.create({ username, authId, isAdmin: params.isAdmin ?? false });
         } catch {
             // Concurrent first requests can race on either unique key.
             const racedByAuthId = await this.usersRepo.findOneByAuthId(authId);
@@ -120,7 +120,7 @@ export class UsersService {
             username: user.username,
             isAdmin: user.isAdmin,
             profilePictureUrl: buildProfilePictureUrl(user.authId),
-            isGuest: user.isGuest
+            isGuest: false
         };
     }
 

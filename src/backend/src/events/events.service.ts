@@ -673,11 +673,13 @@ export class EventsService {
     }
 
     private getParticipantUserIds(event: EventWithRelations): number[] {
-        return event.participants.map((participant) => participant.userId);
+        return event.participants.flatMap((participant) => (participant.userId === null ? [] : [participant.userId]));
     }
 
     private getParticipant(event: EventWithRelations, userId: number) {
-        return event.participants.find((participant) => participant.userId === userId);
+        return event.participants.find(
+            (participant) => (participant.userId ?? -participant.guestParticipant!.id) === userId
+        );
     }
 
     private getRideAssignment(

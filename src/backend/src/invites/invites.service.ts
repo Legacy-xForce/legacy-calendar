@@ -1,5 +1,4 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { randomBytes } from 'crypto';
 import { Prisma } from '../../prisma/generated/client.js';
 import { EventsRepository, type EventWithRelations } from '../events/events.repository.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
@@ -36,20 +35,22 @@ export class InvitesService {
 
         const expiresAt = this.resolveExpiry(event);
         const { token, tokenHash } = this.createUniqueToken();
-        const username = this.createUniquePlaceholderUsername();
+        const { guestParticipant } = await this.invitesRepo.createGuestInvite(eventId, tokenHash, expiresAt);
 
-        const { guestUser } = await this.invitesRepo.createGuestInvite(eventId, tokenHash, expiresAt, username);
+        await this.auditLogService.recordParticipantInvited(
+            eventId,
+            { id: -guestParticipant.id, username: guestParticipant.displayName },
+            {
+                actorId: hostUserId,
+                impersonatorId
+            }
+        );
 
-        await this.auditLogService.recordParticipantInvited(eventId, guestUser, {
-            actorId: hostUserId,
-            impersonatorId
-        });
-
-        this.logger.info('Guest invite created', { eventId, guestUserId: guestUser.id, hostUserId });
+        this.logger.info('Guest invite created', { eventId, guestParticipantId: guestParticipant.id, hostUserId });
 
         return {
             token,
-            guestUserId: guestUser.id,
+            guestUserId: -guestParticipant.id,
             expiresAt
         };
     }
@@ -68,10 +69,12 @@ export class InvitesService {
         this.validateEventNotEnded(event);
         this.validateDeadlineNotPassed(event);
 
-        const before = event.participants.find((participant) => participant.userId === guestInvite.userId);
+        const before = event.participants.find(
+            (participant) => participant.guestParticipantId === guestInvite.guestParticipantId
+        );
 
         try {
-            await this.invitesRepo.updateGuestParticipation(guestInvite.userId, guestInvite.eventId, dto);
+            await this.invitesRepo.updateGuestParticipation(guestInvite.guestParticipantId, guestInvite.eventId, dto);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
                 throw new ForbiddenException('That username is already taken, please choose another one');
@@ -80,25 +83,29 @@ export class InvitesService {
         }
 
         const updatedEvent = await this.findEventOrThrow(guestInvite.eventId);
-        const after = updatedEvent.participants.find((participant) => participant.userId === guestInvite.userId);
+        const after = updatedEvent.participants.find(
+            (participant) => participant.guestParticipantId === guestInvite.guestParticipantId
+        );
 
         if (!before) {
             if (after) {
                 await this.auditLogService.recordParticipantJoined(guestInvite.eventId, after, {
-                    actorId: guestInvite.userId
+                    actorGuestParticipantId: guestInvite.guestParticipantId,
+                    actorName: after.guestParticipant?.displayName
                 });
             }
         } else if (after) {
             await this.auditLogService.recordParticipantUpdated(guestInvite.eventId, before, after, {
-                actorId: guestInvite.userId
+                actorGuestParticipantId: guestInvite.guestParticipantId,
+                actorName: after.guestParticipant?.displayName
             });
         }
 
-        await this.notifyHost(updatedEvent, guestInvite.userId, before ? 'updated' : 'accepted');
+        await this.notifyHost(updatedEvent, guestInvite.guestParticipantId, before ? 'updated' : 'accepted');
 
         this.logger.info('Guest participation updated', {
             eventId: guestInvite.eventId,
-            guestUserId: guestInvite.userId
+            guestParticipantId: guestInvite.guestParticipantId
         });
 
         const refreshedInvite = { ...guestInvite };
@@ -109,19 +116,25 @@ export class InvitesService {
         const event = await this.findEventOrThrow(guestInvite.eventId);
         this.validateEventNotEnded(event);
 
-        const before = event.participants.find((participant) => participant.userId === guestInvite.userId);
+        const before = event.participants.find(
+            (participant) => participant.guestParticipantId === guestInvite.guestParticipantId
+        );
 
-        await this.invitesRepo.declineGuestParticipation(guestInvite.userId, guestInvite.eventId);
+        await this.invitesRepo.declineGuestParticipation(guestInvite.guestParticipantId, guestInvite.eventId);
 
         if (before) {
             await this.auditLogService.recordParticipantDeclined(guestInvite.eventId, before, {
-                actorId: guestInvite.userId
+                actorGuestParticipantId: guestInvite.guestParticipantId,
+                actorName: before.guestParticipant?.displayName
             });
         }
 
-        await this.notifyHost(event, guestInvite.userId, 'cancelled');
+        await this.notifyHost(event, guestInvite.guestParticipantId, 'cancelled');
 
-        this.logger.info('Guest left event', { eventId: guestInvite.eventId, guestUserId: guestInvite.userId });
+        this.logger.info('Guest left event', {
+            eventId: guestInvite.eventId,
+            guestParticipantId: guestInvite.guestParticipantId
+        });
 
         const updatedEvent = await this.findEventOrThrow(guestInvite.eventId);
         return this.buildInviteResponse(updatedEvent, guestInvite);
@@ -132,7 +145,7 @@ export class InvitesService {
 
         return {
             event: mapEventToDto(event),
-            guestUserId: guestInvite.userId,
+            guestUserId: -guestInvite.guestParticipantId,
             isDeadlinePassed,
             canEdit: !isDeadlinePassed && !(event.endTime && new Date() > event.endTime)
         };
@@ -140,16 +153,14 @@ export class InvitesService {
 
     private async notifyHost(
         event: EventWithRelations,
-        guestUserId: number,
+        guestParticipantId: number,
         action: 'accepted' | 'updated' | 'cancelled'
     ) {
-        if (event.hostId === guestUserId) return;
-
         const hostTokens = await this.eventsRepo.getUserTokens([event.hostId]);
         if (hostTokens.length === 0) return;
 
-        const guestUser = await this.eventsRepo.getUserById(guestUserId);
-        const username = guestUser?.username || 'A guest';
+        const guestParticipant = await this.invitesRepo.findGuestParticipant(guestParticipantId);
+        const username = guestParticipant?.displayName || 'A guest';
 
         const messages = {
             accepted: {
@@ -208,9 +219,5 @@ export class InvitesService {
     private createUniqueToken(): { token: string; tokenHash: string } {
         const token = generateGuestToken();
         return { token, tokenHash: hashGuestToken(token) };
-    }
-
-    private createUniquePlaceholderUsername(): string {
-        return `guest-${randomBytes(4).toString('hex')}`;
     }
 }

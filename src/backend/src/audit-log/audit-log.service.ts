@@ -35,7 +35,9 @@ export type AuditLogResponse = {
 const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId']);
 
 type AuditActor = {
-    actorId: number;
+    actorId?: number;
+    actorGuestParticipantId?: number;
+    actorName?: string;
     impersonatorId?: number | null;
 };
 
@@ -69,8 +71,13 @@ export class AuditLogService {
 
         const referencedUsers = await this.usersRepo.findManyByIds([...referencedUserIds]);
         const userMap = new Map(referencedUsers.map((user) => [user.id, user]));
+        const guestIds = [...referencedUserIds].filter((id) => id < 0).map((id) => -id);
+        const guestParticipants = await this.auditLogRepo.findGuestParticipantsByIds(guestIds);
+        const guestMap = new Map<number, { id: number; displayName: string }>(
+            guestParticipants.map((guest) => [guest.id, guest] as const)
+        );
 
-        return entries.map((entry) => this.toResponse(entry, userMap));
+        return entries.map((entry) => this.toResponse(entry, userMap, guestMap));
     }
 
     recordEventCreated(event: EventWithRelations, actor: AuditActor) {
@@ -98,7 +105,14 @@ export class AuditLogService {
 
     recordParticipantJoined(
         eventId: number,
-        participant: { userId: number; status: string; createdAt: Date },
+        participant: {
+            userId: number | null;
+            guestParticipantId?: number | null;
+            guestParticipant?: { displayName: string } | null;
+            status: string;
+            createdAt: Date;
+            hasPaid?: boolean;
+        },
         actor: AuditActor
     ) {
         return this.safeRecord('PARTICIPANT_JOINED', eventId, actor, {
@@ -109,8 +123,22 @@ export class AuditLogService {
 
     recordParticipantUpdated(
         eventId: number,
-        before: { userId: number; status: string; createdAt: Date },
-        after: { userId: number; status: string; createdAt: Date },
+        before: {
+            userId: number | null;
+            guestParticipantId?: number | null;
+            guestParticipant?: { displayName: string } | null;
+            status: string;
+            createdAt: Date;
+            hasPaid?: boolean;
+        },
+        after: {
+            userId: number | null;
+            guestParticipantId?: number | null;
+            guestParticipant?: { displayName: string } | null;
+            status: string;
+            createdAt: Date;
+            hasPaid?: boolean;
+        },
         actor: AuditActor
     ) {
         const payloadDiff = this.buildObjectDiff(this.snapshotParticipant(before), this.snapshotParticipant(after));
@@ -123,7 +151,13 @@ export class AuditLogService {
 
     recordParticipantDeclined(
         eventId: number,
-        before: { userId: number; status: string; createdAt: Date },
+        before: {
+            userId: number | null;
+            guestParticipantId?: number | null;
+            guestParticipant?: { displayName: string } | null;
+            status: string;
+            createdAt: Date;
+        },
         actor: AuditActor
     ) {
         return this.safeRecord('PARTICIPANT_DECLINED', eventId, actor, {
@@ -134,7 +168,13 @@ export class AuditLogService {
 
     recordParticipantRemoved(
         eventId: number,
-        before: { userId: number; status: string; createdAt: Date },
+        before: {
+            userId: number | null;
+            guestParticipantId?: number | null;
+            guestParticipant?: { displayName: string } | null;
+            status: string;
+            createdAt: Date;
+        },
         actor: AuditActor
     ) {
         return this.safeRecord('PARTICIPANT_REMOVED', eventId, actor, {
@@ -190,10 +230,12 @@ export class AuditLogService {
         try {
             await this.auditLogRepo.create({
                 eventId,
-                actorId: actor.actorId,
+                actorId: actor.actorId ?? null,
+                actorGuestParticipantId: actor.actorGuestParticipantId ?? null,
+                actorName: actor.actorName ?? null,
                 impersonatorId: actor.impersonatorId ?? null,
                 actionType,
-                payloadDiff
+                payloadDiff: payloadDiff as Prisma.InputJsonValue
             });
         } catch (error) {
             this.logAuditFailure(actionType, eventId, error);
@@ -220,7 +262,11 @@ export class AuditLogService {
         );
     }
 
-    private toResponse(entry: AuditLogEntryWithRelations, userMap: Map<number, UserRecord>): AuditLogResponse {
+    private toResponse(
+        entry: AuditLogEntryWithRelations,
+        userMap: Map<number, UserRecord>,
+        guestMap: Map<number, { id: number; displayName: string }>
+    ): AuditLogResponse {
         const payloadDiff = this.normalizePayloadDiff(entry.payloadDiff);
         const resolvedUsers: Record<number, AuditLogUserRef> = {};
         for (const id of this.collectDiffUserIds(payloadDiff)) {
@@ -231,15 +277,20 @@ export class AuditLogService {
                     username: user.username,
                     profilePictureUrl: buildProfilePictureUrl(user.authId)
                 };
+            } else if (id < 0) {
+                const guest = guestMap.get(-id);
+                if (guest) {
+                    resolvedUsers[id] = { id, username: guest.displayName, profilePictureUrl: null };
+                }
             }
         }
 
         return {
             id: entry.id,
             eventId: entry.eventId,
-            actorId: entry.actorId,
-            actorUsername: entry.actor.username,
-            actorProfilePictureUrl: buildProfilePictureUrl(entry.actor.authId),
+            actorId: entry.actorId ?? -(entry.actorGuestParticipantId ?? 0),
+            actorUsername: entry.actor?.username ?? entry.actorName ?? 'Guest',
+            actorProfilePictureUrl: entry.actor ? buildProfilePictureUrl(entry.actor.authId) : null,
             impersonatorId: entry.impersonatorId,
             impersonatorUsername: entry.impersonator?.username ?? null,
             impersonatorProfilePictureUrl: entry.impersonator
@@ -292,7 +343,9 @@ export class AuditLogService {
     }
 
     private snapshotParticipant(participant: {
-        userId: number;
+        userId: number | null;
+        guestParticipantId?: number | null;
+        guestParticipant?: { displayName: string } | null;
         status: string;
         createdAt: Date;
         wantsAlcohol?: boolean;
@@ -302,9 +355,15 @@ export class AuditLogService {
         wantsWeed?: boolean;
         transportMode?: string;
         vehicleSeats?: number;
+        hasPaid?: boolean;
     }): Record<string, unknown> {
         const snapshot: Record<string, unknown> = {
-            userId: participant.userId,
+            ...(participant.userId !== null
+                ? { userId: participant.userId }
+                : {
+                      userId: -(participant.guestParticipantId ?? 0),
+                      username: participant.guestParticipant?.displayName
+                  }),
             status: participant.status,
             joinedAt: participant.createdAt.toISOString()
         };
@@ -316,6 +375,7 @@ export class AuditLogService {
         if (participant.wantsWeed !== undefined) snapshot.wantsWeed = participant.wantsWeed;
         if (participant.transportMode !== undefined) snapshot.transportMode = participant.transportMode;
         if (participant.vehicleSeats !== undefined) snapshot.vehicleSeats = participant.vehicleSeats;
+        if (participant.hasPaid !== undefined) snapshot.hasPaid = participant.hasPaid;
 
         return snapshot;
     }

@@ -4,7 +4,7 @@ import { Prisma, InviteStatus, TransportMode } from '../../prisma/generated/clie
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
 
 const GUEST_INVITE_INCLUDE = {
-    user: { select: { id: true, username: true, isAdmin: true, authId: true, isGuest: true } },
+    guestParticipant: { select: { id: true, displayName: true } },
     event: { select: { id: true, hostId: true, participationDeadline: true, endTime: true } }
 } satisfies Prisma.GuestInviteTokenInclude;
 
@@ -16,18 +16,15 @@ export type GuestInviteWithRelations = Prisma.GuestInviteTokenGetPayload<{
 export class InvitesRepository {
     constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-    async createGuestInvite(eventId: number, tokenHash: string, expiresAt: Date, username: string) {
+    async createGuestInvite(eventId: number, tokenHash: string, expiresAt: Date) {
         return this.prisma.$transaction(async (tx) => {
-            const guestUser = await tx.user.create({
-                data: {
-                    username,
-                    isGuest: true
-                }
+            const guestParticipant = await tx.guestParticipant.create({
+                data: {}
             });
 
             await tx.attendance.create({
                 data: {
-                    userId: guestUser.id,
+                    guestParticipantId: guestParticipant.id,
                     eventId,
                     status: InviteStatus.PENDING
                 }
@@ -36,13 +33,13 @@ export class InvitesRepository {
             const guestInvite = await tx.guestInviteToken.create({
                 data: {
                     tokenHash,
-                    userId: guestUser.id,
+                    guestParticipantId: guestParticipant.id,
                     eventId,
                     expiresAt
                 }
             });
 
-            return { guestInvite, guestUser };
+            return { guestInvite, guestParticipant };
         });
     }
 
@@ -53,7 +50,11 @@ export class InvitesRepository {
         });
     }
 
-    async updateGuestParticipation(userId: number, eventId: number, dto: GuestParticipateDto) {
+    findGuestParticipant(id: number) {
+        return this.prisma.guestParticipant.findUnique({ where: { id } });
+    }
+
+    async updateGuestParticipation(guestParticipantId: number, eventId: number, dto: GuestParticipateDto) {
         const { username, wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = dto;
         let vehicleSeats = dto.vehicleSeats;
 
@@ -63,11 +64,14 @@ export class InvitesRepository {
 
         return this.prisma.$transaction(async (tx) => {
             if (username) {
-                await tx.user.update({ where: { id: userId }, data: { username } });
+                await tx.guestParticipant.update({
+                    where: { id: guestParticipantId },
+                    data: { displayName: username }
+                });
             }
 
             return tx.attendance.upsert({
-                where: { userId_eventId: { userId, eventId } },
+                where: { guestParticipantId_eventId: { guestParticipantId, eventId } },
                 update: {
                     status: InviteStatus.ACCEPTED,
                     wantsFood,
@@ -79,7 +83,7 @@ export class InvitesRepository {
                     vehicleSeats
                 },
                 create: {
-                    userId,
+                    guestParticipantId,
                     eventId,
                     status: InviteStatus.ACCEPTED,
                     wantsFood,
@@ -94,9 +98,9 @@ export class InvitesRepository {
         });
     }
 
-    async declineGuestParticipation(userId: number, eventId: number) {
+    async declineGuestParticipation(guestParticipantId: number, eventId: number) {
         return this.prisma.attendance.update({
-            where: { userId_eventId: { userId, eventId } },
+            where: { guestParticipantId_eventId: { guestParticipantId, eventId } },
             data: {
                 status: InviteStatus.DECLINED,
                 transportMode: TransportMode.NEEDS_RIDE,

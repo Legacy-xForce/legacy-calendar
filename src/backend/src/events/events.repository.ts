@@ -7,8 +7,7 @@ const USER_SUMMARY_SELECT = {
     id: true,
     username: true,
     isAdmin: true,
-    authId: true,
-    isGuest: true
+    authId: true
 } satisfies Prisma.UserSelect;
 
 export const EVENT_INCLUDE = {
@@ -21,14 +20,12 @@ export const EVENT_INCLUDE = {
     },
     participants: {
         include: {
-            user: { select: USER_SUMMARY_SELECT }
+            user: { select: USER_SUMMARY_SELECT },
+            guestParticipant: { select: { id: true, displayName: true } }
         }
     },
     rideAssignments: {
-        include: {
-            driver: { select: USER_SUMMARY_SELECT },
-            passenger: { select: USER_SUMMARY_SELECT }
-        }
+        // IDs are namespaced: positive user IDs, negative guest participant IDs.
     }
 } satisfies Prisma.EventInclude;
 
@@ -286,20 +283,20 @@ export class EventsRepository {
 
     async getParticipantTokens(eventId: number): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
-            where: { eventId },
+            where: { eventId, userId: { not: null } },
             include: { user: { include: { fcmTokens: true } } }
         });
 
-        return attendances.flatMap((a) => a.user.fcmTokens.map((t) => t.token));
+        return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
     }
 
     async getParticipantTokensByStatus(eventId: number, status: InviteStatus): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
-            where: { eventId, status },
+            where: { eventId, status, userId: { not: null } },
             include: { user: { include: { fcmTokens: true } } }
         });
 
-        return attendances.flatMap((a) => a.user.fcmTokens.map((t) => t.token));
+        return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
     }
 
     async getUserTokens(userIds: number[]): Promise<string[]> {

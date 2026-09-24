@@ -305,7 +305,7 @@ export class ChatService {
             event.hostId,
             ...event.participants
                 .filter((participant) => participant.status === InviteStatus.ACCEPTED)
-                .map((participant) => participant.userId)
+                .flatMap((participant) => (participant.userId === null ? [] : [participant.userId]))
         ].filter((participantId) => participantId !== message.authorId);
         const offlineParticipantIds = [...new Set(participantIds)].filter(
             (participantId) => !connectedUserIds.has(participantId)

@@ -3,23 +3,34 @@ import { UserDto } from '../users/dto/user.dto.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 import { EventWithRelations } from './events.repository.js';
 
-function mapUserDto(user: {
-    id: number;
-    username: string;
-    isAdmin: boolean;
-    authId: string | null;
-    isGuest?: boolean;
-}): UserDto {
+function mapUserDto(user: { id: number; username: string; isAdmin: boolean; authId: string | null }): UserDto {
     return {
         id: user.id,
         username: user.username,
         isAdmin: user.isAdmin,
         profilePictureUrl: buildProfilePictureUrl(user.authId),
-        isGuest: user.isGuest ?? false
+        isGuest: false
     };
 }
 
 export function mapEventToDto(event: EventWithRelations): EventResponseDto {
+    const mapParticipantId = (attendance: (typeof event.participants)[number]) =>
+        attendance.userId ?? -attendance.guestParticipant!.id;
+    const mapPerson = (id: number): UserDto | undefined => {
+        if (id < 0) {
+            const guest = event.participants.find(
+                (attendance) => attendance.guestParticipantId === -id
+            )?.guestParticipant;
+            return guest
+                ? { id, username: guest.displayName, isAdmin: false, profilePictureUrl: null, isGuest: true }
+                : undefined;
+        }
+
+        const user =
+            event.participants.find((attendance) => attendance.user?.id === id)?.user ??
+            (event.host.id === id ? event.host : event.coHosts.find((coHost) => coHost.user.id === id)?.user);
+        return user ? mapUserDto(user) : undefined;
+    };
     const rideAssignmentsByPassengerId = new Map<
         number,
         { outbound?: (typeof event.rideAssignments)[number]; return?: (typeof event.rideAssignments)[number] }
@@ -32,12 +43,20 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
     });
 
     const participantsDto: EventParticipantDto[] = event.participants.map((attendance) => {
-        const assignments = rideAssignmentsByPassengerId.get(attendance.userId);
+        const assignments = rideAssignmentsByPassengerId.get(mapParticipantId(attendance));
         const outboundAssignment = assignments?.outbound;
         const returnAssignment = assignments?.return;
 
         return {
-            ...mapUserDto(attendance.user),
+            ...(attendance.user
+                ? mapUserDto(attendance.user)
+                : {
+                      id: -attendance.guestParticipant!.id,
+                      username: attendance.guestParticipant!.displayName,
+                      isAdmin: false,
+                      profilePictureUrl: null,
+                      isGuest: true
+                  }),
             status: attendance.status,
             wantsFood: attendance.wantsFood,
             wantsWeed: attendance.wantsWeed,
@@ -50,11 +69,11 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             vehicleSeatsReturn: attendance.vehicleSeatsReturn,
             hasPaid: attendance.hasPaid,
             driverId: outboundAssignment?.driverId,
-            driver: outboundAssignment?.driver ? mapUserDto(outboundAssignment.driver) : undefined,
+            driver: outboundAssignment ? mapPerson(outboundAssignment.driverId) : undefined,
             driverIdOutbound: outboundAssignment?.driverId,
-            driverOutbound: outboundAssignment?.driver ? mapUserDto(outboundAssignment.driver) : undefined,
+            driverOutbound: outboundAssignment ? mapPerson(outboundAssignment.driverId) : undefined,
             driverIdReturn: returnAssignment?.driverId,
-            driverReturn: returnAssignment?.driver ? mapUserDto(returnAssignment.driver) : undefined
+            driverReturn: returnAssignment ? mapPerson(returnAssignment.driverId) : undefined
         };
     });
 

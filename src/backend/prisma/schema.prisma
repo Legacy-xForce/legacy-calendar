@@ -10,25 +10,30 @@ datasource db {
 }
 
 model User {
-  id                         Int              @id @default(autoincrement())
-  username                   String           @unique
-  authId                     String?          @unique
-  isGuest                    Boolean          @default(false)
-  invitations                Attendance[]
-  hostedEvents               Event[]          @relation("EventHost")
-  coHostedEvents             EventCoHost[]
-  fcmTokens                  FcmToken[]
-  chatMutes                  ChatMute[]
-  rideAssignmentsAsDriver    RideAssignment[] @relation("RideAssignmentDriver")
-  rideAssignmentsAsPassenger RideAssignment[] @relation("RideAssignmentPassenger")
-  isAdmin                    Boolean          @default(false)
-  chatMessages               ChatMessage[]
-  chatReactions              ChatReaction[]
-  auditLogEntriesAsActor     AuditLogEntry[]  @relation("AuditLogActor")
-  auditLogEntriesAsImpersonator AuditLogEntry[] @relation("AuditLogImpersonator")
-  guestInviteToken           GuestInviteToken?
-  userGroups                 UserGroup[]
-  passkeyCredentials         PasskeyCredential[]
+  id                            Int                 @id @default(autoincrement())
+  username                      String              @unique
+  authId                        String?             @unique
+  invitations                   Attendance[]
+  hostedEvents                  Event[]             @relation("EventHost")
+  coHostedEvents                EventCoHost[]
+  fcmTokens                     FcmToken[]
+  chatMutes                     ChatMute[]
+  isAdmin                       Boolean             @default(false)
+  chatMessages                  ChatMessage[]
+  chatReactions                 ChatReaction[]
+  auditLogEntriesAsActor        AuditLogEntry[]     @relation("AuditLogActor")
+  auditLogEntriesAsImpersonator AuditLogEntry[]     @relation("AuditLogImpersonator")
+  userGroups                    UserGroup[]
+  passkeyCredentials            PasskeyCredential[]
+}
+
+model GuestParticipant {
+  id              Int               @id @default(autoincrement())
+  displayName     String            @default("Guest")
+  createdAt       DateTime          @default(now())
+  attendance      Attendance[]
+  inviteToken     GuestInviteToken?
+  auditLogEntries AuditLogEntry[]
 }
 
 model FcmToken {
@@ -40,29 +45,29 @@ model FcmToken {
 }
 
 model Event {
-  id                    Int              @id @default(autoincrement())
+  id                    Int                @id @default(autoincrement())
   title                 String
-  color                 String?          @default("#ffffff")
+  color                 String?            @default("#ffffff")
   description           String?
   location              String?
   startTime             DateTime
   endTime               DateTime?
   hostId                Int
-  isOpen                Boolean          @default(true)
-  hasAlcohol            Boolean          @default(false)
-  hasFood               Boolean          @default(false)
-  hasSleep              Boolean          @default(false)
-  hasWeed               Boolean          @default(false)
+  isOpen                Boolean            @default(true)
+  hasAlcohol            Boolean            @default(false)
+  hasFood               Boolean            @default(false)
+  hasSleep              Boolean            @default(false)
+  hasWeed               Boolean            @default(false)
   alcoholPrice          Float?
   beerPrice             Float?
   foodPrice             Float?
-  hasBeer               Boolean          @default(false)
+  hasBeer               Boolean            @default(false)
   sleepPrice            Float?
   weedPrice             Float?
-  isPrivate             Boolean          @default(false)
+  isPrivate             Boolean            @default(false)
   participationDeadline DateTime?
   participants          Attendance[]
-  host                  User             @relation("EventHost", fields: [hostId], references: [id])
+  host                  User               @relation("EventHost", fields: [hostId], references: [id])
   rideAssignments       RideAssignment[]
   chatMessages          ChatMessage[]
   chatMutes             ChatMute[]
@@ -83,38 +88,38 @@ model EventCoHost {
   @@index([eventId])
 }
 
-
 model Attendance {
-  id            Int           @id @default(autoincrement())
-  userId        Int
-  eventId       Int
-  createdAt     DateTime      @default(now())
-  status        InviteStatus  @default(PENDING)
-  wantsAlcohol  Boolean       @default(false)
-  wantsFood     Boolean       @default(false)
-  wantsSleep    Boolean       @default(false)
-  wantsWeed     Boolean       @default(false)
-  wantsBeer     Boolean       @default(false)
-  transportMode        TransportMode @default(NEEDS_RIDE)
-  vehicleSeats         Int           @default(0)
-  vehicleSeatsOutbound Int           @default(0)
-  vehicleSeatsReturn   Int           @default(0)
-  hasPaid              Boolean       @default(false)
-  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id])
+  id                   Int               @id @default(autoincrement())
+  userId               Int?
+  guestParticipantId   Int?
+  eventId              Int
+  createdAt            DateTime          @default(now())
+  status               InviteStatus      @default(PENDING)
+  wantsAlcohol         Boolean           @default(false)
+  wantsFood            Boolean           @default(false)
+  wantsSleep           Boolean           @default(false)
+  wantsWeed            Boolean           @default(false)
+  wantsBeer            Boolean           @default(false)
+  transportMode        TransportMode     @default(NEEDS_RIDE)
+  vehicleSeats         Int               @default(0)
+  vehicleSeatsOutbound Int               @default(0)
+  vehicleSeatsReturn   Int               @default(0)
+  hasPaid              Boolean           @default(false)
+  event                Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                 User?             @relation(fields: [userId], references: [id])
+  guestParticipant     GuestParticipant? @relation(fields: [guestParticipantId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
+  @@unique([guestParticipantId, eventId])
 }
 
 model RideAssignment {
-  id          Int   @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   eventId     Int
   driverId    Int
   passengerId Int
   direction   RideDirection @default(OUTBOUND)
-  driver      User  @relation("RideAssignmentDriver", fields: [driverId], references: [id], onDelete: Cascade)
-  event       Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  passenger   User  @relation("RideAssignmentPassenger", fields: [passengerId], references: [id], onDelete: Cascade)
+  event       Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, passengerId, direction])
   @@index([eventId, driverId])
@@ -126,15 +131,15 @@ enum RideDirection {
 }
 
 model GuestInviteToken {
-  id        Int      @id @default(autoincrement())
-  tokenHash String   @unique
-  userId    Int      @unique
-  eventId   Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                 Int      @id @default(autoincrement())
+  tokenHash          String   @unique
+  guestParticipantId Int      @unique
+  eventId            Int
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestParticipant GuestParticipant @relation(fields: [guestParticipantId], references: [id], onDelete: Cascade)
+  event            Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
 }
@@ -159,16 +164,16 @@ enum ChatMediaType {
 }
 
 model ChatMessage {
-  id        Int             @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   eventId   Int
   authorId  Int
   text      String?
   mediaUrl  String?
   mediaType ChatMediaType?
-  isPinned  Boolean         @default(false)
-  isEdited  Boolean         @default(false)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  isPinned  Boolean        @default(false)
+  isEdited  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   author    User           @relation(fields: [authorId], references: [id])
@@ -191,7 +196,7 @@ model ChatReaction {
 }
 
 model ChatMute {
-  id      Int   @id @default(autoincrement())
+  id      Int @id @default(autoincrement())
   userId  Int
   eventId Int
 
@@ -203,17 +208,20 @@ model ChatMute {
 }
 
 model AuditLogEntry {
-  id             Int        @id @default(autoincrement())
-  eventId        Int
-  actorId        Int
-  impersonatorId  Int?
-  actionType     ActionType
-  payloadDiff    Json
-  createdAt      DateTime   @default(now())
+  id                      Int        @id @default(autoincrement())
+  eventId                 Int
+  actorId                 Int?
+  actorGuestParticipantId Int?
+  actorName               String?
+  impersonatorId          Int?
+  actionType              ActionType
+  payloadDiff             Json
+  createdAt               DateTime   @default(now())
 
-  event          Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  actor          User       @relation("AuditLogActor", fields: [actorId], references: [id])
-  impersonator   User?      @relation("AuditLogImpersonator", fields: [impersonatorId], references: [id])
+  event                 Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor                 User?             @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorGuestParticipant GuestParticipant? @relation(fields: [actorGuestParticipantId], references: [id], onDelete: SetNull)
+  impersonator          User?             @relation("AuditLogImpersonator", fields: [impersonatorId], references: [id])
 
   @@index([eventId, createdAt])
 }
