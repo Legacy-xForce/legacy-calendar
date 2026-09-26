@@ -179,6 +179,36 @@ const handleToggleSetting = async () => {
     }
 };
 
+// Payment Coordinates State
+const paypalLink = ref(currentUser.value?.paypalLink ?? '');
+const ibanNumber = ref(currentUser.value?.ibanNumber ?? '');
+const ibanAccountHolder = ref(currentUser.value?.ibanAccountHolder ?? '');
+const revolutLink = ref(currentUser.value?.revolutLink ?? '');
+const paymentInfoLoading = ref(false);
+
+const handlePaymentInfoSave = async () => {
+    paymentInfoLoading.value = true;
+    try {
+        const response = await api.updateMyPaymentInfo({
+            paypalLink: paypalLink.value.trim(),
+            ibanNumber: ibanNumber.value.trim(),
+            ibanAccountHolder: ibanAccountHolder.value.trim(),
+            revolutLink: revolutLink.value.trim()
+        });
+        await sessionStore.updateProfile(response.data);
+        toast.add({ severity: 'success', summary: 'Payment coordinates saved', life: 2500 });
+    } catch (error: any) {
+        toast.add({
+            severity: 'error',
+            summary: 'Could not save payment coordinates',
+            detail: error.response?.data?.message || 'Please check the fields and try again.',
+            life: 4000
+        });
+    } finally {
+        paymentInfoLoading.value = false;
+    }
+};
+
 const handlePasswordChange = async () => {
     if (newPassword.value !== confirmPassword.value) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Passwords do not match', life: 3000 });
@@ -296,6 +326,90 @@ const handleClearCache = () => {
                         </div>
                     </div>
                 </div>
+            </Panel>
+
+            <!-- Payment Coordinates Section -->
+            <Panel
+                class="bg-section border border-zinc-800/50! bg-zinc-950/40 shadow-2xl backdrop-blur-xl"
+                :pt="{
+                    header: { class: 'bg-transparent border-none px-6 py-5' },
+                    content: { class: 'bg-transparent border-none px-6 pb-6 pt-0' }
+                }"
+            >
+                <template #header>
+                    <div class="flex items-center gap-2 text-xl font-bold">
+                        <i class="pi pi-wallet text-primary"></i>
+                        Payment Coordinates
+                    </div>
+                </template>
+                <form @submit.prevent="handlePaymentInfoSave" class="flex flex-col gap-6 pt-2">
+                    <p class="text-sm text-zinc-400">
+                        Shown to guests on events you host or co-host that have costs involved, so they know where to
+                        send you their contribution. Leave a field empty to hide it.
+                    </p>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label for="paypal-link" class="text-xs font-bold tracking-widest text-zinc-500 uppercase"
+                            >PayPal Link</label
+                        >
+                        <InputText
+                            id="paypal-link"
+                            v-model="paypalLink"
+                            placeholder="https://paypal.me/yourname"
+                            class="w-full rounded-xl!"
+                        />
+                    </div>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label for="revolut-link" class="text-xs font-bold tracking-widest text-zinc-500 uppercase"
+                            >Revolut Link</label
+                        >
+                        <InputText
+                            id="revolut-link"
+                            v-model="revolutLink"
+                            placeholder="https://revolut.me/yourname"
+                            class="w-full rounded-xl!"
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div class="flex flex-col gap-1.5">
+                            <label for="iban-number" class="text-xs font-bold tracking-widest text-zinc-500 uppercase"
+                                >IBAN</label
+                            >
+                            <InputText
+                                id="iban-number"
+                                v-model="ibanNumber"
+                                placeholder="IT60X0542811101000000123456"
+                                class="w-full rounded-xl!"
+                            />
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <label
+                                for="iban-account-holder"
+                                class="text-xs font-bold tracking-widest text-zinc-500 uppercase"
+                                >Account Holder Name</label
+                            >
+                            <InputText
+                                id="iban-account-holder"
+                                v-model="ibanAccountHolder"
+                                placeholder="John Doe"
+                                class="w-full rounded-xl!"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <Button
+                            type="submit"
+                            label="Save Payment Coordinates"
+                            icon="pi pi-wallet"
+                            :loading="paymentInfoLoading"
+                            class="w-full py-3 font-bold"
+                        />
+                    </div>
+                </form>
             </Panel>
 
             <Panel

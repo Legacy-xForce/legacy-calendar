@@ -119,7 +119,12 @@ const onDecline = () => onLeaveEvent(true);
 
 const handleFeatureConfirm = async (data: {
     features: EventFeature[];
-    transport: { transportMode: TransportMode; vehicleSeats?: number };
+    transport: {
+        transportMode: TransportMode;
+        vehicleSeats?: number;
+        vehicleSeatsOutbound?: number;
+        vehicleSeatsReturn?: number;
+    };
 }) => {
     showFeatureSelection.value = false;
     if (!props.event || !currentUser.value) return;
@@ -129,7 +134,9 @@ const handleFeatureConfirm = async (data: {
         const participateDto: ParticipateDto = {
             ...participantWantsFromSelection(data.features),
             transportMode: data.transport.transportMode,
-            vehicleSeats: data.transport.vehicleSeats
+            vehicleSeats: data.transport.vehicleSeats,
+            vehicleSeatsOutbound: data.transport.vehicleSeatsOutbound,
+            vehicleSeatsReturn: data.transport.vehicleSeatsReturn
         };
 
         const success = await eventsStore.joinEvent(props.event.id, participateDto);

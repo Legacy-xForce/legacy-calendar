@@ -3,6 +3,7 @@ import { Prisma, User as UserModel } from '../../prisma/generated/client.js';
 
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UpdatePaymentInfoDto } from './dto/update-payment-info.dto.js';
 import { UserDto } from './dto/user.dto.js';
 import { UsersRepository, UserRecord } from './users.repository.js';
 import { buildProfilePictureUrl } from './profile-picture.util.js';
@@ -97,6 +98,31 @@ export class UsersService {
         } catch (error) {
             this.handleUserWriteError(error, id);
             this.logger.error('Failed to update user', error);
+            throw error;
+        }
+    }
+
+    async updatePaymentInfo(id: number, dto: UpdatePaymentInfoDto) {
+        this.logger.info('Updating user payment info', { userId: id, fields: Object.keys(dto) });
+        // An empty string from the profile form means "clear this field".
+        const toNullable = (value: string | undefined) => (value === '' ? null : value);
+        try {
+            const user = await this.usersRepo.update(id, {
+                ...(dto.paypalLink !== undefined && { paypalLink: toNullable(dto.paypalLink) }),
+                ...(dto.ibanNumber !== undefined && { ibanNumber: toNullable(dto.ibanNumber) }),
+                ...(dto.ibanAccountHolder !== undefined && { ibanAccountHolder: toNullable(dto.ibanAccountHolder) }),
+                ...(dto.revolutLink !== undefined && { revolutLink: toNullable(dto.revolutLink) })
+            });
+            this.logger.info('User payment info updated', { userId: id });
+            return {
+                paypalLink: user.paypalLink,
+                ibanNumber: user.ibanNumber,
+                ibanAccountHolder: user.ibanAccountHolder,
+                revolutLink: user.revolutLink
+            };
+        } catch (error) {
+            this.handleUserWriteError(error, id);
+            this.logger.error('Failed to update user payment info', error);
             throw error;
         }
     }

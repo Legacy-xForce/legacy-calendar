@@ -5,6 +5,12 @@ const OledPreset = definePreset(Aura, {
     semantic: {
         colorScheme: {
             dark: {
+                highlight: {
+                    background: '{surface.800}',
+                    focusBackground: '{surface.700}',
+                    color: '{surface.0}',
+                    focusColor: '{surface.0}'
+                },
                 surface: {
                     0: '#ffffff',
                     50: '#fafafa',

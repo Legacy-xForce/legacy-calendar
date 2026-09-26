@@ -12,8 +12,16 @@ defineProps<{
     event: Event;
 }>();
 
-const { allEventHosts, hostedByText, eventTotalBudget, isDeadlinePassed, canAccessChat, canAccessAuditLog } =
-    injectEventView();
+const {
+    allEventHosts,
+    hostedByText,
+    eventTotalBudget,
+    paidAmount,
+    unpaidAmount,
+    isDeadlinePassed,
+    canAccessChat,
+    canAccessAuditLog
+} = injectEventView();
 const { shareEvent } = useShareEvent();
 
 const emit = defineEmits<{
@@ -96,6 +104,16 @@ const emit = defineEmits<{
                 <span class="display-text text-lg font-black text-emerald-500 sm:text-xl">
                     {{ formatCurrency(eventTotalBudget) }}
                 </span>
+                <div class="mt-0.5 flex items-center gap-2 text-[10px] font-bold sm:text-xs">
+                    <span class="text-emerald-500">
+                        <i class="pi pi-check text-[9px]"></i>
+                        {{ formatCurrency(paidAmount) }}
+                    </span>
+                    <span class="text-zinc-500">
+                        <i class="pi pi-minus text-[9px]"></i>
+                        {{ formatCurrency(unpaidAmount) }}
+                    </span>
+                </div>
             </div>
         </div>
 

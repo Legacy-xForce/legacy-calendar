@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
-import type { User, CreateUserDto, UpdateUserDto } from '../types/User';
+import type { User } from '../types/User';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useUsersStore } from '../stores/users';
 import { storeToRefs } from 'pinia';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
-import Password from 'primevue/password';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import Dialog from 'primevue/dialog';
-import Checkbox from 'primevue/checkbox';
 import Tag from 'primevue/tag';
 import UserAvatar from '../components/UserAvatar.vue';
 import IconField from 'primevue/iconfield';
@@ -22,40 +19,11 @@ const toast = useToast();
 const confirm = useConfirm();
 const usersStore = useUsersStore();
 const { users, loading } = storeToRefs(usersStore);
-const { fetchUsers, createUser, updateUser, removeUser } = usersStore;
+const { fetchUsers, removeUser } = usersStore;
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-
-const showUserDialog = ref(false);
-const isEditing = ref(false);
-const userForm = ref<CreateUserDto>({
-    username: '',
-    password: '',
-    isAdmin: false
-});
-const editingUserId = ref<number | null>(null);
-const editingUser = ref<User | null>(null);
-
-const openAddUser = () => {
-    isEditing.value = false;
-    editingUser.value = null;
-    userForm.value = { username: '', password: '', isAdmin: false };
-    showUserDialog.value = true;
-};
-
-const editUser = (user: User) => {
-    isEditing.value = true;
-    editingUserId.value = user.id;
-    editingUser.value = user;
-    userForm.value = {
-        username: user.username,
-        password: '',
-        isAdmin: user.isAdmin
-    };
-    showUserDialog.value = true;
-};
 
 const handleDeleteUser = async (id: number) => {
     try {
@@ -101,39 +69,6 @@ const impersonateUser = (user: User) => {
     window.location.href = '/calendar';
 };
 
-const saveUser = async () => {
-    try {
-        let userId = editingUserId.value;
-        if (isEditing.value && userId) {
-            const updateDto: UpdateUserDto = {
-                username: userForm.value.username,
-                isAdmin: userForm.value.isAdmin
-            };
-            if (userForm.value.password) {
-                updateDto.password = userForm.value.password;
-            }
-            await updateUser(userId, updateDto);
-        } else {
-            await createUser(userForm.value);
-        }
-
-        toast.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: isEditing.value ? 'User updated successfully' : 'User created successfully',
-            life: 3000
-        });
-        showUserDialog.value = false;
-    } catch (err: any) {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: err.message || 'Failed to save user',
-            life: 3000
-        });
-    }
-};
-
 onMounted(() => {
     fetchUsers();
 });
@@ -147,12 +82,6 @@ onMounted(() => {
                     <h1 class="text-surface-0 mb-1 text-3xl font-black tracking-tight uppercase">User Management</h1>
                     <p class="text-surface-400">Manage system users, access levels, and credentials.</p>
                 </div>
-                <Button
-                    label="Add New User"
-                    icon="pi pi-plus"
-                    @click="openAddUser"
-                    class="w-full rounded-xl! md:w-52"
-                />
             </div>
 
             <div class="bg-surface-950/50 overflow-hidden rounded-2xl border border-zinc-800 shadow-sm">
@@ -215,15 +144,6 @@ onMounted(() => {
                                     class="h-10! w-10!"
                                 />
                                 <Button
-                                    icon="pi pi-pencil"
-                                    text
-                                    rounded
-                                    severity="secondary"
-                                    @click="editUser(slotProps.data)"
-                                    v-tooltip.top="'Edit User'"
-                                    class="h-10! w-10!"
-                                />
-                                <Button
                                     icon="pi pi-trash"
                                     text
                                     rounded
@@ -244,71 +164,5 @@ onMounted(() => {
                 </DataTable>
             </div>
         </div>
-
-        <Dialog
-            v-model:visible="showUserDialog"
-            :header="isEditing ? 'Edit User' : 'Add User'"
-            :style="{ width: '400px' }"
-            modal
-            class="p-fluid"
-            :draggable="false"
-        >
-            <div class="flex flex-col gap-4 pt-4">
-                <div class="flex flex-col items-center gap-4 py-2">
-                    <UserAvatar
-                        :profilePictureUrl="editingUser?.profilePictureUrl"
-                        :username="userForm.username"
-                        size="xlarge"
-                        class="h-24! w-24! border-2 border-zinc-800 shadow-lg"
-                    />
-                </div>
-
-                <div class="flex flex-col gap-2">
-                    <label for="username" class="text-surface-300 font-medium">Username</label>
-                    <InputText
-                        id="username"
-                        v-model="userForm.username"
-                        required
-                        autofocus
-                        placeholder="Enter username"
-                        class="rounded-xl!"
-                        @keyup.enter="saveUser"
-                    />
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="password" class="text-surface-300 font-medium">
-                        {{ isEditing ? 'New Password' : 'Password' }}
-                    </label>
-                    <Password
-                        id="password"
-                        v-model="userForm.password"
-                        :feedback="!isEditing"
-                        toggleMask
-                        placeholder="Enter password"
-                        inputClass="w-full rounded-xl!"
-                        fluid
-                        @keyup.enter="saveUser"
-                    />
-                </div>
-                <div class="mt-2 flex items-center gap-3">
-                    <Checkbox id="isAdmin" v-model="userForm.isAdmin" binary />
-                    <label for="isAdmin" class="text-surface-300 cursor-pointer font-medium"
-                        >Administrator Access</label
-                    >
-                </div>
-            </div>
-            <template #footer>
-                <div class="flex justify-end gap-2 pt-4">
-                    <Button label="Cancel" text @click="showUserDialog = false" class="text-surface-400! rounded-xl!" />
-                    <Button label="Save" @click="saveUser" class="rounded-xl!" />
-                </div>
-            </template>
-        </Dialog>
     </div>
 </template>
-
-<style scoped>
-:deep(.p-password-input) {
-    width: 100%;
-}
-</style>

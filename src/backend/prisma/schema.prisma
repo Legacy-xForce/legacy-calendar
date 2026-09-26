@@ -19,6 +19,10 @@ model User {
   fcmTokens                     FcmToken[]
   chatMutes                     ChatMute[]
   isAdmin                       Boolean             @default(false)
+  paypalLink                    String?
+  ibanNumber                    String?
+  ibanAccountHolder             String?
+  revolutLink                   String?
   chatMessages                  ChatMessage[]
   chatReactions                 ChatReaction[]
   auditLogEntriesAsActor        AuditLogEntry[]     @relation("AuditLogActor")

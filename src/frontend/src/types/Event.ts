@@ -36,6 +36,11 @@ export interface EventPersonSummary {
     id: number;
     username: string;
     profilePictureUrl?: string | null;
+    // Only populated for event hosts/co-hosts, never for participants at large.
+    paypalLink?: string | null;
+    ibanNumber?: string | null;
+    ibanAccountHolder?: string | null;
+    revolutLink?: string | null;
 }
 
 export interface EventParticipant extends EventPersonSummary {

@@ -4,6 +4,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Slider from 'primevue/slider';
 import Divider from 'primevue/divider';
+import ToggleSwitch from 'primevue/toggleswitch';
 import { type EventFeature, type TransportMode } from '../../types/Event';
 
 import { FEATURES } from '../../constants/features';
@@ -44,7 +45,7 @@ const transportMode = ref<TransportMode>('NEEDS_RIDE');
 const vehicleSeats = ref(2);
 const vehicleSeatsOutbound = ref(2);
 const vehicleSeatsReturn = ref(2);
-const sameReturnTrip = ref(true);
+const splitTrips = ref(false);
 const driverSectionRef = ref<HTMLElement | null>(null);
 
 const isFeatureAvailable = (id: EventFeature) => {
@@ -65,7 +66,7 @@ const selectTransportMode = (mode: TransportMode) => {
         if (!vehicleSeats.value || vehicleSeats.value < 2) {
             vehicleSeats.value = 2;
         }
-        if (sameReturnTrip.value) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
+        if (!splitTrips.value) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
         nextTick(() => {
             driverSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
         });
@@ -79,7 +80,12 @@ const onConfirm = () => {
             transportMode: transportMode.value,
             vehicleSeats: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
             vehicleSeatsOutbound: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
-            vehicleSeatsReturn: transportMode.value === 'DRIVER' ? vehicleSeatsReturn.value : undefined
+            vehicleSeatsReturn:
+                transportMode.value === 'DRIVER'
+                    ? splitTrips.value
+                        ? vehicleSeatsReturn.value
+                        : vehicleSeatsOutbound.value
+                    : undefined
         }
     });
 };
@@ -100,7 +106,7 @@ watch(
                 props.initialVehicleSeatsReturn && props.initialVehicleSeatsReturn >= 2
                     ? props.initialVehicleSeatsReturn
                     : vehicleSeatsOutbound.value;
-            sameReturnTrip.value = vehicleSeatsOutbound.value === vehicleSeatsReturn.value;
+            splitTrips.value = vehicleSeatsOutbound.value !== vehicleSeatsReturn.value;
         }
     }
 );
@@ -204,23 +210,40 @@ watch(
                     class="animate-in fade-in slide-in-from-top-2 flex flex-col gap-4 duration-300"
                 >
                     <div class="flex flex-col items-start gap-2 px-2">
-                        <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Outbound Seats</span>
+                        <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">{{
+                            splitTrips ? 'Outbound Seats' : 'Seats'
+                        }}</span>
                         <span class="text-xs text-zinc-500">Including yourself</span>
                         <div class="flex w-full items-center gap-4">
-                            <Slider v-model="vehicleSeatsOutbound" :min="2" :max="9" class="flex-1" @update:model-value="sameReturnTrip && (vehicleSeatsReturn = vehicleSeatsOutbound)" />
+                            <Slider v-model="vehicleSeatsOutbound" :min="2" :max="9" class="flex-1" />
                             <span class="w-8 text-xl font-black text-emerald-500">{{ vehicleSeatsOutbound }}</span>
                         </div>
                     </div>
-                    <div class="flex flex-col items-start gap-2 px-2">
-                        <div class="flex w-full items-center justify-between">
-                            <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Return Seats</span>
-                            <label class="flex items-center gap-2 text-xs text-zinc-500">
-                                <input v-model="sameReturnTrip" type="checkbox" class="accent-emerald-500" />
-                                Same as outbound
-                            </label>
+
+                    <label
+                        class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                    >
+                        <div class="flex items-center gap-3">
+                            <i class="pi pi-arrow-right-arrow-left text-zinc-400"></i>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold">Split outbound & return</span>
+                                <span class="text-xs text-zinc-500">Different seats for the way back</span>
+                            </div>
                         </div>
+                        <ToggleSwitch
+                            v-model="splitTrips"
+                            @update:modelValue="!$event && (vehicleSeatsReturn = vehicleSeatsOutbound)"
+                        />
+                    </label>
+
+                    <div
+                        v-if="splitTrips"
+                        class="animate-in fade-in slide-in-from-top-2 flex flex-col items-start gap-2 px-2 duration-300"
+                    >
+                        <span class="text-xs font-bold tracking-wider text-zinc-400 uppercase">Return Seats</span>
+                        <span class="text-xs text-zinc-500">Including yourself</span>
                         <div class="flex w-full items-center gap-4">
-                            <Slider v-model="vehicleSeatsReturn" :min="2" :max="9" class="flex-1" :disabled="sameReturnTrip" />
+                            <Slider v-model="vehicleSeatsReturn" :min="2" :max="9" class="flex-1" />
                             <span class="w-8 text-xl font-black text-emerald-500">{{ vehicleSeatsReturn }}</span>
                         </div>
                     </div>

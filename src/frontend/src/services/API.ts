@@ -7,7 +7,7 @@ export const socketBaseURL = import.meta.env.VITE_WS_URL || baseURL;
 export const socketPath = '/socket.io';
 export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
-import type { CreateUserDto, UpdateUserDto, User } from '../types/User';
+import type { CreateUserDto, PaymentInfo, UpdatePaymentInfoDto, UpdateUserDto, User } from '../types/User';
 import type { AuthLoginDto, AuthTokens, ChangePasswordDto } from '../types/Auth';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
@@ -193,6 +193,10 @@ class API {
 
     async updateUser(id: number, dto: UpdateUserDto): Promise<AxiosResponse<User>> {
         return this.client.patch(`/users/${id}`, dto);
+    }
+
+    async updateMyPaymentInfo(dto: UpdatePaymentInfoDto): Promise<AxiosResponse<PaymentInfo>> {
+        return this.client.patch('/users/me/payment-info', dto);
     }
 
     async removeUser(id: number): Promise<AxiosResponse<void>> {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import type { Event, EventFeature } from '../../../types/Event';
 import { FEATURES } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
@@ -9,13 +10,27 @@ defineProps<{
     event: Event;
 }>();
 
+const toast = useToast();
+
+const copyIban = (iban: string) => {
+    navigator.clipboard.writeText(iban).then(() => {
+        toast.add({
+            severity: 'success',
+            summary: 'IBAN Copied',
+            detail: 'The IBAN has been copied to clipboard',
+            life: 3000
+        });
+    });
+};
+
 const {
     userParticipantStatus,
     userTotalShare,
     availableFeatureIds,
     eventPrices,
     getFeatureCount,
-    getFeatureSplitPrice
+    getFeatureSplitPrice,
+    allEventHosts
 } = injectEventView();
 
 const featureMap = computed(() => {
@@ -27,6 +42,10 @@ const featureMap = computed(() => {
         {} as Record<EventFeature, (typeof FEATURES)[0]>
     );
 });
+
+const hostsWithPaymentInfo = computed(() =>
+    allEventHosts.value.filter((host) => host.paypalLink || host.ibanNumber || host.revolutLink)
+);
 </script>
 
 <template>
@@ -61,6 +80,75 @@ const featureMap = computed(() => {
                     class="flex items-baseline gap-1 text-2xl font-black text-emerald-600 sm:text-3xl dark:text-emerald-400"
                 >
                     {{ formatCurrency(userTotalShare) }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Host Payment Coordinates -->
+        <div v-if="hostsWithPaymentInfo.length > 0" class="flex flex-col gap-3">
+            <div class="text-surface-600 dark:text-surface-400 flex items-center gap-2">
+                <i class="pi pi-send"></i>
+                <span class="text-sm font-semibold tracking-wider uppercase">
+                    {{ hostsWithPaymentInfo.length > 1 ? 'Send Your Contribution To' : 'Send Your Contribution' }}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div
+                    v-for="host in hostsWithPaymentInfo"
+                    :key="host.id"
+                    class="flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-white p-4 dark:border-zinc-800/50 dark:bg-zinc-900/30"
+                >
+                    <div class="text-xs font-bold tracking-widest text-zinc-500 uppercase">
+                        {{ host.username }}
+                    </div>
+
+                    <a
+                        v-if="host.paypalLink"
+                        :href="host.paypalLink"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="group/link flex items-center gap-2"
+                    >
+                        <i
+                            class="pi pi-paypal shrink-0 text-sm text-blue-500 transition-transform group-hover/link:scale-110"
+                        ></i>
+                        <span class="truncate text-sm font-semibold text-blue-500 group-hover/link:underline">
+                            {{ host.paypalLink }}
+                        </span>
+                    </a>
+
+                    <a
+                        v-if="host.revolutLink"
+                        :href="host.revolutLink"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="group/link flex items-center gap-2"
+                    >
+                        <i
+                            class="pi pi-money-bill shrink-0 text-sm text-indigo-400 transition-transform group-hover/link:scale-110"
+                        ></i>
+                        <span class="truncate text-sm font-semibold text-indigo-400 group-hover/link:underline">
+                            {{ host.revolutLink }}
+                        </span>
+                    </a>
+
+                    <div v-if="host.ibanNumber" class="flex flex-col gap-0.5">
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-building-columns shrink-0 text-sm text-emerald-500"></i>
+                            <span class="truncate font-mono text-sm font-semibold">{{ host.ibanNumber }}</span>
+                            <button
+                                type="button"
+                                class="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                                aria-label="Copy IBAN"
+                                @click="copyIban(host.ibanNumber)"
+                            >
+                                <i class="pi pi-copy text-xs"></i>
+                            </button>
+                        </div>
+                        <span v-if="host.ibanAccountHolder" class="pl-6 text-xs text-zinc-500">
+                            {{ host.ibanAccountHolder }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

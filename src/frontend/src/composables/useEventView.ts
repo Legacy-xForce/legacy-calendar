@@ -198,13 +198,25 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
             .sort((a, b) => a.username.localeCompare(b.username));
     });
 
+    const hasSplitSeats = (driver: EventParticipant) =>
+        (driver.vehicleSeatsOutbound || driver.vehicleSeats) !== (driver.vehicleSeatsReturn || driver.vehicleSeats);
+
+    const getPassengerDriverId = (participant: EventParticipant, direction: RideDirection) => {
+        const outboundDriverId = participant.driverIdOutbound ?? participant.driverId;
+        if (direction === 'OUTBOUND') return outboundDriverId;
+        if (participant.driverIdReturn) return participant.driverIdReturn;
+        // Drivers who did not split their trips bring their outbound passengers back too
+        const outboundDriver = drivers.value.find((driver) => driver.id === outboundDriverId);
+        return outboundDriver && !hasSplitSeats(outboundDriver) ? outboundDriverId : undefined;
+    };
+
     const getNeedsRide = (direction: RideDirection) =>
         resolvedInvitees.value
             .filter(
                 (participant) =>
                     participant.status === 'ACCEPTED' &&
                     participant.transportMode === 'NEEDS_RIDE' &&
-                    !getAssignedPassengers(participant.id, direction).length
+                    !getPassengerDriverId(participant, direction)
             )
             .sort((a, b) => a.username.localeCompare(b.username));
 
@@ -216,6 +228,22 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     });
 
     const eventTotalBudget = computed(() => totalEventBudget(eventRef.value));
+
+    const paidAmount = computed(() =>
+        resolvedInvitees.value
+            .filter((participant) => participant.status === 'ACCEPTED' && participant.hasPaid === true)
+            .reduce(
+                (total, participant) =>
+                    total +
+                    participantFeatures(participant).reduce(
+                        (sum, feature) => sum + featureSplitPrice(eventRef.value, resolvedInvitees.value, feature),
+                        0
+                    ),
+                0
+            )
+    );
+
+    const unpaidAmount = computed(() => Math.max(0, eventTotalBudget.value - paidAmount.value));
 
     const getFeatureCount = (feature: EventFeature) => featureCount(resolvedInvitees.value, feature);
 
@@ -239,10 +267,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
 
     const getAssignedPassengers = (driverId: number, direction: RideDirection = 'OUTBOUND') => {
         return resolvedInvitees.value.filter(
-            (participant) =>
-                (direction === 'RETURN'
-                    ? participant.driverIdReturn
-                    : (participant.driverIdOutbound ?? participant.driverId)) === driverId
+            (participant) => getPassengerDriverId(participant, direction) === driverId
         );
     };
 
@@ -329,6 +354,8 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         needsRide,
         getNeedsRide,
         eventTotalBudget,
+        paidAmount,
+        unpaidAmount,
         userTotalShare,
         isAldoMoro,
         dragOverDriverId,
@@ -338,6 +365,8 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         getFeatureSplitPrice,
         hasFeature,
         getAvailableSeats,
+        getAssignedPassengers,
+        hasSplitSeats,
         getParticipantFeatures,
         getStatusIcon: getParticipantStatusIcon,
         getStatusSeverity: getParticipantStatusSeverity,

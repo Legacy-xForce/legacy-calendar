@@ -1,4 +1,4 @@
-import { EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
+import { EventHostDto, EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 import { EventWithRelations } from './events.repository.js';
@@ -10,6 +10,27 @@ function mapUserDto(user: { id: number; username: string; isAdmin: boolean; auth
         isAdmin: user.isAdmin,
         profilePictureUrl: buildProfilePictureUrl(user.authId),
         isGuest: false
+    };
+}
+
+// Only hosts/co-hosts surface payment coordinates - participants use mapUserDto so
+// they never receive each other's payment info via the participants list.
+function mapHostDto(user: {
+    id: number;
+    username: string;
+    isAdmin: boolean;
+    authId: string | null;
+    paypalLink: string | null;
+    ibanNumber: string | null;
+    ibanAccountHolder: string | null;
+    revolutLink: string | null;
+}): EventHostDto {
+    return {
+        ...mapUserDto(user),
+        paypalLink: user.paypalLink,
+        ibanNumber: user.ibanNumber,
+        ibanAccountHolder: user.ibanAccountHolder,
+        revolutLink: user.revolutLink
     };
 }
 
@@ -86,8 +107,8 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
         startTime: event.startTime,
         endTime: event.endTime ?? null,
         participationDeadline: event.participationDeadline ?? null,
-        host: mapUserDto(event.host),
-        coHosts: (event.coHosts ?? []).map((coHost) => mapUserDto(coHost.user)),
+        host: mapHostDto(event.host),
+        coHosts: (event.coHosts ?? []).map((coHost) => mapHostDto(coHost.user)),
         participants: participantsDto,
         isOpen: event.isOpen,
         isPrivate: event.isPrivate,

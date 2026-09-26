@@ -6,10 +6,17 @@ const USER_SELECT = {
     id: true,
     username: true,
     isAdmin: true,
-    authId: true
+    authId: true,
+    paypalLink: true,
+    ibanNumber: true,
+    ibanAccountHolder: true,
+    revolutLink: true
 } satisfies Prisma.UserSelect;
 
-export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId'>;
+export type UserRecord = Pick<
+    UserModel,
+    'id' | 'username' | 'isAdmin' | 'authId' | 'paypalLink' | 'ibanNumber' | 'ibanAccountHolder' | 'revolutLink'
+>;
 
 @Injectable()
 export class UsersRepository {

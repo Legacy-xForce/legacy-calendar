@@ -2,12 +2,17 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
 import { ParticipateDto } from './dto/participate.dto.js';
+import { normalizeVehicleSeats } from './vehicle-seats.util.js';
 
 const USER_SUMMARY_SELECT = {
     id: true,
     username: true,
     isAdmin: true,
-    authId: true
+    authId: true,
+    paypalLink: true,
+    ibanNumber: true,
+    ibanAccountHolder: true,
+    revolutLink: true
 } satisfies Prisma.UserSelect;
 
 export const EVENT_INCLUDE = {
@@ -100,25 +105,7 @@ export class EventsRepository {
 
     async join(userId: number, eventId: number, participateDto: ParticipateDto) {
         const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = participateDto;
-        let vehicleSeats = participateDto.vehicleSeats ?? 0;
-        let vehicleSeatsOutbound = participateDto.vehicleSeatsOutbound ?? 0;
-        let vehicleSeatsReturn = participateDto.vehicleSeatsReturn ?? 0;
-
-        if (transportMode === TransportMode.DRIVER) {
-            if (vehicleSeats < 2 && vehicleSeatsOutbound < 2 && vehicleSeatsReturn < 2) {
-                vehicleSeats = 2;
-                vehicleSeatsOutbound = 2;
-                vehicleSeatsReturn = 2;
-            } else {
-                if (vehicleSeatsOutbound < 2 && vehicleSeats >= 2) {
-                    vehicleSeatsOutbound = vehicleSeats;
-                }
-                if (vehicleSeatsReturn < 2 && vehicleSeats >= 2) {
-                    vehicleSeatsReturn = vehicleSeats;
-                }
-                vehicleSeats = Math.max(vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn);
-            }
-        }
+        const { vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn } = normalizeVehicleSeats(participateDto);
 
         return this.prisma.attendance.upsert({
             where: {
@@ -168,32 +155,38 @@ export class EventsRepository {
         eventId: number,
         passengerId: number,
         driverId: number | null,
-        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+        directions: ('OUTBOUND' | 'RETURN')[],
+        previousDriverId?: number
     ) {
         if (driverId === null) {
             return this.prisma.rideAssignment.deleteMany({
                 where: {
                     eventId,
                     passengerId,
-                    direction
+                    direction: { in: directions },
+                    ...(previousDriverId !== undefined && { driverId: previousDriverId })
                 }
             });
         }
 
-        return this.prisma.rideAssignment.upsert({
-            where: {
-                eventId_passengerId_direction: { eventId, passengerId, direction }
-            },
-            update: {
-                driverId
-            },
-            create: {
-                eventId,
-                passengerId,
-                driverId,
-                direction
-            }
-        });
+        return this.prisma.$transaction(
+            directions.map((direction) =>
+                this.prisma.rideAssignment.upsert({
+                    where: {
+                        eventId_passengerId_direction: { eventId, passengerId, direction }
+                    },
+                    update: {
+                        driverId
+                    },
+                    create: {
+                        eventId,
+                        passengerId,
+                        driverId,
+                        direction
+                    }
+                })
+            )
+        );
     }
 
     async deleteRideAssignmentsForUsers(eventId: number, userIds: number[]) {
@@ -218,6 +211,8 @@ export class EventsRepository {
                 status: InviteStatus.DECLINED,
                 transportMode: TransportMode.NEEDS_RIDE,
                 vehicleSeats: 0,
+                vehicleSeatsOutbound: 0,
+                vehicleSeatsReturn: 0,
                 wantsFood: false,
                 wantsWeed: false,
                 wantsSleep: false,

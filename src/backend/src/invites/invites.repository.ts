@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
+import { normalizeVehicleSeats } from '../events/vehicle-seats.util.js';
 
 const GUEST_INVITE_INCLUDE = {
     guestParticipant: { select: { id: true, displayName: true } },
@@ -56,11 +57,7 @@ export class InvitesRepository {
 
     async updateGuestParticipation(guestParticipantId: number, eventId: number, dto: GuestParticipateDto) {
         const { username, wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = dto;
-        let vehicleSeats = dto.vehicleSeats;
-
-        if (transportMode === TransportMode.DRIVER && (!vehicleSeats || vehicleSeats < 2)) {
-            vehicleSeats = 2;
-        }
+        const { vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn } = normalizeVehicleSeats(dto);
 
         return this.prisma.$transaction(async (tx) => {
             if (username) {
@@ -80,7 +77,9 @@ export class InvitesRepository {
                     wantsAlcohol,
                     wantsBeer,
                     transportMode,
-                    vehicleSeats
+                    vehicleSeats,
+                    vehicleSeatsOutbound,
+                    vehicleSeatsReturn
                 },
                 create: {
                     guestParticipantId,
@@ -92,7 +91,9 @@ export class InvitesRepository {
                     wantsAlcohol,
                     wantsBeer,
                     transportMode,
-                    vehicleSeats
+                    vehicleSeats,
+                    vehicleSeatsOutbound,
+                    vehicleSeatsReturn
                 }
             });
         });
@@ -105,6 +106,8 @@ export class InvitesRepository {
                 status: InviteStatus.DECLINED,
                 transportMode: TransportMode.NEEDS_RIDE,
                 vehicleSeats: 0,
+                vehicleSeatsOutbound: 0,
+                vehicleSeatsReturn: 0,
                 wantsFood: false,
                 wantsWeed: false,
                 wantsSleep: false,

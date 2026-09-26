@@ -77,7 +77,12 @@ const onOpenPreferences = () => {
 
 const handleFeatureConfirm = async (data: {
     features: EventFeature[];
-    transport: { transportMode: TransportMode; vehicleSeats?: number };
+    transport: {
+        transportMode: TransportMode;
+        vehicleSeats?: number;
+        vehicleSeatsOutbound?: number;
+        vehicleSeatsReturn?: number;
+    };
 }) => {
     showFeatureSelection.value = false;
     savingUsername.value = true;
@@ -86,7 +91,9 @@ const handleFeatureConfirm = async (data: {
             username: usernameInput.value.trim(),
             ...participantWantsFromSelection(data.features),
             transportMode: data.transport.transportMode,
-            vehicleSeats: data.transport.vehicleSeats
+            vehicleSeats: data.transport.vehicleSeats,
+            vehicleSeatsOutbound: data.transport.vehicleSeatsOutbound,
+            vehicleSeatsReturn: data.transport.vehicleSeatsReturn
         });
         event.value = response.data.event;
         isDeadlinePassed.value = response.data.isDeadlinePassed;

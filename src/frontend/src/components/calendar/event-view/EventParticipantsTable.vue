@@ -12,14 +12,22 @@ import AccordionContent from 'primevue/accordioncontent';
 import UserAvatar from '../../UserAvatar.vue';
 import { injectEventView } from '../../../composables/useEventView';
 import api from '../../../services/API';
-import { totalEventBudget } from '../../../utils/event';
+import { totalEventBudget, participantFeatures } from '../../../utils/event';
+import { formatCurrency } from '../../../utils/format';
 
 const props = defineProps<{
     event: Event;
 }>();
 
-const { resolvedInvitees, featuresListColumns, getFeatureCount, hasFeature, getStatusSeverity, getStatusIcon } =
-    injectEventView();
+const {
+    resolvedInvitees,
+    featuresListColumns,
+    getFeatureCount,
+    hasFeature,
+    getStatusSeverity,
+    getStatusIcon,
+    getFeatureSplitPrice
+} = injectEventView();
 const { isHost, currentUser } = injectEventView();
 const toast = useToast();
 const paymentOverrides = ref<Record<number, boolean>>({});
@@ -28,6 +36,8 @@ const canUpdatePayment = computed(() => isHost.value || currentUser.value?.isAdm
 const hasPaymentDue = computed(() => totalEventBudget(props.event) > 0);
 const getPaymentStatus = (participant: (typeof resolvedInvitees.value)[number]) =>
     paymentOverrides.value[participant.id] ?? participant.hasPaid === true;
+const getParticipantAmountDue = (participant: (typeof resolvedInvitees.value)[number]) =>
+    participantFeatures(participant).reduce((total, feature) => total + getFeatureSplitPrice(feature), 0);
 
 const togglePayment = async (participant: (typeof resolvedInvitees.value)[number]) => {
     if (!canUpdatePayment.value) return;
@@ -151,38 +161,49 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                             sortable
                         >
                             <template #body="slotProps">
-                                <button
-                                    v-if="canUpdatePayment && !slotProps.data.isGuest"
-                                    type="button"
-                                    class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
-                                    :class="
-                                        getPaymentStatus(slotProps.data)
-                                            ? 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25'
-                                            : 'bg-zinc-500/15 text-zinc-400 hover:bg-zinc-500/25'
-                                    "
-                                    @click="togglePayment(slotProps.data)"
-                                >
-                                    <i :class="getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'"></i>
-                                    {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
-                                </button>
-                                <Tag
-                                    v-else
-                                    :severity="getPaymentStatus(slotProps.data) ? 'success' : 'secondary'"
-                                    :value="getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid'"
-                                    size="small"
-                                />
+                                <div class="flex items-center justify-center">
+                                    <button
+                                        v-if="canUpdatePayment && !slotProps.data.isGuest"
+                                        type="button"
+                                        class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
+                                        :class="
+                                            getPaymentStatus(slotProps.data)
+                                                ? 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25'
+                                                : 'bg-zinc-500/15 text-zinc-400 hover:bg-zinc-500/25'
+                                        "
+                                        @click="togglePayment(slotProps.data)"
+                                    >
+                                        <i
+                                            :class="getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'"
+                                        ></i>
+                                        <span class="opacity-70">
+                                            {{ formatCurrency(getParticipantAmountDue(slotProps.data)) }}
+                                        </span>
+                                        {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
+                                    </button>
+                                    <Tag
+                                        v-else
+                                        :severity="getPaymentStatus(slotProps.data) ? 'success' : 'secondary'"
+                                        size="small"
+                                    >
+                                        <span class="inline-flex items-center gap-1">
+                                            <i
+                                                :class="
+                                                    getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'
+                                                "
+                                            ></i>
+                                            <span class="opacity-70">
+                                                {{ formatCurrency(getParticipantAmountDue(slotProps.data)) }}
+                                            </span>
+                                            {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
+                                        </span>
+                                    </Tag>
+                                </div>
                             </template>
                         </Column>
-                        <Column field="status" header="Status" class="w-16 text-center sm:w-24" sortable>
+                        <Column field="status" header="Status" class="w-16 text-center sm:w-20" sortable>
                             <template #body="slotProps">
-                                <span class="hidden sm:inline">
-                                    <Tag
-                                        :severity="getStatusSeverity(slotProps.data.status)"
-                                        size="small"
-                                        :value="slotProps.data.status"
-                                    />
-                                </span>
-                                <div class="flex justify-center sm:hidden">
+                                <div class="flex justify-center" v-tooltip.top="slotProps.data.status">
                                     <Tag
                                         :severity="getStatusSeverity(slotProps.data.status)"
                                         class="flex h-8! w-8! items-center justify-center p-0!"

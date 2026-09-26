@@ -10,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { NotificationCode } from '../notifications/notification-codes.js';
 import { EVENT_NOTIFICATION_MESSAGES, EVENT_NOTIFICATION_TITLES } from './event-notification.constants.js';
 import { mapEventToDto } from './event-response.mapper.js';
+import { hasSplitVehicleSeats } from './vehicle-seats.util.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
 
@@ -508,7 +509,13 @@ export class EventsService {
         const previousAssignment = passengerAssignment
             ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId }
             : null;
-        await this.eventsRepo.assignRide(eventId, passengerId, driverId, direction);
+        // Drivers who did not split their trips drive the same passengers both ways
+        const affectedDriverId = driverId ?? passengerAssignment?.driverId;
+        const affectedDriver =
+            affectedDriverId === undefined ? undefined : this.getParticipant(event, affectedDriverId);
+        const directions: ('OUTBOUND' | 'RETURN')[] =
+            affectedDriver && !hasSplitVehicleSeats(affectedDriver) ? ['OUTBOUND', 'RETURN'] : [direction];
+        await this.eventsRepo.assignRide(eventId, passengerId, driverId, directions, passengerAssignment?.driverId);
 
         if (driverId !== null) {
             await this.auditLogService.recordRideAssigned(

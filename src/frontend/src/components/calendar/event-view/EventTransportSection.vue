@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { Event, EventParticipant, RideDirection } from '../../../types/Event';
+import { computed, ref, watch } from 'vue';
+import type { Event, RideDirection } from '../../../types/Event';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import UserAvatar from '../../UserAvatar.vue';
@@ -14,12 +14,13 @@ const {
     drivers,
     getNeedsRide,
     selfTransport,
-    resolvedInvitees,
     dragOverDriverId,
     isHost,
     isEnded,
     isAldoMoro,
     getAvailableSeats,
+    getAssignedPassengers,
+    hasSplitSeats,
     currentUser
 } = injectEventView();
 
@@ -42,28 +43,17 @@ const emit = defineEmits<{
 
 const selectedPassengerIds = ref<number[]>([]);
 const activeDirection = ref<RideDirection>('OUTBOUND');
-const hasDifferentSeatCounts = computed(() =>
-    drivers.value.some(
-        (driver) =>
-            (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0) !==
-            (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0)
-    )
-);
+const hasDifferentSeatCounts = computed(() => drivers.value.some(hasSplitSeats));
 const activeNeedsRide = computed(() => getNeedsRide(activeDirection.value));
 
-const passengersMap = computed(() => {
-    const map: Record<number, EventParticipant[]> = {};
-    resolvedInvitees.value.forEach((p) => {
-        const driverId = activeDirection.value === 'RETURN' ? p.driverIdReturn : (p.driverIdOutbound ?? p.driverId);
-        if (driverId) {
-            if (!map[driverId]) map[driverId] = [];
-            map[driverId].push(p);
-        }
-    });
-    return map;
+watch(hasDifferentSeatCounts, (isSplit) => {
+    if (!isSplit) {
+        activeDirection.value = 'OUTBOUND';
+        selectedPassengerIds.value = [];
+    }
 });
 
-const getPassengersForDriver = (driverId: number) => passengersMap.value[driverId] || [];
+const getPassengersForDriver = (driverId: number) => getAssignedPassengers(driverId, activeDirection.value);
 
 const togglePassengerSelection = (passengerId: number) => {
     if (!canEditRides.value) return;
@@ -125,13 +115,22 @@ const canAssignToDriver = (driverId: number) => {
                 role="tab"
                 :aria-selected="activeDirection === direction"
                 class="flex-1 rounded-lg px-3 py-2 text-xs font-bold tracking-wide uppercase transition-colors sm:flex-none"
-                :class="activeDirection === direction ? 'bg-blue-500 text-black' : 'text-zinc-400 hover:text-white'"
+                :class="
+                    activeDirection === direction ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-400 hover:text-white'
+                "
                 @click="
                     activeDirection = direction;
                     selectedPassengerIds = [];
                 "
             >
                 {{ direction === 'OUTBOUND' ? 'Outbound' : 'Return' }}
+                <span
+                    v-if="getNeedsRide(direction).length > 0"
+                    class="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]"
+                    :class="activeDirection === direction ? 'bg-black/20' : 'bg-orange-500/20 text-orange-400'"
+                >
+                    {{ getNeedsRide(direction).length }}
+                </span>
             </button>
         </div>
 
