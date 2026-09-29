@@ -44,7 +44,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: { sub: string; username: string }) {
+    async validate(payload: { sub: string; username: string; scope?: string }) {
+        // Passkey-issued JWTs set scope='calendar' and use the local numeric
+        // user id as sub. Look up directly by id to avoid a failed syncFromAuth
+        // that would return null (passkey users have no authId from the external
+        // auth service).
+        if (payload.scope === 'calendar') {
+            const numericId = parseInt(payload.sub, 10);
+            if (!isNaN(numericId)) {
+                const user = await this.usersService.findOne(numericId).catch(() => null);
+                return {
+                    userId: user?.id,
+                    username: user?.username ?? payload.username,
+                    isAdmin: user?.isAdmin ?? false
+                };
+            }
+        }
+
         const user = await this.usersService.syncFromAuth({
             authId: payload.sub,
             username: payload.username
