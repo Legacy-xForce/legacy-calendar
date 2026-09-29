@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import type { Event } from '../../../types/Event';
 import DataTable from 'primevue/datatable';
@@ -31,6 +31,13 @@ const {
 const { isHost, currentUser } = injectEventView();
 const toast = useToast();
 const paymentOverrides = ref<Record<number, boolean>>({});
+
+watch(
+    () => props.event.id,
+    () => {
+        paymentOverrides.value = {};
+    }
+);
 
 const canUpdatePayment = computed(() => isHost.value || currentUser.value?.isAdmin === true);
 const hasPaymentDue = computed(() => totalEventBudget(props.event) > 0);
@@ -163,9 +170,9 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                             <template #body="slotProps">
                                 <div class="flex items-center justify-center">
                                     <button
-                                        v-if="canUpdatePayment && !slotProps.data.isGuest"
+                                        v-if="canUpdatePayment"
                                         type="button"
-                                        class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
+                                        class="inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold transition-colors"
                                         :class="
                                             getPaymentStatus(slotProps.data)
                                                 ? 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25'
@@ -181,23 +188,23 @@ const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.stat
                                         </span>
                                         {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
                                     </button>
-                                    <Tag
+                                    <span
                                         v-else
-                                        :severity="getPaymentStatus(slotProps.data) ? 'success' : 'secondary'"
-                                        size="small"
+                                        class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
+                                        :class="
+                                            getPaymentStatus(slotProps.data)
+                                                ? 'bg-emerald-500/15 text-emerald-500'
+                                                : 'bg-zinc-500/15 text-zinc-400'
+                                        "
                                     >
-                                        <span class="inline-flex items-center gap-1">
-                                            <i
-                                                :class="
-                                                    getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'
-                                                "
-                                            ></i>
-                                            <span class="opacity-70">
-                                                {{ formatCurrency(getParticipantAmountDue(slotProps.data)) }}
-                                            </span>
-                                            {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
+                                        <i
+                                            :class="getPaymentStatus(slotProps.data) ? 'pi pi-check' : 'pi pi-minus'"
+                                        ></i>
+                                        <span class="opacity-70">
+                                            {{ formatCurrency(getParticipantAmountDue(slotProps.data)) }}
                                         </span>
-                                    </Tag>
+                                        {{ getPaymentStatus(slotProps.data) ? 'Paid' : 'Unpaid' }}
+                                    </span>
                                 </div>
                             </template>
                         </Column>

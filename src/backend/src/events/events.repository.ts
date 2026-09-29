@@ -141,6 +141,16 @@ export class EventsRepository {
     }
 
     async updatePaymentStatus(eventId: number, userId: number, hasPaid: boolean) {
+        if (userId < 0) {
+            return this.prisma.attendance.update({
+                where: {
+                    guestParticipantId_eventId: { guestParticipantId: -userId, eventId }
+                },
+                data: {
+                    hasPaid
+                }
+            });
+        }
         return this.prisma.attendance.update({
             where: {
                 userId_eventId: { userId, eventId }
