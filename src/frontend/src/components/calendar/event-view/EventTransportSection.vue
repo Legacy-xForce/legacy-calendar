@@ -115,9 +115,7 @@ const canAssignToDriver = (driverId: number) => {
                 role="tab"
                 :aria-selected="activeDirection === direction"
                 class="flex-1 rounded-lg px-3 py-2 text-xs font-bold tracking-wide uppercase transition-colors sm:flex-none"
-                :class="
-                    activeDirection === direction ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-400 hover:text-white'
-                "
+                :class="activeDirection === direction ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-400 hover:text-white'"
                 @click="
                     activeDirection = direction;
                     selectedPassengerIds = [];

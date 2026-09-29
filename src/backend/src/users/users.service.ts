@@ -146,7 +146,11 @@ export class UsersService {
             username: user.username,
             isAdmin: user.isAdmin,
             profilePictureUrl: buildProfilePictureUrl(user.authId),
-            isGuest: false
+            isGuest: false,
+            paypalLink: user.paypalLink,
+            ibanNumber: user.ibanNumber,
+            ibanAccountHolder: user.ibanAccountHolder,
+            revolutLink: user.revolutLink
         };
     }
 

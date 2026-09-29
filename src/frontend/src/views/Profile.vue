@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, toRaw } from 'vue';
+import { ref, computed, toRaw, watch } from 'vue';
 import { clear } from 'idb-keyval';
 import { useSessionStore } from '../stores/session';
 import Button from 'primevue/button';
@@ -124,7 +124,11 @@ const notificationSettings = ref<NotificationSettings | null>(null);
 
 onMounted(async () => {
     notificationSettings.value = await notificationStorage.getSettings();
-    await Promise.all([usersStore.fetchUsers(), userGroupsStore.fetchGroups()]);
+    await Promise.all([
+        usersStore.fetchUsers(),
+        userGroupsStore.fetchGroups(),
+        !currentUser.value ? sessionStore.load() : Promise.resolve()
+    ]);
     if (passkeySupported) {
         try {
             passkeys.value = (await api.getPasskeys()).data;
@@ -185,6 +189,19 @@ const ibanNumber = ref(currentUser.value?.ibanNumber ?? '');
 const ibanAccountHolder = ref(currentUser.value?.ibanAccountHolder ?? '');
 const revolutLink = ref(currentUser.value?.revolutLink ?? '');
 const paymentInfoLoading = ref(false);
+
+watch(
+    currentUser,
+    (user) => {
+        if (user) {
+            paypalLink.value = user.paypalLink ?? '';
+            ibanNumber.value = user.ibanNumber ?? '';
+            ibanAccountHolder.value = user.ibanAccountHolder ?? '';
+            revolutLink.value = user.revolutLink ?? '';
+        }
+    },
+    { immediate: true }
+);
 
 const handlePaymentInfoSave = async () => {
     paymentInfoLoading.value = true;

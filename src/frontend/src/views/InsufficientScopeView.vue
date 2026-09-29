@@ -57,7 +57,8 @@ const handleRetry = () => {
                     <div>
                         <span class="font-semibold text-zinc-300">Scopes managed via Legacy Auth</span>
                         <p class="mt-1 text-zinc-500">
-                            Permissions and scopes are managed centrally. Please ask your administrator to grant the calendar scope to your profile.
+                            Permissions and scopes are managed centrally. Please ask your administrator to grant the
+                            calendar scope to your profile.
                         </p>
                     </div>
                 </div>
