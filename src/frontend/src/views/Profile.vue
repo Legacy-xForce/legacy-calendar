@@ -203,14 +203,17 @@ watch(
     { immediate: true }
 );
 
+/** Strip https?:// prefix so only the bare path/domain is stored. */
+const normalizeLink = (value: string): string => value.trim().replace(/^https?:\/\//i, '');
+
 const handlePaymentInfoSave = async () => {
     paymentInfoLoading.value = true;
     try {
         const response = await api.updateMyPaymentInfo({
-            paypalLink: paypalLink.value.trim(),
+            paypalLink: normalizeLink(paypalLink.value),
             ibanNumber: ibanNumber.value.trim(),
             ibanAccountHolder: ibanAccountHolder.value.trim(),
-            revolutLink: revolutLink.value.trim()
+            revolutLink: normalizeLink(revolutLink.value)
         });
         await sessionStore.updateProfile(response.data);
         toast.add({ severity: 'success', summary: 'Payment coordinates saved', life: 2500 });

@@ -46,6 +46,9 @@ const featureMap = computed(() => {
 const hostsWithPaymentInfo = computed(() =>
     allEventHosts.value.filter((host) => host.paypalLink || host.ibanNumber || host.revolutLink)
 );
+
+/** Ensures a stored bare link (e.g. `paypal.me/foo`) becomes a proper absolute URL for `href`. */
+const toAbsoluteUrl = (link: string): string => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
 </script>
 
 <template>
@@ -104,7 +107,7 @@ const hostsWithPaymentInfo = computed(() =>
 
                     <a
                         v-if="host.paypalLink"
-                        :href="host.paypalLink"
+                        :href="toAbsoluteUrl(host.paypalLink)"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="group/link flex items-center gap-2"
@@ -119,7 +122,7 @@ const hostsWithPaymentInfo = computed(() =>
 
                     <a
                         v-if="host.revolutLink"
-                        :href="host.revolutLink"
+                        :href="toAbsoluteUrl(host.revolutLink)"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="group/link flex items-center gap-2"
