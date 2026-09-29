@@ -211,7 +211,6 @@ export class EventsController {
             userId,
             dto.hasPaid,
             req.user.userId as number,
-            req.user.isAdmin,
             req.impersonatorUserId ?? null
         );
     }

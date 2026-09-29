@@ -28,7 +28,7 @@ const {
     getStatusIcon,
     getFeatureSplitPrice
 } = injectEventView();
-const { isHost, currentUser } = injectEventView();
+const { isHost } = injectEventView();
 const toast = useToast();
 const paymentOverrides = ref<Record<number, boolean>>({});
 
@@ -39,7 +39,7 @@ watch(
     }
 );
 
-const canUpdatePayment = computed(() => isHost.value || currentUser.value?.isAdmin === true);
+const canUpdatePayment = computed(() => isHost.value);
 const hasPaymentDue = computed(() => totalEventBudget(props.event) > 0);
 const getPaymentStatus = (participant: (typeof resolvedInvitees.value)[number]) =>
     paymentOverrides.value[participant.id] ?? participant.hasPaid === true;

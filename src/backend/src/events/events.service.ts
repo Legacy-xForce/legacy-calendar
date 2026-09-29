@@ -549,15 +549,14 @@ export class EventsService {
         targetUserId: number,
         hasPaid: boolean,
         requestingUserId: number,
-        isAdmin = false,
         impersonatorId: number | null = null
     ) {
         this.logger.info('Updating participant payment status', { eventId, targetUserId, hasPaid, requestingUserId });
         const event = await this.findEventOrThrow(eventId, requestingUserId);
 
         const isHost = this.canManageEvent(event, requestingUserId);
-        if (!isHost && !isAdmin) {
-            this.logger.warn('Payment update forbidden for non-host/non-admin', {
+        if (!isHost) {
+            this.logger.warn('Payment update forbidden for non-host', {
                 eventId,
                 requestingUserId,
                 hostId: event.hostId
