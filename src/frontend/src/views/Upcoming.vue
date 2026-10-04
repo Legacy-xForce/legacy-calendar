@@ -99,7 +99,7 @@ const openViewEvent = (event: Event) => {
                 <div
                     class="bg-surface-900/50 relative flex h-24 w-24 items-center justify-center rounded-3xl border border-white/5 backdrop-blur-sm"
                 >
-                    <i class="pi pi-calendar-plus text-surface-400 text-4xl"></i>
+                    <i class="pi pi-calendar-plus text-surface-400 text-6xl!"></i>
                 </div>
             </div>
             <h3 class="text-surface-0 text-2xl font-bold">Quiet days ahead</h3>
