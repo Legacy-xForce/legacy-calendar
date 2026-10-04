@@ -574,7 +574,8 @@ export class EventsService {
             eventId,
             participant,
             { ...participant, hasPaid },
-            { actorId: requestingUserId, impersonatorId }
+            { actorId: requestingUserId, impersonatorId },
+            targetUserId
         );
 
         this.logger.info('Participant payment status updated', { eventId, targetUserId, hasPaid });

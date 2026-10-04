@@ -309,6 +309,19 @@ const formatDiffValue = (value: unknown, fieldName: string) => {
 const hasField = (record: Record<string, unknown>, field: string) =>
     Object.prototype.hasOwnProperty.call(record, field);
 
+const getEntryActionLabel = (entry: AuditLogEntry) => {
+    const participantId = entry.payloadDiff?.after?.participantId ?? entry.payloadDiff?.before?.participantId;
+    const participant = typeof participantId === 'number' ? entry.resolvedUsers?.[participantId] : null;
+    const hasPaymentChange = hasField(entry.payloadDiff?.after ?? {}, 'hasPaid');
+
+    if (entry.actionType === 'PARTICIPANT_UPDATED' && hasPaymentChange && participant) {
+        const status = entry.payloadDiff.after.hasPaid === true ? 'paid' : 'unpaid';
+        return `marked ${participant.username} as ${status}`;
+    }
+
+    return actionMeta[entry.actionType].label;
+};
+
 const hasDiffBlock = (entry: AuditLogEntry) => {
     const before = entry.payloadDiff?.before ?? {};
     const after = entry.payloadDiff?.after ?? {};
@@ -325,7 +338,9 @@ const getFieldLabel = (fieldName: string) => {
 const getDiffItems = (entry: AuditLogEntry): DiffItem[] => {
     const before = entry.payloadDiff?.before ?? {};
     const after = entry.payloadDiff?.after ?? {};
-    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(
+        (fieldName) => fieldName !== 'participantId'
+    );
 
     return keys.map((fieldName) => {
         const beforeExists = hasField(before, fieldName);
@@ -439,7 +454,7 @@ const getActorAvatarProps = (entry: AuditLogEntry) =>
                                     <UserAvatar v-bind="getActorAvatarProps(entry)" size="normal" />
                                     <p class="m-0 min-w-0 text-sm text-zinc-200">
                                         <span class="font-semibold text-white">{{ getActorLabel(entry) }}</span>
-                                        {{ ' ' }}{{ actionMeta[entry.actionType].label }}
+                                        {{ ' ' }}{{ getEntryActionLabel(entry) }}
                                     </p>
                                 </div>
                                 <span class="shrink-0 text-xs text-zinc-500">{{

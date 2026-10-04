@@ -32,7 +32,7 @@ export type AuditLogResponse = {
     createdAt: string;
 };
 
-const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId']);
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId', 'participantId']);
 
 type AuditActor = {
     actorId?: number;
@@ -139,11 +139,17 @@ export class AuditLogService {
             createdAt: Date;
             hasPaid?: boolean;
         },
-        actor: AuditActor
+        actor: AuditActor,
+        participantId?: number
     ) {
         const payloadDiff = this.buildObjectDiff(this.snapshotParticipant(before), this.snapshotParticipant(after));
         if (Object.keys(payloadDiff.before).length === 0 && Object.keys(payloadDiff.after).length === 0) {
             return;
+        }
+
+        if (participantId !== undefined) {
+            payloadDiff.before.participantId = participantId;
+            payloadDiff.after.participantId = participantId;
         }
 
         return this.safeRecord('PARTICIPANT_UPDATED', eventId, actor, payloadDiff);
