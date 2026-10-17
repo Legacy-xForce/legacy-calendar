@@ -1,132 +1,398 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&family=Noto+Color+Emoji&display=swap');
 @import 'primeicons/primeicons.css';
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Design tokens. One neutral scale (faintly tinted toward the emerald accent) backs
+ * `surface-*`, `zinc-*` and the semantic roles below, so every gray in the app agrees.
+ */
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-emoji: 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
+
+    --color-surface-0: #ffffff;
+    --color-surface-50: #f8fbf9;
+    --color-surface-100: #f1f4f3;
+    --color-surface-200: #e2e6e4;
+    --color-surface-300: #d1d5d3;
+    --color-surface-400: #9da3a0;
+    --color-surface-500: #747a77;
+    --color-surface-600: #505553;
+    --color-surface-700: #3c413f;
+    --color-surface-800: #252927;
+    --color-surface-850: #1c1f1d;
+    --color-surface-900: #151817;
+    --color-surface-925: #0f1110;
+    --color-surface-950: #090b0a;
+
+    --color-zinc-50: var(--color-surface-50);
+    --color-zinc-100: var(--color-surface-100);
+    --color-zinc-200: var(--color-surface-200);
+    --color-zinc-300: var(--color-surface-300);
+    --color-zinc-400: var(--color-surface-400);
+    --color-zinc-500: var(--color-surface-500);
+    --color-zinc-600: var(--color-surface-600);
+    --color-zinc-700: var(--color-surface-700);
+    --color-zinc-800: var(--color-surface-800);
+    --color-zinc-900: var(--color-surface-900);
+    --color-zinc-950: var(--color-surface-950);
+
+    --color-primary-50: var(--color-emerald-50);
+    --color-primary-100: var(--color-emerald-100);
+    --color-primary-200: var(--color-emerald-200);
+    --color-primary-300: var(--color-emerald-300);
+    --color-primary-400: var(--color-emerald-400);
+    --color-primary-500: var(--color-emerald-500);
+    --color-primary-600: var(--color-emerald-600);
+    --color-primary-700: var(--color-emerald-700);
+    --color-primary-800: var(--color-emerald-800);
+    --color-primary-900: var(--color-emerald-900);
+    --color-primary-950: var(--color-emerald-950);
+    --color-primary: var(--color-emerald-400);
+    --color-primary-contrast: #03140d;
+
+    /* Semantic roles */
+    --color-canvas: #000000;
+    --color-raised: var(--color-surface-925);
+    --color-overlay: var(--color-surface-900);
+    --color-hover: var(--color-surface-850);
+    --color-line: var(--color-surface-800);
+    --color-line-strong: var(--color-surface-700);
+    --color-fg: var(--color-surface-50);
+    --color-muted: var(--color-surface-400);
+    --color-subtle: var(--color-surface-500);
+    --color-accent: var(--color-emerald-400);
+    --color-accent-soft: color-mix(in oklab, var(--color-emerald-400) 14%, transparent);
+    --color-going: var(--color-emerald-400);
+    --color-invited: var(--color-amber-300);
+    --color-declined: var(--color-rose-400);
+
+    /* Type scale: 12 / 13 / 15 / 17 / 20 / 26 / 32 */
+    --text-meta: 0.8125rem;
+    --text-meta--line-height: 1.125rem;
+    --text-body: 0.9375rem;
+    --text-body--line-height: 1.4rem;
+    --text-title: 1.0625rem;
+    --text-title--line-height: 1.4rem;
+    --text-headline: 1.25rem;
+    --text-headline--line-height: 1.6rem;
+    --text-display: 1.625rem;
+    --text-display--line-height: 2rem;
+    --text-display-lg: 2rem;
+    --text-display-lg--line-height: 2.375rem;
+
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-quart: cubic-bezier(0.5, 0, 0.75, 0);
+
+    --animate-rise-in: rise-in 320ms var(--ease-out-expo) both;
+    --animate-fade-in: fade-in 200ms var(--ease-out-quart) both;
+    --animate-pop-in: pop-in 220ms var(--ease-out-expo) both;
+
+    @keyframes rise-in {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+    }
+
+    @keyframes pop-in {
+        from {
+            opacity: 0;
+            transform: scale(0.94);
+        }
+    }
+}
+
 :root {
-    --font-body: 'Inter', sans-serif;
-    --font-display: 'Outfit', sans-serif;
-    --font-emoji: 'Noto Color Emoji', sans-serif;
-
-    font-family: var(--font-body);
-    color: #ffffff;
-    background-color: #000000;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    color: var(--color-fg);
+    background-color: var(--color-canvas);
     color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
 
-    /* Obsidian Easing */
-    --ease-obsidian: cubic-bezier(0.16, 1, 0.3, 1);
+    /* Height of the mobile tab bar, without the safe-area inset */
+    --tabbar-height: 3.75rem;
+    --app-header-height: 4rem;
+}
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background-color: var(--color-canvas);
+    overscroll-behavior-y: none;
 }
 
 h1,
 h2,
 h3,
 h4,
-h5,
-h6,
 .p-dialog-title,
-.p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-menuitem-text,
-.weekday-header,
-.day-number,
-.pwa-mobile-show button span,
 .display-text {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.015em;
 }
 
-h1 {
-    font-weight: 800;
+button,
+[role='button'] {
+    touch-action: manipulation;
 }
 
-h2,
-h3,
-.p-dialog-title {
-    font-weight: 700;
+::selection {
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
 }
 
-.p-button-label,
-.p-tag-value {
-    font-family: var(--font-display);
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+@utility tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@utility pressable {
+    transition:
+        transform 140ms var(--ease-out-quart),
+        background-color 160ms var(--ease-out-quart),
+        border-color 160ms var(--ease-out-quart),
+        opacity 160ms var(--ease-out-quart);
+    &:active {
+        transform: scale(0.97);
+    }
+}
+
+/* Small uppercase section label. Use sparingly: one per section, never inside rows. */
+@utility eyebrow {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+}
+
+/* ---------- PrimeVue refinements ---------- */
+
+.p-button {
+    font-weight: 600;
+    transition:
+        transform 140ms var(--ease-out-quart),
+        background-color 160ms var(--ease-out-quart),
+        border-color 160ms var(--ease-out-quart),
+        color 160ms var(--ease-out-quart);
+}
+
+.p-button:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.p-button-label {
     font-weight: 600;
 }
 
-.p-menubar {
-    border: none !important;
-    background: #000000 !important;
+.p-dialog {
+    max-height: calc(100dvh - 2rem);
 }
 
+.p-dialog-mask.p-overlay-mask {
+    background: rgb(0 0 0 / 0.72);
+}
+
+.p-dialog-header .p-dialog-close-button,
+.p-dialog-header .p-dialog-maximize-button {
+    color: var(--color-muted);
+}
+
+.p-confirmdialog .p-dialog-content {
+    align-items: flex-start;
+    gap: 0.875rem;
+    color: var(--color-muted);
+}
+
+.p-confirmdialog-icon {
+    color: var(--color-amber-300);
+    font-size: 1.25rem !important;
+    width: auto !important;
+    height: auto !important;
+    margin-top: 0.125rem;
+}
+
+.p-tooltip .p-tooltip-text {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.625rem;
+    background: var(--color-surface-800);
+    border-radius: 0.5rem;
+}
+
+/* Toasts: solid surface, status carried by the icon rather than a colored stripe */
 .p-toast {
-    opacity: 0.95;
+    --p-toast-width: 22rem;
 }
 
 .p-toast-message {
-    background: #000000 !important;
-    border: 1px solid #262626 !important;
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(12px);
-    border-radius: 16px !important;
+    background: var(--color-surface-900) !important;
+    border: 1px solid var(--color-line) !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.9) !important;
+    backdrop-filter: none !important;
 }
 
 .p-toast-message-content {
-    padding: 1rem !important;
+    padding: 0.875rem 1rem !important;
+    gap: 0.75rem !important;
+    align-items: center !important;
 }
 
 .p-toast-summary {
-    font-weight: 700 !important;
-    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.9375rem !important;
+    color: var(--color-fg) !important;
 }
 
 .p-toast-detail {
-    color: #a3a3a3 !important;
-    font-size: 0.875rem !important;
-}
-
-.p-toast-icon-wrapper {
-    color: var(--p-primary-color) !important;
+    margin-top: 0.125rem !important;
+    color: var(--color-muted) !important;
+    font-size: 0.8125rem !important;
 }
 
 .p-toast-message-icon {
-    font-size: 1.25rem !important;
+    font-size: 1.125rem !important;
+    width: 1.125rem !important;
+    height: 1.125rem !important;
 }
 
-/* Status Specific Borders */
-.p-toast-message-success {
-    border-left-color: #10b981 !important;
+.p-toast-message-success .p-toast-message-icon {
+    color: var(--color-emerald-400) !important;
 }
 
-.p-toast-message-info {
-    border-left-color: #3b82f6 !important;
+.p-toast-message-info .p-toast-message-icon {
+    color: var(--color-sky-400) !important;
 }
 
-.p-toast-message-warn {
-    border-left-color: #f59e0b !important;
+.p-toast-message-warn .p-toast-message-icon {
+    color: var(--color-amber-300) !important;
 }
 
-.p-toast-message-error {
-    border-left-color: #ef4444 !important;
+.p-toast-message-error .p-toast-message-icon {
+    color: var(--color-rose-400) !important;
 }
 
-/* Animation tweaks */
-.p-toast-message-enter-from {
-    transform: translateX(100%);
-    opacity: 0;
+.p-toast-close-button {
+    color: var(--color-muted) !important;
 }
 
-@media screen and (max-width: 640px) {
+/* ---------- Mobile: dialogs become bottom sheets ---------- */
+
+@media (max-width: 640px) {
+    .p-dialog-mask.p-overlay-mask:has(> .p-dialog:not(.p-dialog-maximized)) {
+        align-items: flex-end !important;
+    }
+
+    .p-dialog:not(.p-dialog-maximized) {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem) !important;
+        margin: 0 !important;
+        border-radius: 1.5rem 1.5rem 0 0 !important;
+        border-bottom: 0 !important;
+        padding-top: 0.75rem;
+        position: relative;
+    }
+
+    /* Grab handle: the header is draggable (see useSheetGestures) */
+    .p-dialog:not(.p-dialog-maximized)::before {
+        content: '';
+        position: absolute;
+        top: 0.5rem;
+        left: 50%;
+        width: 2.25rem;
+        height: 0.25rem;
+        margin-left: -1.125rem;
+        border-radius: 999px;
+        background: var(--color-surface-700);
+        z-index: 2;
+    }
+
+    .p-dialog:not(.p-dialog-maximized) .p-dialog-footer,
+    .p-dialog:not(.p-dialog-maximized) .p-dialog-content:last-child {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    }
+
+    .p-dialog:not(.p-dialog-maximized).p-dialog-enter-active {
+        animation: sheet-in 420ms var(--ease-out-expo);
+    }
+
+    .p-dialog:not(.p-dialog-maximized).p-dialog-leave-active {
+        animation: sheet-out 220ms var(--ease-in-quart) forwards;
+    }
+
+    .p-dialog.p-dialog-maximized {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .p-dialog.p-dialog-maximized.p-dialog-enter-active {
+        animation: sheet-in 420ms var(--ease-out-expo);
+    }
+
+    .p-dialog.p-dialog-maximized.p-dialog-leave-active {
+        animation: sheet-out 220ms var(--ease-in-quart) forwards;
+    }
+
+    .p-confirmdialog .p-dialog-footer {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    .p-confirmdialog .p-dialog-footer .p-button {
+        width: 100%;
+    }
+
     .p-toast {
-        width: calc(100% - 2rem) !important;
-        left: 1rem !important;
-        right: 1rem !important;
-        top: 1rem !important;
-    }
-
-    .p-toast-message-enter-from {
-        transform: translateY(-100%) !important;
-        opacity: 0 !important;
+        width: calc(100% - 1.5rem) !important;
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        top: calc(env(safe-area-inset-top) + 0.75rem) !important;
+        transform: none !important;
     }
 }
 
-/* Custom Scrollbar */
+@keyframes sheet-in {
+    from {
+        transform: translateY(100%);
+    }
+}
+
+@keyframes sheet-out {
+    to {
+        transform: translateY(100%);
+    }
+}
+
+/* ---------- Scrollbars ---------- */
+
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -137,104 +403,77 @@ h3,
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #262626;
+    background: var(--color-surface-800);
     border-radius: 20px;
-    border: 3px solid #000000;
+    border: 3px solid transparent;
     background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #404040;
+    background: var(--color-surface-700);
+    background-clip: content-box;
 }
 
-/* Staggered Reveals */
-@keyframes reveal-up {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-800) transparent;
 }
 
-.stagger-reveal > * {
-    opacity: 0;
-    animation: reveal-up 0.6s var(--ease-obsidian) forwards;
-}
+/* ---------- Route transitions ---------- */
 
-.stagger-reveal > *:nth-child(1) {
-    animation-delay: 0.05s;
-}
-.stagger-reveal > *:nth-child(2) {
-    animation-delay: 0.1s;
-}
-.stagger-reveal > *:nth-child(3) {
-    animation-delay: 0.15s;
-}
-.stagger-reveal > *:nth-child(4) {
-    animation-delay: 0.2s;
-}
-.stagger-reveal > *:nth-child(5) {
-    animation-delay: 0.25s;
-}
-
-/* Page Transitions */
 .slide-left-enter-active,
-.slide-left-leave-active,
 .slide-right-enter-active,
+.fade-enter-active {
+    transition:
+        opacity 220ms var(--ease-out-quart),
+        transform 320ms var(--ease-out-expo);
+}
+
+.slide-left-leave-active,
 .slide-right-leave-active,
-.fade-enter-active,
 .fade-leave-active {
-    transition: all 0.4s var(--ease-obsidian);
+    transition: opacity 110ms var(--ease-in-quart);
 }
 
 .slide-left-enter-from {
     opacity: 0;
-    transform: translateX(30px);
-}
-
-.slide-left-leave-to {
-    opacity: 0;
-    transform: translateX(-30px);
+    transform: translateX(14px);
 }
 
 .slide-right-enter-from {
     opacity: 0;
-    transform: translateX(-30px);
+    transform: translateX(-14px);
 }
 
-.slide-right-leave-to {
-    opacity: 0;
-    transform: translateX(30px);
-}
-
+.slide-left-leave-to,
+.slide-right-leave-to,
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
 }
 
-body {
-    margin: 0;
-    overflow-x: hidden;
-    background-color: #000000;
+/* Generic list item transition for <TransitionGroup name="list"> */
+.list-enter-active {
+    transition:
+        opacity 240ms var(--ease-out-quart),
+        transform 320ms var(--ease-out-expo);
 }
 
-/* Firefox */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: #262626 transparent;
+.list-leave-active {
+    transition: opacity 120ms var(--ease-in-quart);
 }
 
-/* Ensure centered content stays centered by ignoring scrollbar width in layout */
-.p-dialog-content,
-.p-scrollpanel-content,
-.upcoming-container {
-    scrollbar-gutter: stable both-edges;
+.list-enter-from {
+    opacity: 0;
+    transform: translateY(6px);
 }
 
-/* PWA Mobile Layout */
+.list-leave-to {
+    opacity: 0;
+}
+
+/* ---------- Responsive shell ---------- */
+
 .pwa-mobile-show {
     display: none !important;
 }
@@ -246,7 +485,15 @@ body {
     .pwa-mobile-hidden {
         display: none !important;
     }
-    .p-menubar-button {
-        display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
     }
 }

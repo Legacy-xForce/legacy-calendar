@@ -6,16 +6,13 @@ const { displayInfo, displayTemp } = injectWeatherDialogState();
 </script>
 
 <template>
-    <div class="flex flex-col items-center gap-2">
-        <div class="flex h-24 w-24 items-center justify-center rounded-3xl bg-zinc-900">
-            <MeteoconIcon :slug="displayInfo.meteoconSlug" :size="72" />
+    <div class="flex items-center gap-4 py-2">
+        <MeteoconIcon :slug="displayInfo.meteoconSlug" :size="88" />
+        <div>
+            <p class="font-display tabular m-0 flex items-start text-[3.5rem] leading-none font-semibold">
+                {{ displayTemp }}<span class="text-subtle text-[2rem] font-normal">°</span>
+            </p>
+            <p class="text-body text-muted m-0 mt-1">{{ displayInfo.summary }}</p>
         </div>
-        <div class="mt-4 flex items-start">
-            <span class="ml-2 text-7xl font-bold tracking-tighter">{{ displayTemp }}</span>
-            <span class="mt-2 ml-1 text-3xl font-light text-zinc-600">°</span>
-        </div>
-        <span class="text-xl font-semibold tracking-tight text-zinc-200">
-            {{ displayInfo.summary }}
-        </span>
     </div>
 </template>

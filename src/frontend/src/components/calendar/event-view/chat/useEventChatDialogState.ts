@@ -75,7 +75,7 @@ export interface EventChatDialogState {
 
 const EventChatDialogKey: InjectionKey<EventChatDialogState> = Symbol('EventChatDialogState');
 
-export function useEventChatDialogState(eventRef: EventRef, closeChat: () => void) {
+export function useEventChatDialogState(eventRef: EventRef, closeChat: () => void, isOpen?: Ref<boolean>) {
     const sessionStore = useSessionStore();
     const confirm = useConfirm();
     const toast = useToast();
@@ -351,12 +351,17 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
             const message = chat.messages.value[chat.messages.value.length - 1];
             if (!message || message.authorId === currentUserId.value) return;
 
-            toast.add({
-                severity: 'info',
-                summary: `${message.authorUsername} sent a message`,
-                detail: message.text || (message.mediaType ? `${message.mediaType} attachment` : 'New chat activity'),
-                life: 3500
-            });
+            // The message is already on screen while the chat is open
+            const isReadingChat = !!isOpen?.value && !document.hidden;
+            if (!isReadingChat) {
+                toast.add({
+                    severity: 'info',
+                    summary: `${message.authorUsername} sent a message`,
+                    detail:
+                        message.text || (message.mediaType ? `${message.mediaType} attachment` : 'New chat activity'),
+                    life: 3500
+                });
+            }
 
             if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
                 new Notification(`New message from ${message.authorUsername}`, {

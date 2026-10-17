@@ -2,6 +2,8 @@
 import { computed, ref, watch, toRef, provide, defineAsyncComponent } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import Skeleton from 'primevue/skeleton';
+import { format } from 'date-fns';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useRoute, useRouter } from 'vue-router';
@@ -48,9 +50,19 @@ const {
     dragOverDriverId,
     availableFeatureIds,
     getParticipantFeatures,
+    getFeatureCount,
     eventPrices,
     eventSplitPrices
 } = eventView;
+
+// Others in for each feature (excluding you), so the join sheet can project your share
+const otherFeatureCounts = computed(() => {
+    const mine =
+        userParticipantStatus.value === 'ACCEPTED' && currentUser.value
+            ? getParticipantFeatures(currentUser.value.id)
+            : [];
+    return createFeatureRecord((feature) => getFeatureCount(feature) - (mine.includes(feature) ? 1 : 0));
+});
 
 const joining = ref(false);
 const cancelling = ref(false);
@@ -227,7 +239,12 @@ const onOpenChat = () => {
     void router.push({ path: `${currentEventPath.value}/chat` });
 };
 
-import { participantWantsFromSelection } from '../../utils/event';
+import { createFeatureRecord, participantWantsFromSelection } from '../../utils/event';
+import { normalizeHexColor } from '../../utils/color';
+import { DEFAULT_COLOR } from '../../constants/colors';
+
+const eventColor = computed(() => normalizeHexColor(props.event?.color, DEFAULT_COLOR));
+const headerDate = computed(() => (props.event ? format(new Date(props.event.startTime), 'EEE d MMM · HH:mm') : ''));
 
 watch(
     () => props.visible,
@@ -257,13 +274,18 @@ function parseEventId(value: unknown) {
         :visible="visible"
         @update:visible="emit('update:visible', $event)"
         modal
-        header="Event Details"
-        :style="{ width: '1000px' }"
-        :breakpoints="{ '960px': '85vw', '640px': '95vw' }"
-        class="p-fluid"
+        :style="{ width: '44rem' }"
         dismissableMask
         :draggable="false"
+        :pt="{ footer: { class: 'border-t! border-line! pt-3!' } }"
     >
+        <template #header>
+            <div v-if="event" class="text-meta text-muted tabular flex min-w-0 items-center gap-2">
+                <span class="size-2.5 shrink-0 rounded-full" :style="{ background: eventColor }"></span>
+                <span class="truncate">{{ headerDate }}</span>
+            </div>
+        </template>
+
         <EventViewMode
             v-if="event"
             :event="event"
@@ -278,81 +300,60 @@ function parseEventId(value: unknown) {
             @open-chat="onOpenChat"
             @open-audit-log="emit('open-audit-log')"
         />
+        <div v-else class="flex flex-col gap-4 py-2" aria-busy="true">
+            <Skeleton width="40%" height="1.5rem" border-radius="999px" />
+            <Skeleton width="75%" height="2.25rem" />
+            <Skeleton height="4.5rem" border-radius="1rem" />
+            <Skeleton height="9rem" border-radius="1rem" />
+        </div>
 
         <div
             v-if="navigationError"
-            class="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200"
+            class="text-meta mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100"
         >
             {{ navigationError }}
         </div>
 
-        <template #footer v-if="!isEnded">
-            <div class="flex w-full justify-between gap-2 pt-4">
-                <div class="hidden gap-2 md:flex">
-                    <template v-if="isHost">
-                        <Button
-                            label="Edit"
-                            icon="pi pi-pencil"
-                            severity="secondary"
-                            text
-                            @click="onEdit"
-                            class="rounded-xl!"
-                        />
-                        <Button
-                            label="Delete"
-                            icon="pi pi-trash"
-                            severity="danger"
-                            text
-                            @click="onDelete"
-                            class="rounded-xl!"
-                        />
-                    </template>
-                </div>
-
-                <div class="flex flex-1 justify-end gap-2 md:flex-initial">
-                    <template v-if="userParticipantStatus === 'ACCEPTED'">
-                        <Button
-                            label="Leave"
-                            icon="pi pi-times"
-                            severity="danger"
-                            text
-                            :loading="cancelling"
-                            @click="onCancelParticipation"
-                            class="rounded-xl!"
-                        />
-                        <Button
-                            v-if="!isDeadlinePassed || isHost"
-                            label="Edit Participation"
-                            icon="pi pi-pencil"
-                            severity="secondary"
-                            @click="onEditParticipation"
-                            class="rounded-xl!"
-                        />
-                    </template>
-                    <template v-else>
-                        <Button
-                            v-if="userParticipantStatus === 'PENDING'"
-                            label="Decline"
-                            icon="pi pi-times"
-                            severity="danger"
-                            text
-                            :loading="cancelling"
-                            :disabled="isEnded"
-                            @click="onDecline"
-                            class="rounded-xl!"
-                        />
-                        <Button
-                            v-if="canAccept"
-                            :label="userParticipantStatus === 'ACCEPTED' ? 'Joined' : 'Join'"
-                            icon="pi pi-check"
-                            severity="success"
-                            :loading="joining"
-                            :disabled="userParticipantStatus === 'ACCEPTED' || isDeadlinePassed || isEnded"
-                            @click="onAcceptClick"
-                            class="rounded-xl!"
-                        />
-                    </template>
-                </div>
+        <template #footer v-if="event && !isEnded && (userParticipantStatus || canAccept)">
+            <div class="flex w-full gap-2">
+                <template v-if="userParticipantStatus === 'ACCEPTED'">
+                    <Button
+                        label="Leave"
+                        icon="pi pi-sign-out"
+                        severity="danger"
+                        text
+                        :loading="cancelling"
+                        @click="onCancelParticipation"
+                    />
+                    <Button
+                        v-if="!isDeadlinePassed || isHost"
+                        label="Change my choices"
+                        icon="pi pi-sliders-h"
+                        severity="secondary"
+                        class="flex-1 sm:ml-auto sm:flex-none"
+                        @click="onEditParticipation"
+                    />
+                </template>
+                <template v-else>
+                    <Button
+                        v-if="userParticipantStatus === 'PENDING'"
+                        label="Decline"
+                        icon="pi pi-times"
+                        severity="secondary"
+                        class="flex-1 sm:flex-none"
+                        :loading="cancelling"
+                        @click="onDecline"
+                    />
+                    <Button
+                        v-if="canAccept"
+                        :label="isDeadlinePassed ? 'Replies closed' : 'Join'"
+                        icon="pi pi-check"
+                        class="flex-1 sm:ml-auto sm:flex-none sm:px-6"
+                        :loading="joining"
+                        :disabled="isDeadlinePassed || isEnded"
+                        @click="onAcceptClick"
+                    />
+                </template>
             </div>
         </template>
     </Dialog>
@@ -363,9 +364,10 @@ function parseEventId(value: unknown) {
         :initialFeatures="currentUser ? getParticipantFeatures(currentUser.id) : []"
         :initialTransportMode="props.event?.participants?.find((p) => p.id === currentUser?.id)?.transportMode"
         :initialVehicleSeats="props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeats"
-        :submitLabel="userParticipantStatus === 'ACCEPTED' ? 'Save Changes' : 'Join Event'"
+        :submitLabel="userParticipantStatus === 'ACCEPTED' ? 'Save changes' : 'Join event'"
         :featurePrices="eventPrices"
         :featureSplitPrices="eventSplitPrices"
+        :featureCounts="otherFeatureCounts"
         @confirm="handleFeatureConfirm"
     />
 </template>

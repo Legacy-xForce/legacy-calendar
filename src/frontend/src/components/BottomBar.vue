@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { router } from '../router/router';
 import { useSessionStore } from '../stores/session';
 import UserAvatar from './UserAvatar.vue';
 
@@ -11,9 +10,16 @@ const currentUser = computed(() => sessionStore.currentUser);
 const isAuthenticated = computed(() => sessionStore.isAuthenticated);
 const isImpersonating = computed(() => !!localStorage.getItem('impersonate_user_id'));
 
-const navigate = (name: string) => {
-    router.push({ name });
-};
+const tabs = [
+    {
+        name: 'calendar',
+        label: 'Calendar',
+        icon: 'pi pi-calendar',
+        match: (path: string) => path === '/calendar' || path.startsWith('/event')
+    },
+    { name: 'upcoming', label: 'Upcoming', icon: 'pi pi-list', match: (path: string) => path.startsWith('/upcoming') },
+    { name: 'profile', label: 'Profile', icon: null, match: (path: string) => path === '/profile' || path === '/admin' }
+];
 
 const stopImpersonating = () => {
     localStorage.removeItem('impersonate_user_id');
@@ -22,47 +28,46 @@ const stopImpersonating = () => {
 </script>
 
 <template>
-    <div
+    <nav
         v-if="isAuthenticated"
-        class="pwa-mobile-show fixed right-0 bottom-0 left-0 z-50 border-t border-zinc-800 bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+        class="pwa-mobile-show border-line fixed right-0 bottom-0 left-0 z-50 border-t bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+        aria-label="Main"
     >
-        <div class="flex h-16 w-full items-center justify-around px-2">
-            <button
-                @click="navigate('calendar')"
-                class="flex h-full w-16 flex-col items-center justify-center gap-1 text-xs transition-colors"
-                :class="route.name === 'calendar' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'"
+        <div class="mx-auto flex h-(--tabbar-height) max-w-md items-stretch justify-around px-2">
+            <router-link
+                v-for="tab in tabs"
+                :key="tab.name"
+                :to="{ name: tab.name }"
+                class="group flex flex-1 flex-col items-center justify-center gap-1 no-underline"
+                :class="tab.match(route.path) ? 'text-fg' : 'text-subtle'"
+                :aria-current="tab.match(route.path) ? 'page' : undefined"
             >
-                <i class="pi pi-calendar text-xl"></i>
-                <span>Calendar</span>
-            </button>
-            <button
-                @click="navigate('upcoming')"
-                class="flex h-full w-16 flex-col items-center justify-center gap-1 text-xs transition-colors"
-                :class="route.name === 'upcoming' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'"
-            >
-                <i class="pi pi-list text-xl"></i>
-                <span>Upcoming</span>
-            </button>
-            <button
-                @click="navigate('profile')"
-                class="flex h-full w-16 flex-col items-center justify-center gap-1 text-xs transition-colors"
-                :class="route.name === 'profile' ? 'text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'"
-            >
-                <UserAvatar
-                    :profilePictureUrl="currentUser?.profilePictureUrl"
-                    :username="currentUser?.username"
-                    class="size-6! text-[10px]"
-                />
-                <span>Profile</span>
-            </button>
+                <span
+                    class="flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200 group-active:scale-95"
+                    :class="tab.match(route.path) ? 'bg-surface-850' : ''"
+                >
+                    <i v-if="tab.icon" :class="tab.icon" class="text-[1.125rem]"></i>
+                    <UserAvatar
+                        v-else
+                        :profilePictureUrl="currentUser?.profilePictureUrl"
+                        :username="currentUser?.username"
+                        class="size-[1.375rem]! text-[0.625rem]!"
+                        :class="tab.match(route.path) ? 'ring-fg ring-1' : ''"
+                    />
+                </span>
+                <span class="text-[0.6875rem] leading-none font-medium">{{ tab.label }}</span>
+            </router-link>
             <button
                 v-if="isImpersonating"
+                type="button"
+                class="group flex flex-1 flex-col items-center justify-center gap-1 text-rose-300"
                 @click="stopImpersonating"
-                class="flex h-full w-16 flex-col items-center justify-center gap-1 text-xs text-red-400 transition-colors hover:text-red-300"
             >
-                <i class="pi pi-user-minus text-xl"></i>
-                <span>Exit</span>
+                <span class="flex h-7 w-14 items-center justify-center rounded-full bg-rose-400/10">
+                    <i class="pi pi-eye-slash text-[1.125rem]"></i>
+                </span>
+                <span class="text-[0.6875rem] leading-none font-medium">Exit view</span>
             </button>
         </div>
-    </div>
+    </nav>
 </template>

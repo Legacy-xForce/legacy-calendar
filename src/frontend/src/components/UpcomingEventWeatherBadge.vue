@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Tag from 'primevue/tag';
 import { computed, onMounted, watch } from 'vue';
 import type { Event } from '../types/Event';
 import { useEventWeather, mapWeatherCodeToSummary } from '../composables/useEventWeather';
@@ -41,21 +40,15 @@ watch(
 </script>
 
 <template>
-    <div
+    <button
         v-if="weather"
-        class="weather-badge-trigger inline-flex cursor-pointer transition-transform active:scale-95"
+        type="button"
+        class="pressable bg-surface-850 hover:bg-surface-800 text-fg inline-flex h-6 shrink-0 items-center gap-1 rounded-full pr-2.5 pl-1 text-[0.75rem] leading-none font-medium"
+        :aria-label="`Weather: ${weather.summary}, ${Math.round(weather.temperature ?? 0)} degrees`"
         @click.stop="emit('open-detail')"
     >
-        <Tag
-            severity="secondary"
-            rounded
-            class="hover:bg-surface-200 dark:hover:bg-surface-700 flex items-center gap-1.5 transition-all"
-        >
-            <MeteoconIcon v-if="weatherInfo" :slug="weatherInfo.meteoconSlug" :size="18" />
-            <span class="font-bold"> {{ Math.round(weather.temperature ?? 0) }}° </span>
-            <span v-if="!compact" class="text-surface-400 ml-1 text-xs font-medium">
-                {{ weather.summary }}
-            </span>
-        </Tag>
-    </div>
+        <MeteoconIcon v-if="weatherInfo" :slug="weatherInfo.meteoconSlug" :size="20" />
+        <span class="tabular">{{ Math.round(weather.temperature ?? 0) }}°</span>
+        <span v-if="!compact" class="text-muted">{{ weather.summary }}</span>
+    </button>
 </template>

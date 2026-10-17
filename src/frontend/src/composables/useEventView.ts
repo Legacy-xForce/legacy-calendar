@@ -12,7 +12,7 @@ export function injectEventView() {
     }
     return context;
 }
-import type { Event, EventFeature, EventParticipant } from '../types/Event';
+import type { Event, EventFeature, EventParticipant, EventPersonSummary } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
 import { FEATURES } from '../constants/features';
@@ -96,6 +96,32 @@ export function useEventView(eventRef: Ref<Event | null>) {
         if (event.host) return event.host;
         if (event.hostId === undefined || event.hostId === null || allUsers.value.length === 0) return null;
         return allUsers.value.find((user) => user.id === event.hostId) || null;
+    });
+
+    const eventCoHosts = computed(() => {
+        const event = eventRef.value;
+        if (!event || !event.coHosts) return [];
+        return event.coHosts;
+    });
+
+    const allEventHosts = computed(() => {
+        const hosts: EventPersonSummary[] = [];
+        if (eventHost.value) {
+            hosts.push(eventHost.value);
+        }
+        if (eventCoHosts.value && eventCoHosts.value.length > 0) {
+            for (const coHost of eventCoHosts.value) {
+                if (!hosts.some((h) => h.id === coHost.id)) {
+                    hosts.push(coHost);
+                }
+            }
+        }
+        return hosts;
+    });
+
+    const hostedByText = computed(() => {
+        if (allEventHosts.value.length === 0) return '';
+        return allEventHosts.value.map((h) => h.username).join(', ');
     });
 
     const resolvedInvitees = computed(() => {
@@ -245,6 +271,9 @@ export function useEventView(eventRef: Ref<Event | null>) {
         // State
         currentUser,
         eventHost,
+        eventCoHosts,
+        allEventHosts,
+        hostedByText,
         selfTransport,
         resolvedInvitees,
         isHost,

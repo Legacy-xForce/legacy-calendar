@@ -16,45 +16,37 @@ const {
 </script>
 
 <template>
-    <div v-if="hourlyForSelectedDay.length" class="mt-4 border-t border-zinc-800 pt-4">
-        <div class="mb-2 flex items-center justify-between px-1">
-            <span class="text-[10px] font-bold tracking-[0.2em] text-zinc-500 uppercase">Hourly</span>
+    <div v-if="hourlyForSelectedDay.length" class="mt-5">
+        <div class="mb-2 flex items-center justify-between">
+            <h3 class="eyebrow m-0">Hourly</h3>
             <button
                 v-if="isModified"
+                type="button"
+                class="text-meta text-muted hover:text-fg flex items-center gap-1.5 font-medium"
                 @click="resetSelection"
-                class="flex items-center gap-1.5 text-[9px] font-bold tracking-wider text-zinc-600 uppercase transition-colors hover:text-zinc-400"
             >
-                <i class="pi pi-refresh text-[8px]"></i>
-                Reset
+                <i class="pi pi-refresh text-[0.625rem]"></i>
+                Event time
             </button>
         </div>
-        <div ref="hourlyScrollContainer" class="no-scrollbar flex gap-3 overflow-x-auto pb-4">
+        <div ref="hourlyScrollContainer" class="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
             <button
                 v-for="hour in hourlyForSelectedDay"
                 :key="hour.time"
                 :data-active="isSelected(hour)"
                 @click="selectHour(hour)"
-                class="flex min-w-[60px] flex-col items-center gap-3 rounded-xl border py-4 transition-all"
+                type="button"
+                class="pressable flex min-w-15 flex-col items-center gap-1.5 rounded-2xl border py-3 transition-colors"
                 :class="[
                     isSelected(hour)
-                        ? 'border-zinc-600 bg-zinc-800'
-                        : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                        ? 'border-line-strong bg-surface-800'
+                        : 'bg-surface-900 hover:bg-surface-850 border-transparent'
                 ]"
             >
-                <span class="text-[10px] font-bold text-zinc-500">{{ formatHour(hour.time) }}</span>
+                <span class="text-muted tabular text-[0.75rem] font-medium">{{ formatHour(hour.time) }}</span>
                 <MeteoconIcon :slug="mapWeatherCodeToSummary(hour.weatherCode, hour.isDay).meteoconSlug" :size="42" />
                 <span class="text-sm font-bold">{{ Math.round(hour.temperature) }}°</span>
             </button>
         </div>
     </div>
 </template>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-.no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-</style>

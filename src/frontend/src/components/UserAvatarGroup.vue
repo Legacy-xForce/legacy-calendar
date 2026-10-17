@@ -1,29 +1,36 @@
 <script lang="ts" setup>
-import type { EventParticipant } from '../types/Event';
+import type { EventPersonSummary } from '../types/Event';
 import UserAvatar from './UserAvatar.vue';
-import Avatar from 'primevue/avatar';
-import AvatarGroup from 'primevue/avatargroup';
 
-defineProps({
-    participants: {
-        type: Array<EventParticipant>,
-        required: true
-    },
-    showLimit: {
-        type: Number,
-        default: 4
-    }
-});
+withDefaults(
+    defineProps<{
+        participants: EventPersonSummary[];
+        showLimit?: number;
+        size?: 'sm' | 'md';
+    }>(),
+    { showLimit: 4, size: 'md' }
+);
 </script>
 
 <template>
-    <AvatarGroup v-if="participants.length > 0">
+    <div v-if="participants.length > 0" class="flex items-center">
         <UserAvatar
-            v-for="p in participants.slice(0, showLimit)"
+            v-for="(p, index) in participants.slice(0, showLimit)"
             :key="p.id"
             :profile-picture-url="p.profilePictureUrl"
             :username="p.username"
+            class="ring-raised ring-2"
+            :class="[
+                size === 'sm' ? 'size-6! text-[0.625rem]!' : 'size-7! text-[0.6875rem]!',
+                index > 0 ? '-ml-1.5' : ''
+            ]"
         />
-        <Avatar v-if="participants.length > showLimit" :label="`+${participants.length - showLimit}`" shape="circle" />
-    </AvatarGroup>
+        <span
+            v-if="participants.length > showLimit"
+            class="bg-surface-800 text-muted ring-raised tabular -ml-1.5 flex items-center justify-center rounded-full font-semibold ring-2"
+            :class="size === 'sm' ? 'size-6 text-[0.625rem]' : 'size-7 text-[0.6875rem]'"
+        >
+            +{{ participants.length - showLimit }}
+        </span>
+    </div>
 </template>

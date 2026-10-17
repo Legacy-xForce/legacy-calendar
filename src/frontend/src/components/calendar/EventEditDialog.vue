@@ -6,7 +6,7 @@ import { useToast } from 'primevue/usetoast';
 import type { Event, CreateEventDto } from '../../types/Event';
 import { useEventsStore } from '../../stores/events';
 import { useUsersStore } from '../../stores/users';
-import EventEditForm from './event-view/EventEditForm.vue';
+import EventForm from './EventForm.vue';
 import { storeToRefs } from 'pinia';
 
 const props = defineProps<{
@@ -25,34 +25,23 @@ const usersStore = useUsersStore();
 const toast = useToast();
 
 const { users } = storeToRefs(usersStore);
-const formRef = ref<InstanceType<typeof EventEditForm> | null>(null);
+const formRef = ref<InstanceType<typeof EventForm> | null>(null);
 
 const handleSave = async (dto: CreateEventDto) => {
     if (!props.event) return;
 
     const success = await eventsStore.updateEvent(props.event.id, dto);
     if (success) {
-        toast.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Event updated successfully',
-            life: 3000
-        });
+        toast.add({ severity: 'success', summary: 'Changes saved', life: 2500 });
         emit('update:visible', false);
         emit('saved');
     } else {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: eventsStore.error || 'Failed to update event',
+            summary: 'Could not save changes',
+            detail: eventsStore.error || 'Please try again.',
             life: 5000
         });
-    }
-};
-
-const triggerSave = () => {
-    if (formRef.value) {
-        formRef.value.onSave();
     }
 };
 
@@ -61,6 +50,7 @@ const onDelete = () => {
         emit('deleted', props.event.id);
     }
 };
+
 watch(
     () => props.visible,
     (visible) => {
@@ -76,56 +66,40 @@ watch(
         :visible="visible"
         @update:visible="emit('update:visible', $event)"
         modal
-        header="Edit Event"
-        :style="{ width: '800px' }"
-        :breakpoints="{ '960px': '85vw', '640px': '95vw' }"
-        class="p-fluid"
+        header="Edit event"
+        :style="{ width: '34rem' }"
         dismissableMask
         :draggable="false"
+        :pt="{ footer: { class: 'border-t! border-line! pt-3!' } }"
     >
-        <EventEditForm
-            v-if="event"
-            ref="formRef"
-            :event="event"
-            :users="users"
-            :saving="eventsStore.loading"
-            @save="handleSave"
-            @cancel="emit('update:visible', false)"
-            @delete="onDelete"
-        />
+        <EventForm v-if="event" ref="formRef" :event="event" :users="users" @save="handleSave" />
 
         <template #footer>
-            <div class="flex w-full justify-between gap-2 pt-4">
-                <div class="hidden md:flex">
-                    <Button
-                        label="Delete Event"
-                        icon="pi pi-trash"
-                        severity="danger"
-                        text
-                        @click="onDelete"
-                        :disabled="eventsStore.loading"
-                        class="rounded-xl!"
-                    />
-                </div>
-                <div class="flex flex-1 justify-end gap-2 md:flex-initial">
-                    <Button
-                        label="Cancel"
-                        icon="pi pi-times"
-                        severity="secondary"
-                        text
-                        @click="emit('update:visible', false)"
-                        :disabled="eventsStore.loading"
-                        class="rounded-xl!"
-                    />
-                    <Button
-                        label="Save Changes"
-                        icon="pi pi-check"
-                        severity="success"
-                        @click="triggerSave"
-                        :loading="eventsStore.loading"
-                        class="rounded-xl!"
-                    />
-                </div>
+            <div class="flex w-full items-center gap-2">
+                <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    aria-label="Delete event"
+                    v-tooltip.top="'Delete event'"
+                    :disabled="eventsStore.loading"
+                    @click="onDelete"
+                />
+                <Button
+                    label="Cancel"
+                    severity="secondary"
+                    text
+                    class="ml-auto"
+                    :disabled="eventsStore.loading"
+                    @click="emit('update:visible', false)"
+                />
+                <Button
+                    label="Save"
+                    icon="pi pi-check"
+                    class="flex-1 sm:flex-none"
+                    :loading="eventsStore.loading"
+                    @click="formRef?.submit()"
+                />
             </div>
         </template>
     </Dialog>

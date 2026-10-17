@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
+import { computed, toRef } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
-import Tag from 'primevue/tag';
 import { useRoute, useRouter } from 'vue-router';
 import type { Event } from '../../../types/Event';
 import EventChatPanel from '../../chat/EventChatPanel.vue';
 import { useEventChatDialogState } from './chat/useEventChatDialogState';
+import { useMediaQuery, MOBILE_QUERY } from '../../../composables/useMediaQuery';
 
 const props = defineProps<{
     visible: boolean;
@@ -20,8 +20,7 @@ const emit = defineEmits<{
 
 const route = useRoute();
 const router = useRouter();
-const isMobile = ref(false);
-let mobileMediaQuery: MediaQueryList | null = null;
+const isMobile = useMediaQuery(MOBILE_QUERY);
 
 const currentSection = computed(() =>
     route.name === 'upcoming' || route.path.startsWith('/upcoming/') ? 'upcoming' : 'calendar'
@@ -42,10 +41,9 @@ const closeChat = () => {
     void router.replace({ path: currentEventPath.value });
 };
 
-const chatState = useEventChatDialogState(toRef(props, 'event'), closeChat);
+const chatState = useEventChatDialogState(toRef(props, 'event'), closeChat, toRef(props, 'visible'));
 const {
     title,
-    subtitle,
     chat,
     isChatMuted,
     muteStateLoading,
@@ -61,68 +59,24 @@ const {
     clearSelectedFile,
     emitTyping,
     sendCurrentMessage,
-    handleMuteToggle,
-    loadOlderMessages
+    handleMuteToggle
 } = chatState;
 
-void title;
-void subtitle;
-void chat;
-void isChatMuted;
-void muteStateLoading;
-void draftText;
-void selectedFile;
-void selectedFilePreviewUrl;
-void previewFileLabel;
-void previewFileType;
+// Template refs and helpers are used from the template only
 void fileInput;
-void setDraftText;
-void chooseFile;
-void triggerFilePicker;
-void clearSelectedFile;
-void emitTyping;
-void sendCurrentMessage;
-void handleMuteToggle;
-void loadOlderMessages;
 
 const showDialog = computed({
     get: () => props.visible,
     set: (value) => emit('update:visible', value)
 });
 
-const dialogPt = computed(() => ({
-    root: {
-        class: isMobile.value ? 'rounded-none border-none!' : 'rounded-2xl border border-zinc-800 shadow-2xl'
-    },
-    pcMaximizeButton: {
-        root: {
-            class: isMobile.value ? 'hidden!' : ''
-        }
-    },
-    header: {
-        class: 'border-b border-zinc-800'
-    },
-    content: {
-        class: `h-[95vh] p-0! ${isMobile.value ? 'w-full' : 'w-[70vw]'}`
-    },
-    footer: {
-        class: 'p-3!'
-    }
-}));
-
-const syncIsMobile = (source?: MediaQueryList | MediaQueryListEvent) => {
-    isMobile.value = source?.matches ?? mobileMediaQuery?.matches ?? false;
-};
-
-onMounted(() => {
-    mobileMediaQuery = window.matchMedia('(max-width: 767px)');
-    syncIsMobile(mobileMediaQuery);
-    mobileMediaQuery.addEventListener('change', syncIsMobile);
+const status = computed(() => {
+    const count = chat.messages.value.length;
+    const messages = `${count} ${count === 1 ? 'message' : 'messages'}`;
+    return chat.connected.value ? messages : `Connecting… · ${messages}`;
 });
 
-onBeforeUnmount(() => {
-    mobileMediaQuery?.removeEventListener('change', syncIsMobile);
-});
+const canSend = computed(() => !!draftText.value.trim() || !!selectedFile.value);
 
 function parseEventId(value: unknown) {
     if (Array.isArray(value)) {
@@ -144,126 +98,131 @@ function parseEventId(value: unknown) {
         modal
         dismissableMask
         :class="isMobile ? 'p-dialog-maximized' : ''"
-        :header="event ? `Chat · ${event.title}` : 'Chat'"
-        :pt="dialogPt"
+        :style="isMobile ? undefined : { width: '44rem' }"
         :draggable="false"
+        :pt="{
+            root: { class: isMobile ? 'rounded-none! border-none!' : '' },
+            header: { class: 'border-b border-line py-3!' },
+            content: { class: `p-0! flex flex-col ${isMobile ? '' : 'h-[min(80vh,52rem)]'}` },
+            footer: { class: 'border-t border-line p-2.5! pb-[max(0.625rem,env(safe-area-inset-bottom))]!' }
+        }"
     >
         <template #header>
-            <div class="flex w-full items-center justify-between gap-3">
-                <div class="flex min-w-0 items-center gap-3">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <h2 class="truncate text-lg font-bold">{{ title }}</h2>
-                            <Tag v-if="chat.connected.value" severity="success" value="Live" />
-                        </div>
-                        <p class="m-0 text-xs text-zinc-500">{{ subtitle }}</p>
-                    </div>
-                </div>
-
-                <div v-if="chatState.canAccessChat.value" class="flex items-center gap-2">
-                    <Button
-                        :icon="isChatMuted ? 'pi pi-bell' : 'pi pi-bell-slash'"
-                        text
-                        rounded
-                        severity="secondary"
-                        @click="() => handleMuteToggle(!isChatMuted)"
-                    />
-                    <Button
-                        v-if="chatState.chat.hasMore.value"
-                        label="Older"
-                        icon="pi pi-arrow-up"
-                        severity="secondary"
-                        text
-                        size="small"
-                        @click="loadOlderMessages"
-                        :loading="chatState.chat.loadingMore.value"
-                    />
-                </div>
-            </div>
-        </template>
-
-        <div v-if="event" class="flex h-full min-h-0 flex-col overflow-hidden">
-            <template v-if="chatState.canAccessChat.value">
-                <EventChatPanel />
-            </template>
-            <div
-                v-else
-                class="bg-surface-950/80 flex h-full flex-col items-center justify-center gap-4 p-8 text-center"
-            >
-                <div class="bg-primary-500/10 flex h-20 w-20 items-center justify-center rounded-full">
-                    <i class="pi pi-lock text-primary-400 text-3xl"></i>
-                </div>
-                <div class="max-w-md space-y-2">
-                    <h3 class="text-xl font-bold text-white">Participants Only</h3>
-                    <p class="text-zinc-400">
-                        The chat is only available to confirmed participants and the host. Please accept the invitation
-                        to join the conversation.
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-title m-0 truncate">{{ title }}</h2>
+                    <p class="text-meta text-muted m-0 flex items-center gap-1.5">
+                        <span
+                            class="size-1.5 rounded-full"
+                            :class="chat.connected.value ? 'bg-emerald-400' : 'bg-surface-600'"
+                        ></span>
+                        {{ status }}
                     </p>
                 </div>
                 <Button
-                    label="Back to Event"
+                    v-if="chatState.canAccessChat.value"
+                    :icon="isChatMuted ? 'pi pi-bell-slash' : 'pi pi-bell'"
+                    text
+                    rounded
+                    severity="secondary"
+                    :loading="muteStateLoading"
+                    :aria-label="isChatMuted ? 'Unmute notifications' : 'Mute notifications'"
+                    v-tooltip.bottom="isChatMuted ? 'Notifications muted' : 'Mute notifications'"
+                    @click="() => handleMuteToggle(!isChatMuted)"
+                />
+            </div>
+        </template>
+
+        <div v-if="event" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <EventChatPanel v-if="chatState.canAccessChat.value" />
+            <div v-else class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+                <i class="pi pi-lock text-subtle text-2xl"></i>
+                <h3 class="text-headline m-0">Only for people going</h3>
+                <p class="text-body text-muted m-0 max-w-sm">Join the event to read and write in its chat.</p>
+                <Button
+                    label="Back to event"
                     icon="pi pi-arrow-left"
                     severity="secondary"
-                    text
+                    class="mt-2"
                     @click="closeChat"
-                    class="mt-4"
                 />
             </div>
         </div>
 
         <div v-else class="flex h-[60vh] items-center justify-center">
-            <i class="pi pi-spin pi-spinner text-2xl text-zinc-500"></i>
+            <i class="pi pi-spin pi-spinner text-subtle text-xl"></i>
         </div>
 
         <template v-if="chatState.canAccessChat.value" #footer>
-            <div class="w-full">
-                <div v-if="selectedFile" class="rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
-                    <div class="flex items-start gap-3">
-                        <div class="flex-1">
-                            <p class="m-0 text-sm font-semibold">{{ previewFileLabel }}</p>
-                            <p class="m-0 text-xs text-zinc-500">{{ previewFileType || 'attachment' }}</p>
-                        </div>
-                        <Button icon="pi pi-times" text rounded severity="secondary" @click="clearSelectedFile" />
+            <div class="flex w-full flex-col gap-2">
+                <div
+                    v-if="selectedFile"
+                    class="border-line bg-raised animate-rise-in flex items-center gap-3 rounded-2xl border p-2"
+                >
+                    <img
+                        v-if="selectedFilePreviewUrl"
+                        :src="selectedFilePreviewUrl"
+                        alt=""
+                        class="size-12 shrink-0 rounded-xl object-cover"
+                    />
+                    <span v-else class="bg-surface-900 flex size-12 shrink-0 items-center justify-center rounded-xl">
+                        <i class="pi pi-file text-muted"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-meta text-fg m-0 truncate font-medium">{{ previewFileLabel }}</p>
+                        <p class="text-meta text-subtle m-0">{{ previewFileType || 'Attachment' }}</p>
                     </div>
-                    <div v-if="selectedFilePreviewUrl" class="mt-3 overflow-hidden rounded-xl border border-zinc-800">
-                        <img
-                            :src="selectedFilePreviewUrl"
-                            alt="Selected preview"
-                            class="max-h-44 w-full object-contain"
-                        />
-                    </div>
+                    <Button
+                        icon="pi pi-times"
+                        text
+                        rounded
+                        severity="secondary"
+                        aria-label="Remove attachment"
+                        @click="clearSelectedFile"
+                    />
                 </div>
 
-                <div class="flex flex-col gap-2">
-                    <div class="flex items-center gap-2">
-                        <input
-                            ref="fileInput"
-                            id="chat-upload"
-                            type="file"
-                            class="hidden"
-                            accept="image/*,video/*,audio/*"
-                            @change="chooseFile"
-                        />
-                        <Button icon="pi pi-paperclip" text rounded severity="secondary" @click="triggerFilePicker" />
-                        <Textarea
-                            :modelValue="draftText"
-                            auto-resize
-                            rows="1"
-                            placeholder="Type a message, share a photo, or drop a clip…"
-                            class="max-h-24 min-h-11 flex-1 rounded-2xl! px-3! py-2! text-sm!"
-                            @update:modelValue="setDraftText"
-                            @input="emitTyping"
-                            @blur="chat.stopTyping()"
-                            @keyup.enter.exact.prevent="sendCurrentMessage"
-                        />
-                        <Button
-                            icon="pi pi-send"
-                            rounded
-                            :loading="chat.sending.value"
-                            :disabled="!draftText.trim() && !selectedFile"
-                            @click="sendCurrentMessage"
-                        />
-                    </div>
+                <div class="flex items-end gap-1.5">
+                    <input
+                        ref="fileInput"
+                        id="chat-upload"
+                        type="file"
+                        class="hidden"
+                        accept="image/*,video/*,audio/*"
+                        @change="chooseFile"
+                    />
+                    <Button
+                        icon="pi pi-paperclip"
+                        text
+                        rounded
+                        severity="secondary"
+                        aria-label="Attach a photo, video or audio"
+                        class="shrink-0"
+                        @click="triggerFilePicker"
+                    />
+                    <Textarea
+                        :modelValue="draftText"
+                        auto-resize
+                        rows="1"
+                        placeholder="Message"
+                        aria-label="Message"
+                        class="max-h-32 min-h-10.5 flex-1 rounded-[1.375rem]! px-4! py-2.5!"
+                        enterkeyhint="send"
+                        @update:modelValue="setDraftText"
+                        @input="emitTyping"
+                        @blur="chat.stopTyping()"
+                        @keydown.enter.exact.prevent="sendCurrentMessage"
+                    />
+                    <button
+                        type="button"
+                        class="pressable flex size-10.5 shrink-0 items-center justify-center rounded-full transition-colors"
+                        :class="canSend ? 'bg-accent text-primary-contrast' : 'bg-surface-850 text-subtle'"
+                        :disabled="!canSend || chat.sending.value"
+                        aria-label="Send"
+                        @click="sendCurrentMessage"
+                    >
+                        <i :class="chat.sending.value ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-up'" class="text-sm"></i>
+                    </button>
                 </div>
             </div>
         </template>

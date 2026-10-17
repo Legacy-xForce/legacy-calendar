@@ -11,20 +11,24 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <div class="mx-auto mt-1 flex flex-wrap gap-2">
+    <div class="flex flex-wrap gap-1.5 sm:gap-2" role="radiogroup" aria-label="Event color">
         <button
             v-for="color in PREDEFINED_COLORS"
             :key="color"
             type="button"
-            class="h-8 w-8 rounded-full border-2 transition-all duration-200 focus:outline-hidden"
-            :class="[
-                modelValue === color
-                    ? 'border-surface-900 dark:border-surface-0 scale-110 shadow-md'
-                    : 'border-transparent shadow-sm hover:scale-105'
-            ]"
+            role="radio"
+            :aria-checked="modelValue === color"
+            :aria-label="`Color ${color}`"
+            class="pressable relative flex size-7 items-center justify-center rounded-full sm:size-8"
             :style="{ backgroundColor: color }"
             @click="emit('update:modelValue', color)"
-            aria-label="Select color"
-        ></button>
+        >
+            <span
+                class="absolute -inset-1 rounded-full border-2 transition-opacity duration-150"
+                :class="modelValue === color ? 'opacity-100' : 'opacity-0'"
+                :style="{ borderColor: color }"
+            ></span>
+            <i v-if="modelValue === color" class="pi pi-check text-[0.6875rem] text-white"></i>
+        </button>
     </div>
 </template>

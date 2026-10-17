@@ -8,11 +8,11 @@ const props = defineProps<{
 
 const router = useRouter();
 
-const title = props.status === 403 ? 'Access denied' : 'Page not found';
+const title = props.status === 403 ? "You can't see this one" : 'Nothing here';
 const message =
     props.status === 403
-        ? 'You do not have permission to view this page.'
-        : 'The page you were looking for does not exist.';
+        ? 'This event or page is private. Ask the host to invite you.'
+        : 'The link may be old, or the event was deleted.';
 
 const goHome = () => {
     void router.push('/calendar');
@@ -20,14 +20,18 @@ const goHome = () => {
 </script>
 
 <template>
-    <div class="flex min-h-[calc(100vh-4rem)] items-center justify-center p-6">
-        <div class="max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950/90 p-8 text-center shadow-2xl">
-            <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10 text-red-400">
-                <span class="font-black text-3xl">{{ props.status }}</span>
-            </div>
-            <h1 class="text-3xl font-black text-white">{{ title }}</h1>
-            <p class="mt-3 text-sm leading-relaxed text-zinc-400">{{ message }}</p>
-            <Button label="Back to Calendar" icon="pi pi-home" class="mt-8 rounded-xl!" @click="goHome" />
+    <div class="flex min-h-[70dvh] items-center justify-center px-6">
+        <div class="animate-rise-in flex max-w-sm flex-col items-center gap-3 text-center">
+            <span class="font-display text-display-lg text-subtle tabular font-semibold">{{ props.status }}</span>
+            <h1 class="text-headline m-0">{{ title }}</h1>
+            <p class="text-body text-muted m-0">{{ message }}</p>
+            <Button
+                label="Back to calendar"
+                icon="pi pi-arrow-left"
+                severity="secondary"
+                class="mt-3"
+                @click="goHome"
+            />
         </div>
     </div>
 </template>

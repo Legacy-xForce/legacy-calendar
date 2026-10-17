@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Event } from '../../../types/Event';
-import Divider from 'primevue/divider';
 import { injectEventView } from '../../../composables/useEventView';
 
 import EventHeader from './EventHeader.vue';
@@ -31,26 +30,19 @@ const { isHost, isEnded, availableFeatureIds } = injectEventView();
 </script>
 
 <template>
-    <div class="flex flex-col gap-4 pt-2">
+    <div class="flex flex-col gap-7 pt-1">
         <EventHeader
             :event="event"
             @open-chat="emit('open-chat')"
             @open-audit-log="emit('open-audit-log')"
+            @edit="emit('edit', event)"
         />
-
-        <Divider class="my-2!" />
 
         <EventInfo :event="event" @open-chat="emit('open-chat')" />
 
-        <Divider class="my-2!" v-if="availableFeatureIds.length > 0" />
-
         <EventCostBreakdown v-if="availableFeatureIds.length > 0" :event="event" />
 
-        <Divider class="my-2!" />
-
         <EventParticipantsTable :event="event" />
-
-        <Divider class="my-2!" />
 
         <EventTransportSection
             :event="event"
@@ -62,11 +54,6 @@ const { isHost, isEnded, availableFeatureIds } = injectEventView();
             @assign-rides-batch="(pids, did) => emit('assign-rides-batch', pids, did)"
         />
 
-        <EventActions
-            v-if="isHost && !isEnded"
-            @edit="emit('edit', event)"
-            @delete="emit('delete')"
-            class="md:hidden"
-        />
+        <EventActions v-if="isHost && !isEnded" @delete="emit('delete')" />
     </div>
 </template>

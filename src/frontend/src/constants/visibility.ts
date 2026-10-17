@@ -7,7 +7,7 @@ export const VISIBILITY_OPTIONS = [
         description: 'Only invited participants can see this event'
     },
     {
-        label: 'Standard',
+        label: 'Invite only',
         value: 'standard',
         icon: 'pi pi-users',
         color: 'text-zinc-500',

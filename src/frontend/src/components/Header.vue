@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import Badge from 'primevue/badge';
-import UserAvatar from './UserAvatar.vue';
-import Menubar from 'primevue/menubar';
-import Button from 'primevue/button';
-
-import { useSessionStore } from '../stores/session';
-import { router } from '../router/router';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import UserAvatar from './UserAvatar.vue';
+import AppLogo from './AppLogo.vue';
+import { useSessionStore } from '../stores/session';
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -21,84 +17,63 @@ const stopImpersonating = () => {
     window.location.href = '/admin';
 };
 
-const items = ref([
-    {
-        label: 'Calendar',
-        icon: 'pi pi-calendar',
-        route: 'calendar',
-        command: () => {
-            router.push({ name: 'calendar' });
-        }
-    },
-    {
-        label: 'Upcoming',
-        icon: 'pi pi-list',
-        route: 'upcoming',
-        command: () => {
-            router.push({ name: 'upcoming' });
-        }
-    }
-]);
+const items = [
+    { label: 'Calendar', name: 'calendar', match: (path: string) => path === '/calendar' || path.startsWith('/event') },
+    { label: 'Upcoming', name: 'upcoming', match: (path: string) => path.startsWith('/upcoming') }
+];
 </script>
 
 <template>
-    <Menubar :model="isAuthenticated ? items : []" class="pwa-mobile-hidden h-16!">
-        <template #start>
-            <router-link :to="{ name: 'calendar' }" class="flex cursor-pointer items-center text-inherit no-underline">
-                <h1 class="ml-2 text-lg font-bold md:text-2xl">Legacy Calendar</h1>
+    <header
+        class="pwa-mobile-hidden border-line sticky top-0 z-40 h-(--app-header-height) border-b bg-black/85 backdrop-blur-md"
+    >
+        <div class="mx-auto flex h-full max-w-[96rem] items-center gap-8 px-6">
+            <router-link :to="{ name: 'calendar' }" class="text-fg flex items-center gap-2.5 no-underline">
+                <AppLogo class="size-6" />
+                <span class="font-display text-title font-semibold tracking-tight">Legacy</span>
             </router-link>
-        </template>
-        <template #item="{ item, props, hasSubmenu, root }">
-            <a
-                v-ripple
-                class="flex items-center transition-colors"
-                v-bind="props.action"
-                :class="[route.name === item.route ? 'font-medium text-zinc-100!' : 'text-zinc-600!']"
-            >
-                <span>{{ item.label }}</span>
-                <Badge v-if="item.badge" :class="{ 'ml-auto': !root, 'ml-2': root }" :value="item.badge" />
-                <span
-                    v-if="item.shortcut"
-                    class="border-surface bg-emphasis text-muted-color ml-auto rounded border p-1 text-xs"
+
+            <nav v-if="isAuthenticated" class="flex items-center gap-1" aria-label="Main">
+                <router-link
+                    v-for="item in items"
+                    :key="item.name"
+                    :to="{ name: item.name }"
+                    class="text-body pressable rounded-full px-3.5 py-1.5 font-medium no-underline"
+                    :class="item.match(route.path) ? 'bg-surface-850 text-fg' : 'text-muted hover:text-fg'"
+                    :aria-current="item.match(route.path) ? 'page' : undefined"
                 >
-                    {{ item.shortcut }}
-                </span>
-                <i
-                    v-if="hasSubmenu"
-                    :class="['pi pi-angle-down ml-auto', { 'pi-angle-down': root, 'pi-angle-right': !root }]"
-                ></i>
-            </a>
-        </template>
-        <template #end>
-            <div v-if="isAuthenticated" class="flex items-center gap-2">
-                <Button
+                    {{ item.label }}
+                </router-link>
+            </nav>
+
+            <div v-if="isAuthenticated" class="ml-auto flex items-center gap-2">
+                <button
                     v-if="isImpersonating"
-                    label="Stop"
-                    icon="pi pi-user-minus"
-                    size="small"
-                    severity="danger"
+                    type="button"
+                    class="pressable text-meta flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-400/10 px-3 py-1.5 font-medium text-rose-300 hover:bg-rose-400/15"
                     @click="stopImpersonating"
-                    class="hidden rounded-xl! text-xs! sm:flex"
-                    v-tooltip.bottom="'Stop Impersonating'"
-                />
-                <div
-                    class="flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 no-underline transition-all"
-                    :class="[
-                        route.name === 'profile' ? 'ring-1 ring-zinc-700' : '',
-                        isImpersonating
-                            ? 'bg-red-950/30 ring-1 ring-red-900/50 hover:bg-red-900/40'
-                            : 'bg-zinc-900 hover:bg-zinc-800'
-                    ]"
-                    @click="router.push({ name: 'profile' })"
+                >
+                    <i class="pi pi-eye text-xs"></i>
+                    Viewing as {{ currentUser?.username }}
+                    <span class="text-rose-200 underline underline-offset-2">Exit</span>
+                </button>
+                <router-link
+                    :to="{ name: 'profile' }"
+                    class="pressable text-body flex items-center gap-2.5 rounded-full py-1 pr-3.5 pl-1 font-medium no-underline"
+                    :class="
+                        route.name === 'profile'
+                            ? 'bg-surface-850 text-fg'
+                            : 'text-muted hover:bg-surface-900 hover:text-fg'
+                    "
                 >
                     <UserAvatar
                         :profilePictureUrl="currentUser?.profilePictureUrl"
                         :username="currentUser?.username"
-                        class="transition-all hover:brightness-110"
+                        class="size-7!"
                     />
-                    <span class="hidden sm:inline">{{ currentUser?.username }}</span>
-                </div>
+                    <span>{{ currentUser?.username }}</span>
+                </router-link>
             </div>
-        </template>
-    </Menubar>
+        </div>
+    </header>
 </template>

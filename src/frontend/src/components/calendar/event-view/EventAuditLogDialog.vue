@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import { useRouter } from 'vue-router';
@@ -7,6 +7,7 @@ import type { Event } from '../../../types/Event';
 import type { AuditLogActionType, AuditLogEntry } from '../../../types/AuditLog';
 import API from '../../../services/API';
 import UserAvatar from '../../UserAvatar.vue';
+import { useMediaQuery, MOBILE_QUERY } from '../../../composables/useMediaQuery';
 
 type DiffKind = 'added' | 'removed' | 'updated';
 
@@ -33,8 +34,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const isMobile = ref(false);
-let mobileMediaQuery: MediaQueryList | null = null;
+const isMobile = useMediaQuery(MOBILE_QUERY);
 
 const entries = ref<AuditLogEntry[]>([]);
 const expandedEntryIds = ref<number[]>([]);
@@ -56,33 +56,17 @@ const showDialog = computed({
 
 const dialogPt = computed(() => ({
     root: {
-        class: isMobile.value ? 'rounded-none border-none!' : 'rounded-2xl border border-zinc-800 shadow-2xl'
-    },
-    pcMaximizeButton: {
-        root: {
-            class: isMobile.value ? 'hidden!' : ''
-        }
+        class: isMobile.value ? 'rounded-none! border-none!' : ''
     },
     header: {
-        class: 'border-b border-zinc-800'
+        class: 'border-b border-line py-3!'
     },
     content: {
-        class: `h-[85vh] p-0! ${isMobile.value ? 'w-full' : 'w-[640px]'}`
+        class: `p-0! ${isMobile.value ? 'w-full' : 'h-[min(80vh,48rem)] w-[40rem]'}`
     }
 }));
 
-const syncIsMobile = (source?: MediaQueryList | MediaQueryListEvent) => {
-    isMobile.value = source?.matches ?? mobileMediaQuery?.matches ?? false;
-};
-
-onMounted(() => {
-    mobileMediaQuery = window.matchMedia('(max-width: 767px)');
-    syncIsMobile(mobileMediaQuery);
-    mobileMediaQuery.addEventListener('change', syncIsMobile);
-});
-
 onBeforeUnmount(() => {
-    mobileMediaQuery?.removeEventListener('change', syncIsMobile);
     requestKey.value += 1;
 });
 
@@ -121,7 +105,7 @@ const loadAuditLog = async () => {
             return;
         }
 
-        errorMessage.value = error?.response?.data?.message || error?.message || 'Failed to load audit log';
+        errorMessage.value = error?.response?.data?.message || error?.message || 'Failed to load activity';
         entries.value = [];
     } finally {
         if (requestKey.value === nextRequestKey) {
@@ -338,8 +322,8 @@ const getActorLabel = (entry: AuditLogEntry) =>
     >
         <template #header>
             <div class="min-w-0">
-                <h2 class="truncate text-lg font-bold">Audit log</h2>
-                <p class="m-0 truncate text-xs text-zinc-500">
+                <h2 class="text-title m-0 truncate">Activity</h2>
+                <p class="text-meta text-muted m-0 truncate">
                     <template v-if="!loading && !errorMessage">
                         {{ displayedEntries.length }} event{{ displayedEntries.length === 1 ? '' : 's' }} ·
                         {{ totalChangeCount }} change{{ totalChangeCount === 1 ? '' : 's' }}
@@ -358,7 +342,7 @@ const getActorLabel = (entry: AuditLogEntry) =>
                 <i class="pi pi-exclamation-triangle text-2xl text-rose-400"></i>
             </div>
             <div class="max-w-sm space-y-1">
-                <h3 class="text-lg font-bold text-white">Could not load audit log</h3>
+                <h3 class="text-lg font-bold text-white">Couldn't load activity</h3>
                 <p class="text-sm text-zinc-400">{{ errorMessage }}</p>
             </div>
             <Button label="Retry" icon="pi pi-refresh" severity="secondary" text @click="retry" />
@@ -378,7 +362,7 @@ const getActorLabel = (entry: AuditLogEntry) =>
         </div>
 
         <div v-else class="h-full overflow-y-auto p-4">
-            <div class="divide-y divide-zinc-800 rounded-xl border border-zinc-800">
+            <div class="border-line bg-raised divide-line divide-y overflow-hidden rounded-2xl border">
                 <div v-for="entry in displayedEntries" :key="entry.id" class="p-3.5">
                     <div class="flex items-start gap-3">
                         <div
@@ -429,7 +413,10 @@ const getActorLabel = (entry: AuditLogEntry) =>
                                     :key="item.fieldName"
                                     class="flex flex-wrap items-center gap-1.5"
                                 >
-                                    <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="diffDotClass[item.kind]"></span>
+                                    <span
+                                        class="h-1.5 w-1.5 shrink-0 rounded-full"
+                                        :class="diffDotClass[item.kind]"
+                                    ></span>
                                     <span class="text-zinc-400">{{ getFieldLabel(item.fieldName) }}:</span>
                                     <template v-if="item.kind === 'added'">
                                         <span class="text-zinc-100">{{ item.afterText }}</span>

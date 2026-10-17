@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { format } from 'date-fns';
 import type { CalendarDay } from '../../types/Calendar';
 import type { Event } from '../../types/Event';
 import EventCard from './EventCard.vue';
-import { useMagicCard } from '../../composables/useMagicCard';
 
 const props = defineProps<{
     day: CalendarDay;
-    isMobile: boolean;
+    maxVisible: number;
+    /** Phone-width columns: smaller type, and tapping a day opens its overview. */
+    compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,165 +18,93 @@ const emit = defineEmits<{
     (e: 'zoom-day', day: CalendarDay): void;
 }>();
 
+const sortedEvents = computed(() => [...props.day.events].sort((a, b) => a.startTime.localeCompare(b.startTime)));
+
+// When everything fits show it all; otherwise keep one row for the "+N more" link.
+const visibleEvents = computed(() => {
+    if (sortedEvents.value.length <= props.maxVisible) return sortedEvents.value;
+    return sortedEvents.value.slice(0, Math.max(1, props.maxVisible - 1));
+});
+const hiddenCount = computed(() => sortedEvents.value.length - visibleEvents.value.length);
+
 const handleClick = () => {
-    if (props.day.isPast) {
+    if (props.compact && props.day.events.length > 0) {
         emit('zoom-day', props.day);
         return;
     }
-
-    if (props.isMobile && props.day.events.length > 0) {
-        emit('zoom-day', props.day);
-    } else {
-        emit('add-event', props.day.date);
+    if (props.day.isPast) {
+        if (props.day.events.length > 0) emit('zoom-day', props.day);
+        return;
     }
+    emit('add-event', props.day.date);
 };
-
-const spotlightColor = computed(() => (props.day.isToday ? '#064e23' : '#262626'));
-
-//@ts-expect-error - useMagicCard is not typed
-const { cardRef, backgroundStyle } = useMagicCard({
-    gradientSize: 250,
-    gradientColor: () => spotlightColor.value,
-    gradientOpacity: 0.8
-});
 </script>
 
 <template>
     <div
-        ref="cardRef"
-        class="calendar-cell stagger-reveal group relative flex min-h-[80px] flex-col items-stretch gap-1 pt-1 pr-0 pb-0 pl-1 md:min-h-0 md:p-2"
-        :data-today="day.isToday || undefined"
+        class="cell group relative flex min-h-0 flex-col gap-0.5 overflow-hidden"
         :class="[
-            {
-                'cell-active': day.isCurrentMonth,
-                'cell-inactive': !day.isCurrentMonth,
-                'cell-today': day.isToday
-            }
+            compact ? 'p-0.5' : 'p-1.5',
+            day.isCurrentMonth ? 'bg-canvas' : 'bg-surface-950',
+            day.isPast && day.events.length === 0 ? 'cursor-default' : 'cursor-pointer'
         ]"
+        :data-today="day.isToday || undefined"
+        @click="handleClick"
     >
-        <!-- Background Click Area (Z-0) -->
-        <div class="absolute inset-0 z-0 cursor-pointer" @click="handleClick"></div>
-
-        <!-- Content Layer (Z-10) - Pointer events disabled so background catches empty clicks -->
-        <div class="pointer-events-none relative z-10 flex h-full flex-col">
-            <!-- Date Header -->
-            <div class="mb-0.5 flex w-full justify-center md:mb-1 md:justify-start">
-                <span
-                    class="day-number flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-all duration-300 md:h-7 md:w-7 md:text-sm"
-                    :class="{
-                        'today-badge': day.isToday,
-                        'text-surface-600 dark:text-surface-400': !day.isToday && day.isCurrentMonth,
-                        'text-surface-700': !day.isCurrentMonth
-                    }"
-                >
-                    {{ day.date.getDate() }}
-                </span>
-            </div>
-
-            <!-- Events List - Re-enable pointer events ONLY for the cards -->
-            <div class="flex flex-1 flex-col gap-1 overflow-y-auto pr-0 pb-0 md:pr-1 md:pb-1">
-                <EventCard
-                    v-for="event in day.events"
-                    :key="event.id"
-                    :event="event"
-                    class="pointer-events-auto"
-                    @click="emit('view-event', event)"
-                />
-            </div>
+        <div class="flex shrink-0 items-center" :class="compact ? 'h-6 justify-center' : 'h-7 justify-between pl-0.5'">
+            <span
+                class="tabular flex items-center justify-center rounded-full font-medium"
+                :class="[
+                    compact ? 'size-5.5 text-[0.75rem]' : 'text-meta h-6 min-w-6 px-1.5',
+                    day.isToday
+                        ? 'bg-accent text-primary-contrast font-semibold'
+                        : !day.isCurrentMonth
+                          ? 'text-surface-700'
+                          : day.isPast
+                            ? 'text-subtle'
+                            : 'text-fg'
+                ]"
+            >
+                {{ day.date.getDate() === 1 && !compact ? format(day.date, 'd MMM') : day.date.getDate() }}
+            </span>
+            <button
+                v-if="!day.isPast && !compact"
+                type="button"
+                class="text-muted hover:bg-surface-850 hover:text-fg flex size-6 items-center justify-center rounded-md opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                :aria-label="`New event on ${format(day.date, 'EEEE d MMMM')}`"
+                @click.stop="emit('add-event', day.date)"
+            >
+                <i class="pi pi-plus text-[0.6875rem]"></i>
+            </button>
         </div>
 
-        <!-- Magic card spotlight overlay -->
-        <div class="magic-spotlight" :style="backgroundStyle"></div>
-
-        <!-- Today green glow -->
-        <div v-if="day.isToday" class="today-glow"></div>
+        <div class="flex min-h-0 flex-col gap-0.5" :class="{ 'opacity-50': !day.isCurrentMonth }">
+            <EventCard
+                v-for="event in visibleEvents"
+                :key="event.id"
+                :event="event"
+                :compact="compact"
+                @click="emit('view-event', event)"
+            />
+            <button
+                v-if="hiddenCount > 0"
+                type="button"
+                class="text-muted hover:text-fg hover:bg-surface-900 rounded-md text-left font-medium"
+                :class="compact ? 'tabular h-4 px-1 text-[0.625rem]' : 'text-meta h-[1.375rem] px-1.5'"
+                @click.stop="emit('zoom-day', day)"
+            >
+                {{ compact ? `+${hiddenCount}` : `${hiddenCount} more` }}
+            </button>
+        </div>
     </div>
 </template>
 
 <style scoped>
-/* Base cell styling — no borders, opaque bg for grid-gap approach */
-.calendar-cell {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    background: #000000;
+.cell {
+    transition: background-color 160ms var(--ease-out-quart);
 }
 
-/* Active (current month) cells */
-.cell-active {
-    background: #000000;
-}
-
-.cell-active:hover {
-    z-index: 10;
-}
-
-/* Inactive (other months) cells — muted bg + text, no opacity */
-.cell-inactive {
-    background: #000000;
-}
-
-.cell-inactive .day-number {
-    color: rgba(255, 255, 255, 0.2);
-}
-
-.today-glow .day-number {
-    color: white !important;
-}
-
-/* Today cell - gentle green tint (opaque equivalents over #000) */
-.cell-today {
-    background: #020c06;
-    box-shadow: inset 0 0 30px rgba(34, 197, 94, 0.05);
-}
-
-.cell-today:hover {
-    background: #041a0b;
-}
-
-/* Today badge styling */
-.today-badge {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    color: white !important;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
-}
-
-/* Magic card spotlight overlay */
-.magic-spotlight {
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-}
-
-.cell-active:hover .magic-spotlight {
-    opacity: 1;
-}
-
-/* Today green glow effect */
-.today-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    opacity: 0.8;
-}
-
-/* Animated border glow on hover for active cells */
-.cell-active::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 1px solid transparent;
-    transition: border-color 0.3s ease;
-    pointer-events: none;
-}
-
-.cell-active:hover::before {
-    border-color: rgba(255, 255, 255, 0.08);
+.cell.bg-canvas:hover {
+    background-color: var(--color-surface-950);
 }
 </style>

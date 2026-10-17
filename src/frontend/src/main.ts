@@ -31,7 +31,7 @@ createApp(App)
     .use(router)
     .use(createPinia())
     .use(PrimeVue, {
-        ripple: true,
+        ripple: false,
         theme: {
             preset: OledPreset,
             options: {
@@ -39,38 +39,16 @@ createApp(App)
             }
         },
         pt: {
-            Button: {
-                root: { class: 'rounded-xl! font-bold active:scale-[0.98] transition-transform duration-100' }
-            },
             Dialog: {
-                root: { class: 'rounded-2xl border border-zinc-800 bg-black shadow-2xl' },
-                header: { class: 'rounded-t-2xl bg-transparent border-none!' },
-                content: { class: 'bg-transparent' },
-                footer: { class: 'rounded-b-2xl bg-transparent border-none!' },
+                // PrimeVue force-focuses the close button with focus-visible on open; keep that ring quiet
                 pcCloseButton: {
-                    root: { class: 'focus-visible:outline-none!' }
+                    root: {
+                        class: 'focus-visible:outline-1! focus-visible:outline-surface-700! focus-visible:outline-offset-0!'
+                    }
                 }
-            },
-            DataTable: {
-                root: { class: 'rounded-xl! overflow-hidden border border-zinc-800 bg-black' },
-                header: { class: 'bg-zinc-900/10' }
-            },
-            InputText: {
-                root: { class: 'rounded-xl!' }
-            },
-            Textarea: {
-                root: { class: 'rounded-xl!' }
-            },
-            Password: {
-                pcInputText: {
-                    root: { class: 'rounded-xl!' }
-                }
-            },
-            Panel: {
-                root: { class: 'rounded-2xl! bg-black border-zinc-800' }
             },
             ConfirmDialog: {
-                message: { class: 'whitespace-pre-line' }
+                message: { class: 'whitespace-pre-line text-body' }
             }
         },
         ptOptions: {

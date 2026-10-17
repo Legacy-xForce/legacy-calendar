@@ -12,6 +12,9 @@ import { useToast } from 'primevue/usetoast';
 import { notificationStorage } from './services/notificationStorage';
 import { createLogger } from './services/logger';
 import { isKnownNotificationCode, resolveNotificationRoute, shouldSuppressNotification } from './utils/notifications';
+import { useSheetGestures } from './composables/useSheetGestures';
+
+useSheetGestures();
 
 const route = useRoute();
 const toast = useToast();
@@ -135,38 +138,37 @@ const transitionName = computed(() => {
 <template>
     <Toast position="top-right" />
     <ConfirmDialog />
-    <div class="fixed top-4 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
+    <TransitionGroup
+        tag="div"
+        name="banner"
+        class="fixed top-[calc(env(safe-area-inset-top)+0.75rem)] right-3 left-3 z-1200 flex flex-col gap-2 sm:left-auto sm:w-[22rem]"
+    >
         <button
             v-for="notification in foregroundNotifications"
             :key="notification.id"
             type="button"
-            class="group rounded-3xl border border-zinc-800/80 bg-zinc-950/95 p-4 text-left shadow-2xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-sky-500/50 hover:bg-zinc-900/95"
+            class="pressable border-line bg-overlay hover:border-line-strong flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left shadow-[0_18px_40px_-18px_rgb(0_0_0/0.9)]"
             @click="openForegroundNotification(notification)"
         >
-            <div class="flex items-start gap-3">
-                <div class="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-2xl">
-                    <i class="pi pi-bell"></i>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center justify-between gap-3">
-                        <h3 class="truncate text-sm font-bold text-white">{{ notification.title }}</h3>
-                        <span class="text-[10px] font-semibold tracking-[0.2em] text-zinc-500 uppercase"> Open </span>
-                    </div>
-                    <p class="mt-1 line-clamp-3 text-sm text-zinc-300">
-                        {{ notification.body }}
-                    </p>
-                    <p
-                        v-if="notification.type"
-                        class="mt-2 font-mono text-[10px] tracking-[0.18em] text-zinc-500 uppercase"
-                    >
-                        {{ notification.type }}
-                    </p>
-                </div>
-            </div>
+            <span class="bg-accent-soft text-accent flex size-9 shrink-0 items-center justify-center rounded-xl">
+                <i class="pi pi-bell text-sm"></i>
+            </span>
+            <span class="min-w-0 flex-1">
+                <span class="text-body text-fg block truncate font-semibold">{{ notification.title }}</span>
+                <span class="text-meta text-muted mt-0.5 line-clamp-2 block">{{ notification.body }}</span>
+            </span>
+            <i class="pi pi-chevron-right text-subtle mt-2.5 text-xs"></i>
         </button>
-    </div>
+    </TransitionGroup>
     <Header v-if="showHeader" />
-    <main class="relative block w-full overflow-x-hidden">
+    <main
+        class="relative block w-full overflow-x-hidden"
+        :class="
+            showHeader
+                ? 'pt-[env(safe-area-inset-top)] pb-[calc(var(--tabbar-height)+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0'
+                : ''
+        "
+    >
         <router-view v-slot="{ Component }">
             <transition :name="transitionName" mode="out-in">
                 <component :is="Component" />
@@ -176,4 +178,22 @@ const transitionName = computed(() => {
     <BottomBar v-if="showHeader" />
 </template>
 
-<style scoped></style>
+<style scoped>
+.banner-enter-active {
+    transition:
+        opacity 220ms var(--ease-out-quart),
+        transform 380ms var(--ease-out-expo);
+}
+
+.banner-leave-active {
+    transition:
+        opacity 160ms var(--ease-in-quart),
+        transform 160ms var(--ease-in-quart);
+}
+
+.banner-enter-from,
+.banner-leave-to {
+    opacity: 0;
+    transform: translateY(-12px);
+}
+</style>

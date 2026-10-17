@@ -6,7 +6,7 @@ import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import { router } from '../router/router';
 import { useSessionStore } from '../stores/session';
-
+import AppLogo from '../components/AppLogo.vue';
 import { requestNotificationPermission } from '../services/firebase';
 
 const toast = useToast();
@@ -14,15 +14,12 @@ const sessionStore = useSessionStore();
 
 const username = ref('');
 const password = ref('');
+const errorMessage = ref<string | null>(null);
 
 const handleLogin = async () => {
+    errorMessage.value = null;
     if (!username.value || !password.value) {
-        toast.add({
-            severity: 'warn',
-            summary: 'Validation Error',
-            detail: 'Please enter both username and password',
-            life: 3000
-        });
+        errorMessage.value = 'Enter your username and password.';
         return;
     }
 
@@ -34,8 +31,7 @@ const handleLogin = async () => {
     if (success) {
         toast.add({
             severity: 'success',
-            summary: 'Welcome!',
-            detail: `Logged in as ${sessionStore.currentUser?.username}`,
+            summary: `Welcome back, ${sessionStore.currentUser?.username}`,
             life: 2000
         });
 
@@ -43,78 +39,73 @@ const handleLogin = async () => {
 
         await requestNotificationPermission();
     } else {
-        toast.add({
-            severity: 'error',
-            summary: 'Login Failed',
-            detail: sessionStore.error || 'Please check your credentials',
-            life: 4000
-        });
+        errorMessage.value = sessionStore.error || 'That username and password combination did not work.';
     }
 };
 </script>
 
 <template>
-    <div class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#09090b] p-4 sm:p-6">
-        <!-- Subtle Glow -->
-        <div
-            class="pointer-events-none absolute top-1/2 left-1/2 size-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]"
-        ></div>
-
-        <div
-            class="relative z-10 w-full max-w-104 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-2xl backdrop-blur-xl transition-all duration-300"
-        >
-            <div class="p-6 sm:p-8">
-                <div class="mb-8 flex flex-col items-center text-center">
-                    <div
-                        class="mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-700/50 bg-zinc-800/60 shadow-sm"
-                    >
-                        <i style="font-size: 1.5rem" class="pi pi-calendar text-emerald-400"></i>
-                    </div>
-                    <h1 class="mb-2 text-2xl font-bold tracking-tight text-white">Legacy Calendar</h1>
-                    <p class="text-sm text-zinc-400">Sign in to your account</p>
-                </div>
-
-                <form @submit.prevent="handleLogin" class="space-y-6">
-                    <div class="space-y-2">
-                        <label for="username" class="ml-1 text-sm font-medium text-zinc-300">Username</label>
-                        <InputText
-                            id="username"
-                            v-model="username"
-                            class="w-full rounded-xl border-zinc-800 bg-zinc-950/50 p-3 focus:border-emerald-500"
-                            placeholder="Enter your username"
-                            :disabled="sessionStore.loading"
-                            fluid
-                        />
-                    </div>
-
-                    <div class="space-y-2">
-                        <label for="password" class="ml-1 text-sm font-medium text-zinc-300">Password</label>
-                        <Password
-                            id="password"
-                            v-model="password"
-                            :feedback="false"
-                            toggleMask
-                            class="w-full"
-                            inputClass="w-full bg-zinc-950/50 border-zinc-800 focus:border-emerald-500 rounded-xl p-3"
-                            placeholder="Enter your password"
-                            :disabled="sessionStore.loading"
-                            fluid
-                        />
-                    </div>
-
-                    <Button
-                        type="submit"
-                        :label="sessionStore.loading ? 'Signing in...' : 'Sign In'"
-                        class="mt-8! w-full rounded-xl py-3 font-semibold shadow-[0_0_15px_rgba(52,211,153,0.15)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(52,211,153,0.3)]"
-                        :loading="sessionStore.loading"
-                        :disabled="sessionStore.loading"
-                    />
-                </form>
-
-                <div class="mt-8 flex items-center justify-center border-t border-zinc-800/50 pt-6">
-                    <p class="text-xs text-zinc-500">Powered by <span class="font-bold text-zinc-400">xForce</span></p>
+    <div
+        class="flex min-h-dvh w-full items-center justify-center px-5 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+    >
+        <div class="animate-rise-in flex w-full max-w-sm flex-col gap-8">
+            <div class="flex flex-col items-center gap-4 text-center">
+                <AppLogo class="text-fg size-12" />
+                <div>
+                    <h1 class="text-display m-0">Legacy</h1>
+                    <p class="text-body text-muted m-0 mt-1">Sign in to see what the group is planning.</p>
                 </div>
             </div>
+
+            <form class="flex flex-col gap-4" novalidate @submit.prevent="handleLogin">
+                <div class="flex flex-col gap-1.5">
+                    <label for="username" class="text-meta text-muted font-medium">Username</label>
+                    <InputText
+                        id="username"
+                        v-model="username"
+                        autocomplete="username"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        :disabled="sessionStore.loading"
+                        :invalid="!!errorMessage && !username"
+                        fluid
+                    />
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label for="password" class="text-meta text-muted font-medium">Password</label>
+                    <Password
+                        inputId="password"
+                        v-model="password"
+                        :feedback="false"
+                        toggleMask
+                        :disabled="sessionStore.loading"
+                        :invalid="!!errorMessage && !password"
+                        :inputProps="{ autocomplete: 'current-password' }"
+                        fluid
+                    />
+                </div>
+
+                <p
+                    v-if="errorMessage"
+                    class="text-meta animate-rise-in m-0 rounded-xl bg-rose-400/10 px-3 py-2 text-rose-200"
+                    role="alert"
+                >
+                    {{ errorMessage }}
+                </p>
+
+                <Button
+                    type="submit"
+                    :label="sessionStore.loading ? 'Signing in…' : 'Sign in'"
+                    class="mt-2 w-full"
+                    :loading="sessionStore.loading"
+                    :disabled="sessionStore.loading"
+                />
+            </form>
+
+            <p class="text-meta text-subtle m-0 text-center">
+                Powered by <span class="text-muted font-semibold">xForce</span>
+            </p>
         </div>
     </div>
 </template>

@@ -1,128 +1,111 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Event } from '../../../types/Event';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import Tag from 'primevue/tag';
-import Accordion from 'primevue/accordion';
-import AccordionPanel from 'primevue/accordionpanel';
-import AccordionHeader from 'primevue/accordionheader';
-import AccordionContent from 'primevue/accordioncontent';
+import type { Event, EventFeature } from '../../../types/Event';
 import UserAvatar from '../../UserAvatar.vue';
+import { FEATURES } from '../../../constants/features';
 import { injectEventView } from '../../../composables/useEventView';
 
 defineProps<{
     event: Event;
 }>();
 
-const { resolvedInvitees, featuresListColumns, getFeatureCount, hasFeature, getStatusSeverity, getStatusIcon } =
-    injectEventView();
+const { resolvedInvitees, availableFeatureIds, allEventHosts, getParticipantFeatures } = injectEventView();
 
-const acceptedCount = computed(() => resolvedInvitees.value.filter((i) => i.status === 'ACCEPTED').length);
-const pendingCount = computed(() => resolvedInvitees.value.filter((i) => i.status === 'PENDING').length);
-const declinedCount = computed(() => resolvedInvitees.value.filter((i) => i.status === 'DECLINED').length);
+const byName = (a: { username: string }, b: { username: string }) => a.username.localeCompare(b.username);
+const going = computed(() => resolvedInvitees.value.filter((i) => i.status === 'ACCEPTED').sort(byName));
+const invited = computed(() => resolvedInvitees.value.filter((i) => i.status === 'PENDING').sort(byName));
+const declined = computed(() => resolvedInvitees.value.filter((i) => i.status === 'DECLINED').sort(byName));
+
+const hostIds = computed(() => new Set(allEventHosts.value.map((host) => host.id)));
+const featureIcon = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature.icon])) as Record<
+    EventFeature,
+    string
+>;
+const featureLabel = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature.label])) as Record<
+    EventFeature,
+    string
+>;
+
+const optedFeatures = (userId: number) =>
+    getParticipantFeatures(userId).filter((feature) => availableFeatureIds.value.includes(feature));
+
+const summary = computed(() => {
+    const parts = [`${going.value.length} going`];
+    if (invited.value.length) parts.push(`${invited.value.length} invited`);
+    if (declined.value.length) parts.push(`${declined.value.length} declined`);
+    return parts.join(' · ');
+});
 </script>
 
 <template>
-    <div class="-mx-2 flex flex-col gap-3 sm:mx-0">
-        <Accordion :value="null">
-            <AccordionPanel value="0" class="w-full! border-none!">
-                <AccordionHeader class="px-2! py-1! sm:pl-0!">
-                    <div class="flex w-full flex-wrap justify-between gap-2 pr-4">
-                        <div class="flex items-center gap-2 text-white!">
-                            <i class="pi pi-users"></i>
-                            <span class="font-semibold">Participants</span>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-1.5">
-                            <Tag v-if="acceptedCount > 0" severity="success" :value="`${acceptedCount} accepted`" />
-                            <Tag v-if="pendingCount > 0" severity="warn" :value="`${pendingCount} pending`" />
-                            <Tag v-if="declinedCount > 0" severity="danger" :value="`${declinedCount} declined`" />
-                            <span v-if="resolvedInvitees.length === 0" class="text-surface-500 text-sm">None</span>
-                        </div>
-                    </div>
-                </AccordionHeader>
-                <AccordionContent :pt="{ content: 'px-0! pt-2! pb-0!' }">
-                    <DataTable
-                        :value="resolvedInvitees"
-                        scrollable
-                        sortMode="multiple"
-                        :multiSortMeta="[
-                            { field: 'status', order: 1 },
-                            { field: 'username', order: 1 }
-                        ]"
+    <section class="flex flex-col gap-2">
+        <div class="flex items-baseline justify-between gap-3">
+            <h3 class="eyebrow m-0">People</h3>
+            <span class="text-meta text-muted tabular">{{ summary }}</span>
+        </div>
+
+        <div
+            v-if="going.length"
+            class="border-line bg-raised divide-line grid grid-cols-1 divide-y overflow-hidden rounded-2xl border"
+        >
+            <div v-for="person in going" :key="person.id" class="flex min-w-0 items-center gap-3 px-4 py-2.5">
+                <UserAvatar :profilePictureUrl="person.profilePictureUrl" :username="person.username" />
+                <span class="text-body text-fg min-w-0 truncate font-medium">{{ person.username }}</span>
+                <span
+                    v-if="hostIds.has(person.id)"
+                    class="bg-surface-850 text-muted shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                >
+                    Host
+                </span>
+                <span class="font-emoji ml-auto flex shrink-0 gap-1 text-sm">
+                    <span
+                        v-for="feature in optedFeatures(person.id)"
+                        :key="feature"
+                        :title="featureLabel[feature]"
+                        :aria-label="featureLabel[feature]"
+                        >{{ featureIcon[feature] }}</span
                     >
-                        <template #empty>
-                            <div class="text-surface-500 p-4 text-center">No invitees found</div>
-                        </template>
-                        <Column field="username" header="Name" sortable>
-                            <template #body="slotProps">
-                                <div class="flex items-center gap-2">
-                                    <UserAvatar
-                                        :profilePictureUrl="slotProps.data.profilePictureUrl"
-                                        :username="slotProps.data.username"
-                                        class="h-8! w-8! lg:h-10! lg:w-10!"
-                                    />
-                                    <span>{{ slotProps.data.username }}</span>
-                                </div>
-                            </template>
-                        </Column>
-                        <Column
-                            v-for="col in featuresListColumns"
-                            :key="col.field"
-                            class="min-w-12 text-center sm:min-w-28"
-                        >
-                            <template #header>
-                                <span class="hidden w-full text-center font-bold whitespace-nowrap sm:inline">
-                                    <span
-                                        :class="getFeatureCount(col.field) > 0 ? 'text-green-500' : 'text-zinc-400'"
-                                        class="font-bold tracking-widest uppercase"
-                                    >
-                                        {{ getFeatureCount(col.field) }}
-                                    </span>
-                                    {{ col.header }}
-                                </span>
-                                <span
-                                    class="w-full text-center font-bold whitespace-nowrap sm:hidden"
-                                    :title="col.header"
-                                >
-                                    {{ col.icon }}
-                                </span>
-                            </template>
-                            <template #body="slotProps">
-                                <div v-if="slotProps.data.status === 'ACCEPTED'" class="flex justify-center text-xs">
-                                    <template v-if="hasFeature(slotProps.data.id, col.field)">
-                                        <i class="pi pi-check font-bold text-green-500"></i>
-                                    </template>
-                                    <template v-else>
-                                        <i class="pi pi-times font-bold text-red-500/40"></i>
-                                    </template>
-                                </div>
-                                <div v-else class="text-surface-400 text-center">-</div>
-                            </template>
-                        </Column>
-                        <Column field="status" header="Status" class="w-16 text-center sm:w-24" sortable>
-                            <template #body="slotProps">
-                                <span class="hidden sm:inline">
-                                    <Tag
-                                        :severity="getStatusSeverity(slotProps.data.status)"
-                                        size="small"
-                                        :value="slotProps.data.status"
-                                    />
-                                </span>
-                                <div class="flex justify-center sm:hidden">
-                                    <Tag
-                                        :severity="getStatusSeverity(slotProps.data.status)"
-                                        class="flex h-8! w-8! items-center justify-center p-0!"
-                                        size="small"
-                                    >
-                                        <i :class="getStatusIcon(slotProps.data.status)" class="text-xs"></i>
-                                    </Tag>
-                                </div>
-                            </template>
-                        </Column>
-                    </DataTable>
-                </AccordionContent>
-            </AccordionPanel>
-        </Accordion>
-    </div>
+                </span>
+            </div>
+        </div>
+        <p v-else class="text-meta text-muted border-line m-0 rounded-2xl border border-dashed px-4 py-4 text-center">
+            Nobody has joined yet.
+        </p>
+
+        <div v-if="invited.length" class="flex flex-col gap-2 pt-2">
+            <span class="text-meta text-muted font-medium">Waiting for a reply</span>
+            <div class="flex flex-wrap gap-1.5">
+                <span
+                    v-for="person in invited"
+                    :key="person.id"
+                    class="bg-surface-900 text-meta text-fg flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1"
+                >
+                    <UserAvatar
+                        :profilePictureUrl="person.profilePictureUrl"
+                        :username="person.username"
+                        class="size-6! text-[0.625rem]!"
+                    />
+                    {{ person.username }}
+                </span>
+            </div>
+        </div>
+
+        <div v-if="declined.length" class="flex flex-col gap-2 pt-2">
+            <span class="text-meta text-muted font-medium">Can't make it</span>
+            <div class="flex flex-wrap gap-1.5">
+                <span
+                    v-for="person in declined"
+                    :key="person.id"
+                    class="bg-surface-950 text-meta text-subtle flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1"
+                >
+                    <UserAvatar
+                        :profilePictureUrl="person.profilePictureUrl"
+                        :username="person.username"
+                        class="size-6! text-[0.625rem]! opacity-60"
+                    />
+                    {{ person.username }}
+                </span>
+            </div>
+        </div>
+    </section>
 </template>

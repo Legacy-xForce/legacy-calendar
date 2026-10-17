@@ -57,8 +57,7 @@ export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event 
             navigationError.value = null;
             await router.push({ path: `${eventPathPrefix.value}/${selectedEventId.value}` });
         } catch (error) {
-            navigationError.value =
-                error instanceof Error ? error.message : 'Failed to close the audit log panel.';
+            navigationError.value = error instanceof Error ? error.message : 'Failed to close the audit log panel.';
         }
     };
 

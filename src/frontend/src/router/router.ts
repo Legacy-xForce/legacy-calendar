@@ -32,12 +32,22 @@ const routes: RouteRecordRaw[] = [
     },
     { path: '/event/:id', name: 'calendar-event', component: Calendar, meta: { requiresAuth: true } },
     { path: '/event/:id/chat', name: 'calendar-event-chat', component: Calendar, meta: { requiresAuth: true } },
-    { path: '/event/:id/audit-log', name: 'calendar-event-audit-log', component: Calendar, meta: { requiresAuth: true } },
+    {
+        path: '/event/:id/audit-log',
+        name: 'calendar-event-audit-log',
+        component: Calendar,
+        meta: { requiresAuth: true }
+    },
     { path: '/event/:id/map', name: 'calendar-event-map', component: Calendar, meta: { requiresAuth: true } },
     { path: '/event/:id/edit', name: 'calendar-event-edit', component: Calendar, meta: { requiresAuth: true } },
     { path: '/upcoming/:id', name: 'upcoming-event', component: Upcoming, meta: { requiresAuth: true } },
     { path: '/upcoming/:id/chat', name: 'upcoming-event-chat', component: Upcoming, meta: { requiresAuth: true } },
-    { path: '/upcoming/:id/audit-log', name: 'upcoming-event-audit-log', component: Upcoming, meta: { requiresAuth: true } },
+    {
+        path: '/upcoming/:id/audit-log',
+        name: 'upcoming-event-audit-log',
+        component: Upcoming,
+        meta: { requiresAuth: true }
+    },
     { path: '/upcoming/:id/edit', name: 'upcoming-event-edit', component: Upcoming, meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },

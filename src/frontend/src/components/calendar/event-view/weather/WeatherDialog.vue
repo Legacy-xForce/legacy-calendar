@@ -29,50 +29,25 @@ const showDialog = computed({
 </script>
 
 <template>
-    <Dialog
-        v-model:visible="showDialog"
-        modal
-        dismissableMask
-        :style="{ width: '94vw', maxWidth: '420px' }"
-        :pt="{
-            root: {
-                class: 'weather-solid-dialog border-zinc-800 border bg-zinc-950 shadow-2xl rounded-2xl'
-            },
-            header: { class: 'hidden' },
-            content: { class: 'p-0!' }
-        }"
-    >
+    <Dialog v-model:visible="showDialog" modal dismissableMask :draggable="false" :style="{ width: '26rem' }">
         <template #header>
-            <div class="items-cente flex flex-col">
-                <span class="text-md font-bold uppercase">
-                    {{ event.location }}
-                </span>
-                <div class="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                    <span>{{ formatDayFull(selectedDay) }}</span>
-                    <span v-if="selectedHourTime" class="flex items-center gap-2">
-                        <span class="h-1 w-1 rounded-full bg-zinc-700"></span>
-                        <span>{{ formatHour(selectedHourTime) }}</span>
-                    </span>
-                </div>
+            <div class="min-w-0">
+                <h2 class="text-title m-0 truncate">{{ event.location }}</h2>
+                <p class="text-meta text-muted tabular m-0">
+                    {{ formatDayFull(selectedDay) }}
+                    <template v-if="selectedHourTime"> · {{ formatHour(selectedHourTime) }}</template>
+                </p>
             </div>
         </template>
 
-        <div class="text-zinc-0 flex flex-col p-4">
+        <div class="flex flex-col">
             <WeatherHero v-if="weather" />
             <WeatherStatsGrid v-if="weather" />
             <WeatherHourlyTimeline v-if="weather" />
             <WeatherDayPicker v-if="weather" />
 
             <!-- Provider footer -->
-            <div class="mt-6 flex justify-center opacity-30">
-                <span class="text-[8px] font-bold tracking-[0.4em] uppercase">Powered by Open-Meteo</span>
-            </div>
+            <p class="text-subtle m-0 mt-5 text-center text-[0.6875rem]">Forecast by Open-Meteo</p>
         </div>
     </Dialog>
 </template>
-
-<style scoped>
-.weather-solid-dialog {
-    --p-dialog-content-background: var(--p-zinc-950);
-}
-</style>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { differenceInMinutes, isAfter, isBefore, addMinutes } from 'date-fns';
+import { differenceInCalendarDays, differenceInMinutes } from 'date-fns';
 import { useNow } from '../composables/useNow';
 import type { Event } from '../types/Event';
+import { getEventEnd } from '../utils/event';
 
 const props = defineProps<{
     event: Event;
@@ -11,70 +12,55 @@ const props = defineProps<{
 const { now } = useNow();
 
 const startDate = computed(() => new Date(props.event.startTime));
-const endDate = computed(() => (props.event.endTime ? new Date(props.event.endTime) : addMinutes(startDate.value, 60)));
-
-const isEnded = computed(() => {
-    return isAfter(now.value, endDate.value);
-});
-
-const isLive = computed(() => {
-    return isBefore(startDate.value, now.value) && isBefore(now.value, endDate.value);
-});
-
-const isSoon = computed(() => {
-    const diff = differenceInMinutes(startDate.value, now.value);
-    return diff > 0 && diff <= 60;
-});
+const endDate = computed(() => getEventEnd(props.event));
 
 const state = computed(() => {
-    if (isEnded.value) return 'ENDED';
-    if (isLive.value) return 'LIVE';
-    if (isSoon.value) return 'SOON';
-    return 'UPCOMING';
+    if (now.value > endDate.value) return 'ended';
+    if (now.value >= startDate.value) return 'live';
+    if (differenceInMinutes(startDate.value, now.value) <= 60) return 'soon';
+    return 'upcoming';
 });
 
-const displayTime = computed(() => {
-    if (isLive.value) return 'Now';
-    if (isEnded.value) return 'Ended';
+const label = computed(() => {
+    if (state.value === 'ended') return 'Ended';
+    if (state.value === 'live') return 'Happening now';
 
-    const diffMins = differenceInMinutes(startDate.value, now.value);
-    if (diffMins <= 0) return 'Now';
-    if (diffMins < 60) return `${diffMins}m`;
+    const minutes = differenceInMinutes(startDate.value, now.value);
+    if (minutes < 1) return 'Starting now';
+    if (minutes < 60) return `In ${minutes} min`;
 
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d`;
+    const hours = Math.floor(minutes / 60);
+    const days = differenceInCalendarDays(startDate.value, now.value);
+    if (days === 0) return `In ${hours} h`;
+    if (days === 1) return 'Tomorrow';
+    if (days < 7) return `In ${days} days`;
+    const weeks = Math.round(days / 7);
+    return weeks === 1 ? 'In 1 week' : `In ${weeks} weeks`;
 });
 
-const statusClasses = computed(() => {
+const toneClass = computed(() => {
     switch (state.value) {
-        case 'ENDED':
-            return 'text-red-400/80 border-red-500/10 bg-red-500/5';
-        case 'LIVE':
-            return 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10 shadow-[0_0_12px_rgba(52,211,153,0.1)]';
-        case 'SOON':
-            return 'text-amber-400 border-amber-500/20 bg-amber-500/5';
+        case 'live':
+            return 'bg-emerald-400/12 text-emerald-300';
+        case 'soon':
+            return 'bg-amber-300/12 text-amber-200';
+        case 'ended':
+            return 'bg-surface-900 text-subtle';
         default:
-            return 'text-surface-300 border-white/10 bg-white/5';
+            return 'bg-surface-850 text-muted';
     }
 });
 </script>
 
 <template>
-    <div
-        class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-all duration-300"
-        :class="statusClasses"
+    <span
+        class="tabular inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.75rem] leading-none font-medium"
+        :class="toneClass"
     >
-        <span v-if="state === 'LIVE'" class="relative flex h-2 w-2">
-            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75"></span>
-            <span class="relative inline-flex h-2 w-2 rounded-full bg-current"></span>
+        <span v-if="state === 'live'" class="relative flex size-1.5">
+            <span class="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-60"></span>
+            <span class="relative inline-flex size-1.5 rounded-full bg-current"></span>
         </span>
-        <span>{{ state }}</span>
-        <template v-if="state !== 'ENDED'">
-            <span class="opacity-40">•</span>
-            <span>{{ displayTime }}</span>
-        </template>
-    </div>
+        {{ label }}
+    </span>
 </template>

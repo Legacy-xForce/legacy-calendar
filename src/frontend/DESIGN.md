@@ -2,37 +2,44 @@
 name: Legacy Calendar
 description: A premium, private friend-group calendar for deep-night coordination.
 colors:
-  primary: "#3b82f6"
-  surface-0: "#ffffff"
-  surface-950: "#000000"
-  neutral-text: "#ffffff"
-  neutral-muted: "#a3a3a3"
-  border: "#262626"
+    primary: '#34d399'
+    primary-contrast: '#03140d'
+    canvas: '#000000'
+    raised: '#0f1110'
+    overlay: '#151817'
+    line: '#252927'
+    line-strong: '#3c413f'
+    fg: '#f8fbf9'
+    muted: '#9da3a0'
+    subtle: '#747a77'
 typography:
-  body:
-    fontFamily: "Inter, sans-serif"
-    fontSize: "16px"
-    lineHeight: "1.5"
+    display:
+        fontFamily: 'Outfit, Inter, sans-serif'
+        fontWeight: '600'
+    body:
+        fontFamily: 'Inter, sans-serif'
+        fontSize: '15px'
+        lineHeight: '1.5'
 rounded:
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "24px"
+    control: '12px'
+    row: '16px'
+    card: '24px'
+    sheet: '24px 24px 0 0'
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "16px"
-  lg: "24px"
+    xs: '4px'
+    sm: '8px'
+    md: '16px'
+    lg: '24px'
 components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.surface-950}"
-    rounded: "{rounded.md}"
-    padding: "8px 16px"
-  dialog:
-    backgroundColor: "{colors.surface-950}"
-    rounded: "{rounded.lg}"
-    border: "{colors.border}"
+    button-primary:
+        backgroundColor: '{colors.primary}'
+        textColor: '{colors.primary-contrast}'
+        rounded: '{rounded.control}'
+        height: '44px'
+    sheet:
+        backgroundColor: '{colors.raised}'
+        rounded: '{rounded.sheet}'
+        border: '{colors.line}'
 ---
 
 # Design System: Legacy Calendar
@@ -41,78 +48,102 @@ components:
 
 **Creative North Star: "Obsidian Focus"**
 
-Legacy Calendar is an uncompromisingly dark, high-utility tool designed for intimate friend groups. It rejects the generic "SaaS cream" aesthetic in favor of a deep-night, high-contrast palette optimized for OLED displays. The design is quiet but confident, prioritizing density and precision over decorative fluff.
+Legacy Calendar is an uncompromisingly dark, high-utility tool for an intimate friend group. It is used mostly on phones, at night, often from the installed PWA. The design is quiet but confident: absolute black, one emerald accent, and the events' own colors carrying the life of the interface.
 
-**Key Characteristics:**
-- **Pure Black Foundation**: Backgrounds are absolute `#000000` (OLED black) to minimize light bleed and maximize focus.
-- **Atmospheric Utility**: Every element serves the task of coordination. Color is used sparingly as a structural guide or a status signal.
-- **Tactile Softness**: Despite the hard-edged theme, interactions use large radii (`rounded-2xl`) to provide a sense of approachability and intimacy.
+**Key characteristics**
+
+- **Pure black foundation.** The page is `#000000` for OLED. Surfaces step up in small, tinted increments.
+- **Event colors are the palette.** UI chrome stays neutral; each event's chosen color tints its rows, chips and dots.
+- **Native-feeling on mobile.** Dialogs are bottom sheets with a grab handle and drag-to-dismiss; dates use native pickers.
+
+Source of truth for tokens: `src/style.css` (`@theme`) and `src/theme/oled.ts` (PrimeVue preset). Keep them in sync.
 
 ## 2. Colors
 
-The palette is monochrome-forward, using an OLED-optimized scale that anchors on absolute black.
+One neutral scale, faintly tinted toward the accent hue (OKLCH hue 165, chroma ≤ 0.008), backs `surface-*`, `zinc-*` and the semantic roles. `zinc-*` is remapped onto it on purpose, so every gray in the app agrees.
 
-### Primary
-- **Focus Blue** (#3b82f6): Used for primary actions, active states, and focus indicators. Its rarity makes it a powerful navigational cue.
+### Semantic roles (Tailwind utilities)
 
-### Neutral
-- **OLED Black** (#000000): The canonical background for all root surfaces.
-- **Deep Slate** (#0a0a0a): Used for tonal layering on elevated containers (toasts, cards).
-- **Steel Border** (#262626): The primary structural color for hair-line borders and dividers.
-- **High-Key White** (#ffffff): Reserved for high-contrast primary text.
-- **Muted Gray** (#a3a3a3): Used for secondary labels and metadata.
+| Role        | Utility                   | Value     | Use                            |
+| ----------- | ------------------------- | --------- | ------------------------------ |
+| Canvas      | `bg-canvas`               | `#000000` | Page background                |
+| Raised      | `bg-raised`               | `#0f1110` | Grouped lists, sheets, rows    |
+| Overlay     | `bg-overlay`              | `#151817` | Popovers, inputs, toasts       |
+| Line        | `border-line`             | `#252927` | Hairline borders and dividers  |
+| Line strong | `border-line-strong`      | `#3c413f` | Hover and selected borders     |
+| Foreground  | `text-fg`                 | `#f8fbf9` | Primary text (20:1 on black)   |
+| Muted       | `text-muted`              | `#9da3a0` | Secondary text (8:1)           |
+| Subtle      | `text-subtle`             | `#747a77` | Tertiary metadata only (4.6:1) |
+| Accent      | `bg-accent` `text-accent` | `#34d399` | Primary actions, today, focus  |
 
-### Named Rules
-**The Void Rule.** Backgrounds must be absolute `#000000`. Lighter "dark mode" grays are prohibited for root surfaces.
+### Status colors
+
+- **Going / live / money:** emerald 300–400 on a 10–14% emerald tint.
+- **Invited / soon / deadline:** amber 200–300 on a 12% amber tint.
+- **Declined / destructive:** rose 300–400.
+
+### Named rules
+
+**The Void Rule.** Root backgrounds are absolute `#000000`.
+
+**The One Accent Rule.** Emerald is the only UI accent and stays under roughly 10% of any screen. Variety comes from event colors.
+
+**The Tint, Don't Stripe Rule.** Event identity is a color dot or a 7–20% tint of the event color (`color-mix(in oklab, var(--event-color) 7%, var(--color-raised))`). Never a colored side stripe.
 
 ## 3. Typography
 
-**Display Font:** Outfit
-**Body Font:** Inter (with system-ui fallback)
+**Display:** Outfit 600. **Body:** Inter 400/500/600.
 
-**Rationale:**
-The pairing of **Outfit** and **Inter** creates a distinct typographic hierarchy. **Outfit** provides a geometric, premium character for headings and titles, while **Inter** ensures exceptional readability for body text and data-dense views.
+| Token             | Size / line | Use                                 |
+| ----------------- | ----------- | ----------------------------------- |
+| `text-display-lg` | 32 / 38     | Page titles on desktop              |
+| `text-display`    | 26 / 32     | Page titles on mobile, event titles |
+| `text-headline`   | 20 / 26     | Section titles, sheet headings      |
+| `text-title`      | 17 / 22     | Row titles                          |
+| `text-body`       | 15 / 22     | Body copy                           |
+| `text-meta`       | 13 / 18     | Metadata, labels                    |
 
-### Hierarchy
-- **Display** (800, Outfit): Large page headers and brand moments.
-- **Headline** (700, Outfit): Section titles and dialog headers.
-- **Body** (400, Inter): The primary reading weight. Max line length capped at 70ch.
-- **Label** (600, Inter): Metadata, status pills, and small buttons.
+- `eyebrow` (12px, 600, uppercase, 0.06em) labels a section. Use at most one per section, never inside rows.
+- Use `tabular` for times, counts and money.
+- Form inputs are 16px so iOS does not zoom on focus.
+- Copy is sentence case and plain ("Invite only", "Replies closed", "Waiting for a reply"). No em dashes.
 
+## 4. Elevation and shape
 
-## 4. Elevation
+Depth comes from tone and hairlines, not shadows. Shadows are reserved for floating things (toasts, popovers, the create button).
 
-In an OLED theme, shadows are secondary to contrast and borders.
+- Controls: 12px radius, 44px tall.
+- Rows and grouped lists: 16px radius (`rounded-2xl`), inset dividers (`divide-line`).
+- Feature cards (the "next up" hero): 24px radius.
+- Mobile sheets: 24px top corners, grab handle, full width.
 
-### Shadow Vocabulary
-- **Structural Glow** (`0 10px 30px -10px rgba(0, 0, 0, 0.5)`): Used on toasts and dialogs to lift them off the base void.
+## 5. Components and patterns
 
-### Named Rules
-**The Border-First Rule.** Depth is primarily conveyed via subtle `#262626` borders. Tonal layering (`#0a0a0a`) is used only when a surface needs to feel distinct from the background void.
+- **EventListItem** is the one event row used by the calendar agenda, Upcoming and the day overview: time column, color dot, title, place, weather, attendees, RSVP badge.
+- **RSVP encoding** is consistent everywhere: filled chip or dot means going or hosting; an outlined chip or hollow dot means invited without an answer; strikethrough means declined. Badges: Hosting, Going, Invited, Declined.
+- **Grouped list** (iOS inset style) for facts and settings: `border-line bg-raised divide-line divide-y rounded-2xl border`, each row with a 36px icon tile.
+- **Quick actions** row on the event sheet: equal tiles with icon and label (Chat, Directions, Share, Activity, Edit).
+- **Sheets:** every non-maximized PrimeVue dialog becomes a bottom sheet under 640px (`style.css`) and can be dragged down by its header (`useSheetGestures`). Primary actions sit in the sheet footer, full width on phones.
+- **Mobile calendar:** compact month grid with event dots plus the selected day's agenda below, a floating create button, swipe between months. Desktop keeps the full grid with chips and "N more".
 
-## 5. Components
+## 6. Motion
 
-### Buttons
-- **Shape:** Softly rectangular (`rounded-xl` / 12px).
-- **Style:** High-contrast backgrounds or transparent with structural borders.
-- **Hover:** Subtle scale or brightness shift; no aggressive color changes.
+- Ease out with `--ease-out-expo` (enter) and `--ease-out-quart` (small state changes); `--ease-in-quart` for exits.
+- Enter 200–420ms, exit 90–220ms. Exits are always faster than entrances.
+- Animate `opacity` and `transform` only. Presses scale to 0.97 (`pressable`).
+- `prefers-reduced-motion` collapses all durations.
 
-### Dialogs
-- **Corner Style:** Large radius (`rounded-2xl` / 16px).
-- **Background:** `bg-zinc-950` (#0a0a0a) to provide tonal separation from the background.
-- **Border:** `border-zinc-800` (#262626) structural stroke.
+## 7. Do's and Don'ts
 
-### Status Pills
-- **Style:** Subtle background tints with 1px borders. Rounded-full for a distinct shape.
+### Do
 
-## 6. Do's and Don'ts
+- Use the semantic utilities (`bg-raised`, `text-muted`, `border-line`) instead of raw grays.
+- Show the user's RSVP state wherever an event appears.
+- Prefer inline and progressive disclosure ("+ End time") over extra dialogs.
 
-### Do:
-- **Do** use absolute `#000000` for the page background.
-- **Do** use `rounded-2xl` for large overlays and `rounded-xl` for interactive elements.
-- **Do** maintain high contrast ratios (minimum 7:1) for primary text.
+### Don't
 
-### Don't:
-- **Don't** use Light Mode. No blinding whites or high-key interfaces.
-- **Don't** use generic SaaS "dashboard-cream" or overly corporate layouts.
-- **Don't** use thick colored borders as accents.
+- Don't use light mode.
+- Don't add glows, cursor-following spotlights, gradient text or glass cards.
+- Don't use colored side stripes on cards, rows or toasts.
+- Don't stack tiny uppercase labels; one eyebrow per section is enough.

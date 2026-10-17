@@ -215,6 +215,27 @@ function getParticipantByStatus(participants: EventParticipant[] | undefined, st
     return participants.filter((p) => p.status === status);
 }
 
+export type UserEventRole = 'hosting' | 'going' | 'invited' | 'declined' | null;
+
+/** How the given user relates to an event, for at-a-glance RSVP badges. */
+export function getUserEventRole(event: Event | null | undefined, userId: number | null | undefined): UserEventRole {
+    if (!event || userId == null) return null;
+    if (event.hostId === userId || event.host?.id === userId) return 'hosting';
+    if (event.coHosts?.some((coHost) => coHost.id === userId)) return 'hosting';
+
+    const status = event.participants?.find((participant) => participant.id === userId)?.status;
+    if (status === 'ACCEPTED') return 'going';
+    if (status === 'PENDING') return 'invited';
+    if (status === 'DECLINED') return 'declined';
+    return null;
+}
+
+/** Event end, falling back to one hour after the start when no end time is set. */
+export function getEventEnd(event: Pick<Event, 'startTime' | 'endTime'>) {
+    if (event.endTime) return new Date(event.endTime);
+    return new Date(new Date(event.startTime).getTime() + 60 * 60 * 1000);
+}
+
 export function openNavigation(location: string | null | undefined) {
     if (!location) return;
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
