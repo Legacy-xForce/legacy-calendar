@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import MultiSelect from 'primevue/multiselect';
@@ -14,6 +17,8 @@ import UserAvatar from '../UserAvatar.vue';
 import DateTimeField from '../DateTimeField.vue';
 import FeatureBudgetForm from './FeatureBudgetForm.vue';
 import EventColorSelector from './EventColorSelector.vue';
+import GuestInviteDialog from './GuestInviteDialog.vue';
+import { useUserGroupsStore } from '../../stores/userGroups';
 import {
     createNullFeatureRecord,
     featureFlagsFromSelection,
@@ -40,6 +45,9 @@ const emit = defineEmits<{
 }>();
 
 const isEdit = computed(() => !!props.event);
+const toast = useToast();
+const userGroupsStore = useUserGroupsStore();
+const { groups: userGroups } = storeToRefs(userGroupsStore);
 
 const title = ref('');
 const description = ref('');
@@ -50,6 +58,8 @@ const start = ref<Date | null>(null);
 const end = ref<Date | null>(null);
 const deadline = ref<Date | null>(null);
 const selectedParticipants = ref<number[]>([]);
+const selectedCoHosts = ref<number[]>([]);
+const showGuestInvite = ref(false);
 const selectedFeatures = ref<EventFeature[]>([]);
 const featurePrices = ref<Record<EventFeature, number | null>>(createNullFeatureRecord());
 const showEnd = ref(false);
@@ -57,8 +67,68 @@ const showDeadline = ref(false);
 const submitted = ref(false);
 
 const bounds = getEventStartDateBounds();
-const userMap = computed(() => new Map(props.users.map((u) => [u.id, u])));
-const participantOptions = computed(() => props.users.filter((user) => user.id !== props.excludeUserId));
+
+// Guests are not in the users list, so fall back to the event's own participant data for them
+const people = computed(() => {
+    const byId = new Map<number, { id: number; username: string; profilePictureUrl?: string | null }>(
+        props.users.map((user) => [user.id, user])
+    );
+    for (const participant of props.event?.participants ?? []) {
+        if (!byId.has(participant.id)) byId.set(participant.id, participant);
+    }
+    return byId;
+});
+const userMap = people;
+const hostId = computed(() => props.event?.hostId ?? props.event?.host?.id ?? props.excludeUserId);
+const participantOptions = computed(() => [...people.value.values()].filter((user) => user.id !== props.excludeUserId));
+
+// Co-hosts must be invited, and can edit the event like the host
+const coHostOptions = computed(() =>
+    selectedParticipants.value
+        .filter((id) => id !== hostId.value)
+        .map((id) => people.value.get(id))
+        .filter((person): person is NonNullable<typeof person> => !!person)
+);
+
+watch(selectedParticipants, (next, previous) => {
+    const removed = (previous ?? []).filter((id) => !next.includes(id));
+    if (removed.length) selectedCoHosts.value = selectedCoHosts.value.filter((id) => !removed.includes(id));
+});
+
+// Invitation groups: add a saved list of people in one tap, or save the current selection as one
+const applyGroup = (memberIds: number[]) => {
+    const allowed = new Set(participantOptions.value.map((user) => user.id));
+    selectedParticipants.value = [...new Set([...selectedParticipants.value, ...memberIds])].filter((id) =>
+        allowed.has(id)
+    );
+};
+
+const savingGroup = ref(false);
+const groupNameDraft = ref<string | null>(null);
+
+const saveSelectionAsGroup = async () => {
+    const name = groupNameDraft.value?.trim();
+    if (!name || selectedParticipants.value.length === 0) return;
+    savingGroup.value = true;
+    try {
+        await userGroupsStore.createGroup({ name, memberIds: [...selectedParticipants.value] });
+        toast.add({
+            severity: 'success',
+            summary: `Saved "${name}"`,
+            detail: 'Find it next time you invite people.',
+            life: 2500
+        });
+        groupNameDraft.value = null;
+    } catch {
+        toast.add({ severity: 'error', summary: "Couldn't save the group", detail: 'Please try again.', life: 3000 });
+    } finally {
+        savingGroup.value = false;
+    }
+};
+
+onMounted(() => {
+    void userGroupsStore.fetchGroups();
+});
 
 const initialize = () => {
     submitted.value = false;
@@ -73,6 +143,7 @@ const initialize = () => {
         end.value = event.endTime ? new Date(event.endTime) : null;
         deadline.value = event.participationDeadline ? new Date(event.participationDeadline) : null;
         selectedParticipants.value = event.participants?.map((participant) => participant.id) || [];
+        selectedCoHosts.value = event.coHosts?.map((coHost) => coHost.id) ?? [];
         selectedFeatures.value = selectedFeaturesFromEvent(event);
         featurePrices.value = featurePricesFromEvent(event);
     } else {
@@ -85,6 +156,7 @@ const initialize = () => {
         end.value = null;
         deadline.value = null;
         selectedParticipants.value = [];
+        selectedCoHosts.value = [];
         selectedFeatures.value = [];
         featurePrices.value = createNullFeatureRecord();
     }
@@ -115,6 +187,9 @@ const errors = computed(() => {
         result.start = 'Start must be between today and one year from now.';
     }
     if (start.value && end.value && end.value <= start.value) result.end = 'End must be after the start.';
+    else if (!isEdit.value && end.value && !isEventStartTimeWithinAllowedRange(end.value)) {
+        result.end = 'End must be between today and one year from now.';
+    }
     if (start.value && deadline.value && deadline.value > start.value) {
         result.deadline = 'The reply deadline must be before the start.';
     }
@@ -142,6 +217,11 @@ const submit = () => {
             ? selectedParticipants.value
             : selectedParticipants.value.length > 0
               ? selectedParticipants.value
+              : undefined,
+        coHosts: isEdit.value
+            ? selectedCoHosts.value
+            : selectedCoHosts.value.length > 0
+              ? selectedCoHosts.value
               : undefined,
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
@@ -334,8 +414,115 @@ defineExpose({ submit });
                         </span>
                     </template>
                 </MultiSelect>
+
+                <!-- Invitation groups -->
+                <div
+                    v-if="userGroups.length || selectedParticipants.length"
+                    class="flex flex-wrap items-center gap-1.5 pt-1"
+                >
+                    <button
+                        v-for="group in userGroups"
+                        :key="group.id"
+                        type="button"
+                        class="pressable border-line text-meta text-fg hover:bg-surface-900 flex h-8 items-center gap-1.5 rounded-full border px-3 font-medium"
+                        :aria-label="`Invite everyone in ${group.name}`"
+                        @click="applyGroup(group.memberIds)"
+                    >
+                        <i class="pi pi-users text-[0.6875rem]"></i>
+                        {{ group.name }}
+                        <span class="text-subtle tabular">{{ group.memberIds.length }}</span>
+                    </button>
+                    <button
+                        v-if="selectedParticipants.length && groupNameDraft === null"
+                        type="button"
+                        class="pressable text-meta text-muted hover:text-fg flex h-8 items-center gap-1.5 rounded-full px-2 font-medium"
+                        @click="groupNameDraft = ''"
+                    >
+                        <i class="pi pi-bookmark text-[0.6875rem]"></i>
+                        Save as group
+                    </button>
+                </div>
+                <div v-if="groupNameDraft !== null" class="animate-rise-in flex items-center gap-2 pt-1">
+                    <InputText
+                        v-model="groupNameDraft"
+                        placeholder="Group name, e.g. Weekend crew"
+                        aria-label="Group name"
+                        autofocus
+                        fluid
+                        @keydown.enter.prevent="saveSelectionAsGroup"
+                        @keydown.esc="groupNameDraft = null"
+                    />
+                    <Button
+                        icon="pi pi-check"
+                        aria-label="Save group"
+                        :loading="savingGroup"
+                        :disabled="!groupNameDraft.trim()"
+                        @click="saveSelectionAsGroup"
+                    />
+                    <Button
+                        icon="pi pi-times"
+                        severity="secondary"
+                        text
+                        aria-label="Cancel"
+                        @click="groupNameDraft = null"
+                    />
+                </div>
+
+                <button
+                    v-if="isEdit && event"
+                    type="button"
+                    class="pressable text-meta text-accent mt-1 flex items-center gap-1.5 self-start font-medium hover:underline"
+                    @click="showGuestInvite = true"
+                >
+                    <i class="pi pi-link text-[0.6875rem]"></i>
+                    Invite someone without an account
+                </button>
+            </div>
+
+            <div v-if="coHostOptions.length || selectedCoHosts.length" class="flex flex-col gap-1.5">
+                <label for="event-cohosts" class="text-meta text-muted font-medium">
+                    Co-hosts
+                    <span v-if="selectedCoHosts.length" class="tabular">· {{ selectedCoHosts.length }}</span>
+                </label>
+                <MultiSelect
+                    inputId="event-cohosts"
+                    v-model="selectedCoHosts"
+                    :options="coHostOptions"
+                    optionLabel="username"
+                    optionValue="id"
+                    placeholder="Choose from who you invited"
+                    display="chip"
+                    :showToggleAll="false"
+                    fluid
+                >
+                    <template #option="slotProps">
+                        <div class="flex items-center gap-2.5">
+                            <UserAvatar
+                                :profilePictureUrl="slotProps.option.profilePictureUrl"
+                                :username="slotProps.option.username"
+                                class="size-7! text-[0.6875rem]!"
+                            />
+                            <span>{{ slotProps.option.username }}</span>
+                        </div>
+                    </template>
+                    <template #chip="slotProps">
+                        <span
+                            class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5"
+                        >
+                            <UserAvatar
+                                :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
+                                :username="userMap.get(slotProps.value)?.username"
+                                class="size-5! text-[0.5625rem]!"
+                            />
+                            {{ userMap.get(slotProps.value)?.username }}
+                        </span>
+                    </template>
+                </MultiSelect>
+                <small class="text-meta text-subtle">Co-hosts can edit the event and manage people, like you.</small>
             </div>
         </section>
+
+        <GuestInviteDialog v-if="isEdit && event" v-model:visible="showGuestInvite" :eventId="event.id" />
 
         <!-- Extras -->
         <section class="flex flex-col gap-3">

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import ToggleSwitch from 'primevue/toggleswitch';
+import SeatStepper from './SeatStepper.vue';
 import { type EventFeature, type TransportMode } from '../../types/Event';
 
 import { FEATURES } from '../../constants/features';
@@ -20,22 +22,48 @@ const props = defineProps<{
     featureCounts?: Record<EventFeature, number>;
     initialTransportMode?: TransportMode;
     initialVehicleSeats?: number;
+    initialVehicleSeatsOutbound?: number;
+    initialVehicleSeatsReturn?: number;
 }>();
 
 const emit = defineEmits<{
     (e: 'update:visible', value: boolean): void;
     (
         e: 'confirm',
-        data: { features: EventFeature[]; transport: { transportMode: TransportMode; vehicleSeats?: number } }
+        data: {
+            features: EventFeature[];
+            transport: {
+                transportMode: TransportMode;
+                vehicleSeats?: number;
+                vehicleSeatsOutbound?: number;
+                vehicleSeatsReturn?: number;
+            };
+        }
     ): void;
 }>();
 
 const MIN_SEATS = 2;
-const MAX_SEATS = 9;
 
 const selectedFeatures = ref<EventFeature[]>([]);
 const transportMode = ref<TransportMode>('NEEDS_RIDE');
-const vehicleSeats = ref(4);
+// Drivers can offer a different number of seats for the way back
+const vehicleSeatsOutbound = ref(MIN_SEATS);
+const vehicleSeatsReturn = ref(MIN_SEATS);
+const splitTrips = ref(false);
+const driverSectionRef = ref<HTMLElement | null>(null);
+
+const atLeastMin = (value: number | undefined, fallback: number) => (value && value >= MIN_SEATS ? value : fallback);
+
+const selectTransportMode = (mode: TransportMode) => {
+    transportMode.value = mode;
+    if (mode !== 'DRIVER') return;
+    if (!splitTrips.value) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
+    void nextTick(() => driverSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+};
+
+const onSplitTripsChange = (split: boolean) => {
+    if (!split) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
+};
 
 const features = computed(() =>
     props.availableFeatures === undefined
@@ -65,7 +93,14 @@ const onConfirm = () => {
         features: selectedFeatures.value,
         transport: {
             transportMode: transportMode.value,
-            vehicleSeats: transportMode.value === 'DRIVER' ? vehicleSeats.value : undefined
+            vehicleSeats: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
+            vehicleSeatsOutbound: transportMode.value === 'DRIVER' ? vehicleSeatsOutbound.value : undefined,
+            vehicleSeatsReturn:
+                transportMode.value === 'DRIVER'
+                    ? splitTrips.value
+                        ? vehicleSeatsReturn.value
+                        : vehicleSeatsOutbound.value
+                    : undefined
         }
     });
 };
@@ -76,7 +111,10 @@ watch(
         if (newVal) {
             selectedFeatures.value = props.initialFeatures ? [...props.initialFeatures] : [];
             transportMode.value = props.initialTransportMode ?? 'NEEDS_RIDE';
-            vehicleSeats.value = props.initialVehicleSeats ?? 4;
+            const seats = atLeastMin(props.initialVehicleSeats, MIN_SEATS);
+            vehicleSeatsOutbound.value = atLeastMin(props.initialVehicleSeatsOutbound, seats);
+            vehicleSeatsReturn.value = atLeastMin(props.initialVehicleSeatsReturn, vehicleSeatsOutbound.value);
+            splitTrips.value = vehicleSeatsOutbound.value !== vehicleSeatsReturn.value;
         }
     }
 );
@@ -87,7 +125,7 @@ watch(
         :visible="visible"
         @update:visible="emit('update:visible', $event)"
         modal
-        :header="submitLabel === 'Save changes' ? 'Your choices' : 'Join event'"
+        :header="submitLabel?.toLowerCase() === 'save changes' ? 'Your choices' : 'Join event'"
         :style="{ width: '26rem' }"
         dismissableMask
         :draggable="false"
@@ -146,7 +184,7 @@ watch(
                                 : 'border-line bg-raised text-muted hover:border-line-strong'
                         "
                         :aria-pressed="transportMode === option.id"
-                        @click="transportMode = option.id"
+                        @click="selectTransportMode(option.id)"
                     >
                         <span class="font-emoji text-xl">{{ option.icon }}</span>
                         <span class="text-meta font-medium">{{ option.label }}</span>
@@ -155,35 +193,26 @@ watch(
 
                 <div
                     v-if="transportMode === 'DRIVER'"
-                    class="border-line bg-raised animate-rise-in mt-1 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+                    ref="driverSectionRef"
+                    class="border-line bg-raised divide-line animate-rise-in mt-1 divide-y overflow-hidden rounded-2xl border"
                 >
-                    <div>
-                        <p class="text-body text-fg m-0 font-medium">Seats in your car</p>
-                        <p class="text-meta text-muted m-0">Including you</p>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <Button
-                            icon="pi pi-minus"
-                            severity="secondary"
-                            rounded
-                            size="small"
-                            aria-label="Fewer seats"
-                            :disabled="vehicleSeats <= MIN_SEATS"
-                            @click="vehicleSeats--"
-                        />
-                        <span class="text-headline font-display tabular w-8 text-center font-semibold">
-                            {{ vehicleSeats }}
+                    <SeatStepper
+                        v-model="vehicleSeatsOutbound"
+                        :label="splitTrips ? 'Seats going' : 'Seats in your car'"
+                        @update:model-value="(value) => !splitTrips && (vehicleSeatsReturn = value)"
+                    />
+                    <label for="split-trips" class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+                        <span>
+                            <span class="text-body text-fg block font-medium">Different seats coming back</span>
+                            <span class="text-meta text-muted block">Set the return trip separately</span>
                         </span>
-                        <Button
-                            icon="pi pi-plus"
-                            severity="secondary"
-                            rounded
-                            size="small"
-                            aria-label="More seats"
-                            :disabled="vehicleSeats >= MAX_SEATS"
-                            @click="vehicleSeats++"
+                        <ToggleSwitch
+                            inputId="split-trips"
+                            v-model="splitTrips"
+                            @update:modelValue="onSplitTripsChange"
                         />
-                    </div>
+                    </label>
+                    <SeatStepper v-if="splitTrips" v-model="vehicleSeatsReturn" label="Seats coming back" />
                 </div>
             </section>
         </div>

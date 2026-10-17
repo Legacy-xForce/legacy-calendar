@@ -12,6 +12,7 @@ export interface ChatMessage {
     eventId: number;
     authorId: number;
     authorUsername: string;
+    authorProfilePictureUrl?: string | null;
     text: string | null;
     mediaUrl: string | null;
     mediaType: ChatMediaType | null;

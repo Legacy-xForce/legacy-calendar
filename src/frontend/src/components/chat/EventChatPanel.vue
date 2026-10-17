@@ -192,6 +192,7 @@ const onEmojiSelect = (emoji: any) => {
                                 <UserAvatar
                                     v-if="row.last"
                                     :username="row.message.authorUsername"
+                                    :profilePictureUrl="row.message.authorProfilePictureUrl"
                                     class="size-7! text-[0.6875rem]!"
                                 />
                             </div>

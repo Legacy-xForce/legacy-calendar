@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { Event, EventParticipant } from '../../../types/Event';
+import { computed, ref, watch } from 'vue';
+import type { Event, EventParticipant, RideDirection } from '../../../types/Event';
 import UserAvatar from '../../UserAvatar.vue';
 import { injectEventView } from '../../../composables/useEventView';
 
@@ -10,14 +10,15 @@ defineProps<{
 
 const {
     drivers,
-    needsRide,
+    getNeedsRide,
     selfTransport,
-    resolvedInvitees,
     dragOverDriverId,
     isHost,
     isEnded,
     isAldoMoro,
     getAvailableSeats,
+    getAssignedPassengers,
+    hasSplitSeats,
     currentUser
 } = injectEventView();
 
@@ -30,30 +31,53 @@ const canEditRide = (driverId: number) => {
 };
 
 const emit = defineEmits<{
-    (e: 'drag-start', event: DragEvent, passengerId: number): void;
+    (e: 'drag-start', event: DragEvent, passengerId: number, direction: RideDirection): void;
     (e: 'drag-over', event: DragEvent, driverId: number): void;
     (e: 'drag-leave'): void;
-    (e: 'drop', event: DragEvent, driverId: number): void;
-    (e: 'assign-ride', passengerId: number, driverId: number | null): void;
-    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null): void;
+    (e: 'drop', event: DragEvent, driverId: number, direction: RideDirection): void;
+    (e: 'assign-ride', passengerId: number, driverId: number | null, direction: RideDirection): void;
+    (e: 'assign-rides-batch', passengerIds: number[], driverId: number | null, direction: RideDirection): void;
 }>();
 
 const selectedPassengerIds = ref<number[]>([]);
 
-const passengersMap = computed(() => {
-    const map: Record<number, EventParticipant[]> = {};
-    resolvedInvitees.value.forEach((p) => {
-        if (p.driver?.id) {
-            if (!map[p.driver.id]) map[p.driver.id] = [];
-            map[p.driver.id].push(p);
-        }
-    });
-    return map;
+// Rides are planned per leg; the switch only appears when some driver has different seats on the way back
+const DIRECTIONS: { value: RideDirection; label: string }[] = [
+    { value: 'OUTBOUND', label: 'Going' },
+    { value: 'RETURN', label: 'Coming back' }
+];
+const activeDirection = ref<RideDirection>('OUTBOUND');
+const hasDifferentSeatCounts = computed(() => drivers.value.some(hasSplitSeats));
+const needsRide = computed(() => getNeedsRide(activeDirection.value));
+
+watch(hasDifferentSeatCounts, (isSplit) => {
+    if (!isSplit) {
+        activeDirection.value = 'OUTBOUND';
+        selectedPassengerIds.value = [];
+    }
 });
 
-const getPassengersForDriver = (driverId: number) => passengersMap.value[driverId] || [];
+const selectDirection = (direction: RideDirection) => {
+    activeDirection.value = direction;
+    selectedPassengerIds.value = [];
+};
 
-const hasAnyone = computed(() => drivers.value.length + needsRide.value.length + selfTransport.value.length > 0);
+const getPassengersForDriver = (driverId: number): EventParticipant[] =>
+    getAssignedPassengers(driverId, activeDirection.value);
+const seatsFree = (driver: EventParticipant) => getAvailableSeats(driver, activeDirection.value);
+const seatsTotal = (driver: EventParticipant) =>
+    (activeDirection.value === 'RETURN'
+        ? (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 1)
+        : (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 1)) - 1;
+
+const hasAnyone = computed(
+    () =>
+        drivers.value.length +
+            getNeedsRide('OUTBOUND').length +
+            getNeedsRide('RETURN').length +
+            selfTransport.value.length >
+        0
+);
 
 const togglePassengerSelection = (passengerId: number) => {
     if (!canEditRides.value) return;
@@ -71,10 +95,10 @@ const handleDriverClick = (driverId: number) => {
     if (selectedPassengerIds.value.length === 0) return;
 
     const driver = drivers.value.find((d) => d.id === driverId);
-    const availableSeats = getAvailableSeats(driver);
+    const availableSeats = getAvailableSeats(driver, activeDirection.value);
 
     if (selectedPassengerIds.value.length <= availableSeats) {
-        emit('assign-rides-batch', [...selectedPassengerIds.value], driverId);
+        emit('assign-rides-batch', [...selectedPassengerIds.value], driverId, activeDirection.value);
         selectedPassengerIds.value = [];
     }
 };
@@ -82,7 +106,7 @@ const handleDriverClick = (driverId: number) => {
 const canAssignToDriver = (driverId: number) => {
     if (selectedPassengerIds.value.length === 0) return false;
     const driver = drivers.value.find((d) => d.id === driverId);
-    return selectedPassengerIds.value.length <= getAvailableSeats(driver);
+    return selectedPassengerIds.value.length <= getAvailableSeats(driver, activeDirection.value);
 };
 
 const driverCardClass = (driverId: number, seatsLeft: number) => {
@@ -111,6 +135,32 @@ const driverCardClass = (driverId: number, seatsLeft: number) => {
         </div>
 
         <div
+            v-if="hasDifferentSeatCounts"
+            class="bg-surface-900 grid grid-cols-2 gap-1 rounded-xl p-1"
+            role="tablist"
+            aria-label="Ride direction"
+        >
+            <button
+                v-for="direction in DIRECTIONS"
+                :key="direction.value"
+                type="button"
+                role="tab"
+                class="pressable text-meta flex h-9 items-center justify-center gap-2 rounded-lg font-medium transition-colors"
+                :class="activeDirection === direction.value ? 'bg-surface-800 text-fg' : 'text-muted hover:text-fg'"
+                :aria-selected="activeDirection === direction.value"
+                @click="selectDirection(direction.value)"
+            >
+                {{ direction.label }}
+                <span
+                    v-if="getNeedsRide(direction.value).length"
+                    class="tabular rounded-full bg-amber-300/15 px-1.5 text-[0.6875rem] text-amber-200"
+                >
+                    {{ getNeedsRide(direction.value).length }}
+                </span>
+            </button>
+        </div>
+
+        <div
             v-if="isAldoMoro"
             class="flex items-center gap-3 rounded-2xl border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-rose-300"
         >
@@ -126,10 +176,10 @@ const driverCardClass = (driverId: number, seatsLeft: number) => {
                 v-for="driver in drivers"
                 :key="driver.id"
                 class="flex flex-col gap-3 rounded-2xl border p-3.5 transition-colors duration-150"
-                :class="driverCardClass(driver.id, getAvailableSeats(driver))"
+                :class="driverCardClass(driver.id, seatsFree(driver))"
                 @dragover="emit('drag-over', $event, driver.id)"
                 @dragleave="emit('drag-leave')"
-                @drop="emit('drop', $event, driver.id)"
+                @drop="emit('drop', $event, driver.id, activeDirection)"
                 @click="handleDriverClick(driver.id)"
             >
                 <div class="flex items-center gap-3">
@@ -138,12 +188,12 @@ const driverCardClass = (driverId: number, seatsLeft: number) => {
                         <p class="text-body text-fg m-0 truncate font-medium">{{ driver.username }}</p>
                         <p
                             class="text-meta tabular m-0"
-                            :class="getAvailableSeats(driver) > 0 ? 'text-muted' : 'text-rose-300'"
+                            :class="seatsFree(driver) > 0 ? 'text-muted' : 'text-rose-300'"
                         >
                             <i class="pi pi-car mr-1 text-[0.6875rem]"></i>
                             {{
-                                getAvailableSeats(driver) > 0
-                                    ? `${getAvailableSeats(driver)} of ${(driver.vehicleSeats ?? 1) - 1} seats free`
+                                seatsFree(driver) > 0
+                                    ? `${seatsFree(driver)} of ${seatsTotal(driver)} seats free`
                                     : 'Full'
                             }}
                         </p>
@@ -179,7 +229,7 @@ const driverCardClass = (driverId: number, seatsLeft: number) => {
                             type="button"
                             class="text-subtle hover:bg-surface-800 hover:text-fg flex size-6 items-center justify-center rounded-full"
                             :aria-label="`Remove ${passenger.username} from this car`"
-                            @click.stop="emit('assign-ride', passenger.id, null)"
+                            @click.stop="emit('assign-ride', passenger.id, null, activeDirection)"
                         >
                             <i class="pi pi-times text-[0.5625rem]"></i>
                         </button>
@@ -219,7 +269,7 @@ const driverCardClass = (driverId: number, seatsLeft: number) => {
                             : 'border-line bg-surface-900 text-fg'
                     "
                     :aria-pressed="selectedPassengerIds.includes(passenger.id)"
-                    @dragstart="emit('drag-start', $event, passenger.id)"
+                    @dragstart="emit('drag-start', $event, passenger.id, activeDirection)"
                     @click="togglePassengerSelection(passenger.id)"
                 >
                     <UserAvatar

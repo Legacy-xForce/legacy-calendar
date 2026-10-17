@@ -7,12 +7,14 @@ export const socketBaseURL = import.meta.env.VITE_WS_URL || baseURL;
 export const socketPath = '/socket.io';
 export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
-import type { CreateUserDto, UpdateUserDto, User } from '../types/User';
-import type { AuthLoginDto, ChangePasswordDto } from '../types/Auth';
+import type { CreateUserDto, PaymentInfo, UpdatePaymentInfoDto, UpdateUserDto, User } from '../types/User';
+import type { AuthLoginDto, AuthTokens, ChangePasswordDto } from '../types/Auth';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
 import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat';
 import type { AuditLogEntry } from '../types/AuditLog';
+import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
+import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
 
 // --- API Class ---
 
@@ -20,6 +22,7 @@ const logger = createLogger('API');
 
 class API {
     private client: AxiosInstance;
+    private refreshPromise: Promise<string> | null = null;
 
     constructor() {
         this.client = axios.create({
@@ -68,7 +71,7 @@ class API {
                 });
                 return response;
             },
-            (error) => {
+            async (error) => {
                 logger.warn('Request failed', {
                     method: error?.config?.method?.toUpperCase() ?? 'UNKNOWN',
                     url: error?.config?.url,
@@ -76,25 +79,92 @@ class API {
                     message: error?.response?.data?.message ?? error.message
                 });
 
-                if (error.response && error.response.status === 401) {
-                    // Session is invalid or expired
-                    localStorage.removeItem('token');
-                    localStorage.setItem('session_expired', 'true');
+                const originalRequest = error.config;
+                const refreshToken = localStorage.getItem('refresh_token');
 
-                    // Force redirect to login if not already there
-                    if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
-                        window.location.href = '/';
+                if (
+                    error.response &&
+                    error.response.status === 401 &&
+                    refreshToken &&
+                    originalRequest &&
+                    !originalRequest._retry
+                ) {
+                    originalRequest._retry = true;
+                    try {
+                        const newToken = await this.refreshAccessToken(refreshToken);
+                        originalRequest.headers = originalRequest.headers || {};
+                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        return this.client.request(originalRequest);
+                    } catch (refreshError) {
+                        logger.warn('Token refresh failed, clearing session', {
+                            message: (refreshError as any)?.response?.data?.message ?? (refreshError as any)?.message
+                        });
+                        this.clearSession();
+                        return Promise.reject(error);
                     }
+                }
+
+                if (error.response && error.response.status === 403) {
+                    const data = error.response.data;
+                    const msg = String(data?.message || data?.error || '').toLowerCase();
+                    if (msg.includes('disabled') || data?.status === 'disabled') {
+                        if (!window.location.pathname.startsWith('/disabled')) {
+                            window.location.href = '/disabled';
+                        }
+                    } else if (
+                        msg.includes('scope') ||
+                        msg.includes('permission') ||
+                        data?.error === 'insufficient_scope'
+                    ) {
+                        if (!window.location.pathname.startsWith('/insufficient-scope')) {
+                            window.location.href = '/insufficient-scope';
+                        }
+                    }
+                }
+
+                if (error.response && error.response.status === 401) {
+                    // Session is invalid or expired, and no refresh was possible
+                    this.clearSession();
                 }
                 return Promise.reject(error);
             }
         );
     }
 
+    private clearSession() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        localStorage.setItem('session_expired', 'true');
+
+        // Force redirect to login if not already there
+        if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
+            window.location.href = '/';
+        }
+    }
+
+    private async refreshAccessToken(refreshToken: string): Promise<string> {
+        if (!this.refreshPromise) {
+            this.refreshPromise = axios
+                .post<AuthTokens>(`${authBaseURL}/auth/refresh`, { refresh_token: refreshToken })
+                .then((res) => {
+                    localStorage.setItem('token', res.data.access_token);
+                    if (res.data.refresh_token) {
+                        localStorage.setItem('refresh_token', res.data.refresh_token);
+                    }
+                    logger.info('Access token refreshed');
+                    return res.data.access_token;
+                })
+                .finally(() => {
+                    this.refreshPromise = null;
+                });
+        }
+        return this.refreshPromise;
+    }
+
     // --- Auth ---
 
-    async login(dto: AuthLoginDto): Promise<AxiosResponse<{ access_token: string }>> {
-        // Authenticate against the external auth microservice and return its token
+    async login(dto: AuthLoginDto): Promise<AxiosResponse<AuthTokens>> {
+        // Authenticate against the external auth microservice and return its tokens
         return axios.post(`${authBaseURL}/auth/login`, dto);
     }
 
@@ -123,6 +193,10 @@ class API {
 
     async updateUser(id: number, dto: UpdateUserDto): Promise<AxiosResponse<User>> {
         return this.client.patch(`/users/${id}`, dto);
+    }
+
+    async updateMyPaymentInfo(dto: UpdatePaymentInfoDto): Promise<AxiosResponse<PaymentInfo>> {
+        return this.client.patch('/users/me/payment-info', dto);
     }
 
     async removeUser(id: number): Promise<AxiosResponse<void>> {
@@ -190,14 +264,37 @@ class API {
         return this.client.delete(`/notifications/mute/${eventId}`);
     }
 
-    async assignRide(eventId: number, passengerId: number, driverId: number | null): Promise<AxiosResponse<void>> {
-        return this.client.post(`/events/${eventId}/assign-ride`, { passengerId, driverId });
+    async assignRide(
+        eventId: number,
+        passengerId: number,
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ): Promise<AxiosResponse<void>> {
+        return this.client.post(`/events/${eventId}/assign-ride`, { passengerId, driverId, direction });
     }
 
     async getEventAuditLog(eventId: number): Promise<AxiosResponse<AuditLogEntry[]>> {
         return this.client.get(`/events/${eventId}/audit-log`, {
             timeout: 30000
         });
+    }
+
+    // --- Guest Invites ---
+
+    async createGuestInvite(eventId: number): Promise<AxiosResponse<CreateGuestInviteResponse>> {
+        return this.client.post(`/events/${eventId}/guest-invites`);
+    }
+
+    async getGuestInvite(token: string): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.get(`/guest-invites/${token}`);
+    }
+
+    async updateGuestInvite(token: string, dto: GuestParticipateDto): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.patch(`/guest-invites/${token}`, dto);
+    }
+
+    async leaveGuestInvite(token: string): Promise<AxiosResponse<GuestInviteResponse>> {
+        return this.client.delete(`/guest-invites/${token}`);
     }
 
     // --- Chat ---
@@ -224,6 +321,60 @@ class API {
                 'Content-Type': 'multipart/form-data'
             }
         });
+    }
+
+    // --- Payment ---
+
+    async updateParticipantPayment(
+        eventId: number,
+        userId: number,
+        hasPaid: boolean
+    ): Promise<AxiosResponse<{ success: boolean; hasPaid: boolean }>> {
+        return this.client.patch(`/events/${eventId}/participants/${userId}/payment`, { hasPaid });
+    }
+
+    // --- User Groups ---
+
+    async getUserGroups(): Promise<AxiosResponse<UserGroup[]>> {
+        return this.client.get('/user-groups');
+    }
+
+    async createUserGroup(dto: CreateUserGroupDto): Promise<AxiosResponse<UserGroup>> {
+        return this.client.post('/user-groups', dto);
+    }
+
+    async updateUserGroup(id: number, dto: UpdateUserGroupDto): Promise<AxiosResponse<UserGroup>> {
+        return this.client.patch(`/user-groups/${id}`, dto);
+    }
+
+    async deleteUserGroup(id: number): Promise<AxiosResponse<void>> {
+        return this.client.delete(`/user-groups/${id}`);
+    }
+
+    // --- Passkeys ---
+
+    async getPasskeyRegisterOptions(): Promise<AxiosResponse<any>> {
+        return this.client.post('/auth/passkey/register-options', {});
+    }
+
+    async verifyPasskeyRegister(dto: any): Promise<AxiosResponse<any>> {
+        return this.client.post('/auth/passkey/register-verify', dto);
+    }
+
+    async getPasskeyLoginOptions(username?: string): Promise<AxiosResponse<any>> {
+        return this.client.post('/auth/passkey/login-options', { username });
+    }
+
+    async verifyPasskeyLogin(dto: any): Promise<AxiosResponse<any>> {
+        return this.client.post('/auth/passkey/login-verify', dto);
+    }
+
+    async getPasskeys(): Promise<AxiosResponse<{ id: string; deviceName: string; createdAt: string }[]>> {
+        return this.client.get('/auth/passkey/credentials');
+    }
+
+    async deletePasskey(id: string): Promise<AxiosResponse<void>> {
+        return this.client.delete(`/auth/passkey/credentials/${encodeURIComponent(id)}`);
     }
 }
 

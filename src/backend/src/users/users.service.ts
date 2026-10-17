@@ -3,6 +3,7 @@ import { Prisma, User as UserModel } from '../../prisma/generated/client.js';
 
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UpdatePaymentInfoDto } from './dto/update-payment-info.dto.js';
 import { UserDto } from './dto/user.dto.js';
 import { UsersRepository, UserRecord } from './users.repository.js';
 import { buildProfilePictureUrl } from './profile-picture.util.js';
@@ -51,32 +52,41 @@ export class UsersService {
         return this.usersRepo.findOneByUsername(username);
     }
 
-    // Keeps the local user record in sync with the identity asserted by the auth
-    // microservice's JWT (sub = authId), creating it on first sight.
-    async syncFromAuth(params: { authId: string; username: string; isAdmin: boolean }): Promise<UserRecord | null> {
-        const { authId, username, isAdmin } = params;
+    // Provision an app-local record on the first authenticated request. Identity
+    // comes from authId; authorization roles remain managed by this application.
+    async syncFromAuth(params: { authId: string; username: string; isAdmin?: boolean }): Promise<UserRecord | null> {
+        const { authId, username } = params;
 
-        let user = await this.usersRepo.findOneByUsername(username);
-        if (!user) {
-            try {
-                user = await this.usersRepo.create({ username, isAdmin, authId });
-            } catch {
-                user = await this.usersRepo.findOneByUsername(username);
-            }
+        const byAuthId = await this.usersRepo.findOneByAuthId(authId);
+        if (byAuthId) {
+            return byAuthId;
         }
 
-        if (!user) {
+        const byUsername = await this.usersRepo.findOneByUsername(username);
+        if (byUsername) {
+            // Link legacy app users that have not yet been associated with an auth
+            // identity, while never moving an existing identity to another account.
+            if (byUsername.authId && byUsername.authId !== authId) {
+                return null;
+            }
+            return this.usersRepo.update(byUsername.id, { authId });
+        }
+
+        try {
+            return await this.usersRepo.create({ username, authId, isAdmin: params.isAdmin ?? false });
+        } catch {
+            // Concurrent first requests can race on either unique key.
+            const racedByAuthId = await this.usersRepo.findOneByAuthId(authId);
+            if (racedByAuthId) {
+                return racedByAuthId;
+            }
+
+            const racedByUsername = await this.usersRepo.findOneByUsername(username);
+            if (racedByUsername && !racedByUsername.authId) {
+                return this.usersRepo.update(racedByUsername.id, { authId });
+            }
             return null;
         }
-
-        if (user.isAdmin !== isAdmin || user.authId !== authId) {
-            user = await this.usersRepo.update(user.id, {
-                isAdmin,
-                authId
-            });
-        }
-
-        return user;
     }
 
     async update(id: number, updateUserDto: UpdateUserDto): Promise<UserDto> {
@@ -88,6 +98,31 @@ export class UsersService {
         } catch (error) {
             this.handleUserWriteError(error, id);
             this.logger.error('Failed to update user', error);
+            throw error;
+        }
+    }
+
+    async updatePaymentInfo(id: number, dto: UpdatePaymentInfoDto) {
+        this.logger.info('Updating user payment info', { userId: id, fields: Object.keys(dto) });
+        // An empty string from the profile form means "clear this field".
+        const toNullable = (value: string | undefined) => (value === '' ? null : value);
+        try {
+            const user = await this.usersRepo.update(id, {
+                ...(dto.paypalLink !== undefined && { paypalLink: toNullable(dto.paypalLink) }),
+                ...(dto.ibanNumber !== undefined && { ibanNumber: toNullable(dto.ibanNumber) }),
+                ...(dto.ibanAccountHolder !== undefined && { ibanAccountHolder: toNullable(dto.ibanAccountHolder) }),
+                ...(dto.revolutLink !== undefined && { revolutLink: toNullable(dto.revolutLink) })
+            });
+            this.logger.info('User payment info updated', { userId: id });
+            return {
+                paypalLink: user.paypalLink,
+                ibanNumber: user.ibanNumber,
+                ibanAccountHolder: user.ibanAccountHolder,
+                revolutLink: user.revolutLink
+            };
+        } catch (error) {
+            this.handleUserWriteError(error, id);
+            this.logger.error('Failed to update user payment info', error);
             throw error;
         }
     }
@@ -110,7 +145,12 @@ export class UsersService {
             id: user.id,
             username: user.username,
             isAdmin: user.isAdmin,
-            profilePictureUrl: buildProfilePictureUrl(user.authId)
+            profilePictureUrl: buildProfilePictureUrl(user.authId),
+            isGuest: false,
+            paypalLink: user.paypalLink,
+            ibanNumber: user.ibanNumber,
+            ibanAccountHolder: user.ibanAccountHolder,
+            revolutLink: user.revolutLink
         };
     }
 

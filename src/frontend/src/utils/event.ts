@@ -242,10 +242,19 @@ export function openNavigation(location: string | null | undefined) {
     window.open(url, '_blank');
 }
 
+export function isEventManager(event: Event | null | undefined, currentUserId: number | null | undefined) {
+    if (!event || currentUserId == null) return false;
+    return (
+        event.hostId === currentUserId ||
+        event.host?.id === currentUserId ||
+        (event.coHosts?.some((coHost) => coHost.id === currentUserId) ?? false)
+    );
+}
+
 export function hasLocalChatAccess(event: Event | null | undefined, currentUserId: number | null | undefined) {
     if (!event || currentUserId == null) return false;
 
-    const isHost = event.hostId === currentUserId || event.host?.id === currentUserId;
+    const isHost = isEventManager(event, currentUserId);
     if (isHost) return true;
 
     return (
@@ -258,7 +267,7 @@ export function hasLocalChatAccess(event: Event | null | undefined, currentUserI
 export function hasLocalAuditLogAccess(event: Event | null | undefined, currentUserId: number | null | undefined) {
     if (!event || currentUserId == null) return false;
 
-    if (event.hostId === currentUserId || event.host?.id === currentUserId) {
+    if (isEventManager(event, currentUserId)) {
         return true;
     }
 

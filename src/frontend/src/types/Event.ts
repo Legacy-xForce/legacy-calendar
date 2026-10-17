@@ -6,6 +6,7 @@ export interface CreateEventDto {
     startTime: string;
     endTime?: string;
     participants?: number[];
+    coHosts?: number[];
     isOpen: boolean;
     isPrivate: boolean;
     hasFood?: boolean;
@@ -29,11 +30,17 @@ export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
 
 export const TRANSPORT_MODES = ['NEEDS_RIDE', 'SELF', 'DRIVER'] as const;
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
+export type RideDirection = 'OUTBOUND' | 'RETURN';
 
 export interface EventPersonSummary {
     id: number;
     username: string;
     profilePictureUrl?: string | null;
+    // Only populated for event hosts/co-hosts, never for participants at large.
+    paypalLink?: string | null;
+    ibanNumber?: string | null;
+    ibanAccountHolder?: string | null;
+    revolutLink?: string | null;
 }
 
 export interface EventParticipant extends EventPersonSummary {
@@ -45,8 +52,15 @@ export interface EventParticipant extends EventPersonSummary {
     wantsBeer?: boolean;
     transportMode?: TransportMode;
     vehicleSeats?: number;
+    vehicleSeatsOutbound?: number;
+    vehicleSeatsReturn?: number;
+    hasPaid?: boolean;
     driverId?: number;
     driver?: EventPersonSummary;
+    driverIdOutbound?: number;
+    driverOutbound?: EventPersonSummary;
+    driverIdReturn?: number;
+    driverReturn?: EventPersonSummary;
 }
 
 export interface Event {
@@ -84,4 +98,6 @@ export interface ParticipateDto {
     wantsBeer?: boolean;
     transportMode?: TransportMode;
     vehicleSeats?: number;
+    vehicleSeatsOutbound?: number;
+    vehicleSeatsReturn?: number;
 }

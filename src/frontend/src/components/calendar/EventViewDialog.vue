@@ -8,7 +8,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useRoute, useRouter } from 'vue-router';
 
-import type { Event, EventFeature, TransportMode } from '../../types/Event';
+import type { Event, EventFeature, RideDirection, TransportMode } from '../../types/Event';
 import { useEventsStore } from '../../stores/events';
 import EventViewMode from './event-view/EventViewMode.vue';
 import { useEventView, EventViewInjectionKey } from '../../composables/useEventView';
@@ -131,7 +131,12 @@ const onDecline = () => onLeaveEvent(true);
 
 const handleFeatureConfirm = async (data: {
     features: EventFeature[];
-    transport: { transportMode: TransportMode; vehicleSeats?: number };
+    transport: {
+        transportMode: TransportMode;
+        vehicleSeats?: number;
+        vehicleSeatsOutbound?: number;
+        vehicleSeatsReturn?: number;
+    };
 }) => {
     showFeatureSelection.value = false;
     if (!props.event || !currentUser.value) return;
@@ -141,7 +146,9 @@ const handleFeatureConfirm = async (data: {
         const participateDto: ParticipateDto = {
             ...participantWantsFromSelection(data.features),
             transportMode: data.transport.transportMode,
-            vehicleSeats: data.transport.vehicleSeats
+            vehicleSeats: data.transport.vehicleSeats,
+            vehicleSeatsOutbound: data.transport.vehicleSeatsOutbound,
+            vehicleSeatsReturn: data.transport.vehicleSeatsReturn
         };
 
         const success = await eventsStore.joinEvent(props.event.id, participateDto);
@@ -159,9 +166,10 @@ const handleFeatureConfirm = async (data: {
     }
 };
 
-const onDragStart = (event: DragEvent, passengerId: number) => {
+const onDragStart = (event: DragEvent, passengerId: number, direction: RideDirection) => {
     if (!event.dataTransfer) return;
     event.dataTransfer.setData('passengerId', passengerId.toString());
+    event.dataTransfer.setData('direction', direction);
     event.dataTransfer.effectAllowed = 'move';
 };
 
@@ -175,11 +183,11 @@ const onDragLeave = () => {
     dragOverDriverId.value = null;
 };
 
-const assignRide = async (passengerId: number, driverId: number | null) => {
+const assignRide = async (passengerId: number, driverId: number | null, direction: RideDirection = 'OUTBOUND') => {
     if (!props.event) return;
 
     try {
-        const success = await eventsStore.assignRide(props.event.id, passengerId, driverId);
+        const success = await eventsStore.assignRide(props.event.id, passengerId, driverId, direction);
         if (success) emit('refresh');
         else throw new Error();
     } catch {
@@ -192,11 +200,15 @@ const assignRide = async (passengerId: number, driverId: number | null) => {
     }
 };
 
-const assignRidesBatch = async (passengerIds: number[], driverId: number | null) => {
+const assignRidesBatch = async (
+    passengerIds: number[],
+    driverId: number | null,
+    direction: RideDirection = 'OUTBOUND'
+) => {
     if (!props.event) return;
 
     try {
-        const success = await eventsStore.assignRidesBatch(props.event.id, passengerIds, driverId);
+        const success = await eventsStore.assignRidesBatch(props.event.id, passengerIds, driverId, direction);
         if (success) emit('refresh');
         else throw new Error();
     } catch {
@@ -209,7 +221,7 @@ const assignRidesBatch = async (passengerIds: number[], driverId: number | null)
     }
 };
 
-const onDrop = async (event: DragEvent, driverId: number) => {
+const onDrop = async (event: DragEvent, driverId: number, direction: RideDirection) => {
     event.preventDefault();
     dragOverDriverId.value = null;
 
@@ -218,7 +230,7 @@ const onDrop = async (event: DragEvent, driverId: number) => {
     const passengerId = Number.parseInt(event.dataTransfer.getData('passengerId'), 10);
     if (Number.isNaN(passengerId)) return;
 
-    await assignRide(passengerId, driverId);
+    await assignRide(passengerId, driverId, direction);
 };
 
 const onDelete = () => {
@@ -364,6 +376,12 @@ function parseEventId(value: unknown) {
         :initialFeatures="currentUser ? getParticipantFeatures(currentUser.id) : []"
         :initialTransportMode="props.event?.participants?.find((p) => p.id === currentUser?.id)?.transportMode"
         :initialVehicleSeats="props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeats"
+        :initialVehicleSeatsOutbound="
+            props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeatsOutbound
+        "
+        :initialVehicleSeatsReturn="
+            props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeatsReturn
+        "
         :submitLabel="userParticipantStatus === 'ACCEPTED' ? 'Save changes' : 'Join event'"
         :featurePrices="eventPrices"
         :featureSplitPrices="eventSplitPrices"

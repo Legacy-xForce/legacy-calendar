@@ -43,4 +43,21 @@ export class ParticipateDto {
     @Min(2)
     @Max(9)
     vehicleSeats?: number;
+
+    @ApiProperty({
+        type: Number,
+        example: 4,
+        description: 'Number of outbound seats (for DRIVER mode)',
+        required: false
+    })
+    @IsOptional()
+    @Min(2)
+    @Max(9)
+    vehicleSeatsOutbound?: number;
+
+    @ApiProperty({ type: Number, example: 4, description: 'Number of return seats (for DRIVER mode)', required: false })
+    @IsOptional()
+    @Min(2)
+    @Max(9)
+    vehicleSeatsReturn?: number;
 }

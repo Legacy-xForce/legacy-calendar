@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Avatar from 'primevue/avatar';
 
 const props = defineProps<{
@@ -9,11 +9,21 @@ const props = defineProps<{
     shape?: 'circle' | 'square';
 }>();
 
+// Fall back to initials when the image URL is broken or unreachable
+const imageFailed = ref(false);
+watch(
+    () => props.profilePictureUrl,
+    () => {
+        imageFailed.value = false;
+    }
+);
+const showImage = computed(() => !!props.profilePictureUrl && !imageFailed.value);
+
 // Stable, low-chroma tint per person so initials-only avatars are still tellable apart.
 const HUES = [20, 55, 95, 150, 190, 230, 270, 320];
 
 const initialsStyle = computed(() => {
-    if (props.profilePictureUrl) return undefined;
+    if (showImage.value) return undefined;
     const name = props.username ?? '';
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
@@ -27,8 +37,8 @@ const initialsStyle = computed(() => {
 
 <template>
     <Avatar
-        :image="profilePictureUrl || undefined"
-        :label="!profilePictureUrl ? username?.charAt(0)?.toUpperCase() || '?' : undefined"
+        :image="showImage ? profilePictureUrl || undefined : undefined"
+        :label="!showImage ? username?.charAt(0)?.toUpperCase() || '?' : undefined"
         :shape="shape || 'circle'"
         :size="size"
         :style="initialsStyle"
@@ -38,7 +48,8 @@ const initialsStyle = computed(() => {
             image: {
                 draggable: false,
                 alt: '',
-                loading: 'lazy'
+                loading: 'lazy',
+                onError: () => (imageFailed = true)
             }
         }"
     />

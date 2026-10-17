@@ -21,6 +21,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@ne
 import { EventResponseDto } from './dto/event-response.dto.js';
 import { type RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import { FindEventsQueryDto } from './dto/find-events-query.dto.js';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto.js';
 
 @ApiTags('events')
 @Controller('events')
@@ -178,12 +179,37 @@ export class EventsController {
         @Param('id', ParseIntPipe) id: number,
         @Body('passengerId') passengerId: number,
         @Body('driverId') driverId: number | null,
+        @Body('direction') direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
         @Request() req: RequestWithUser
     ) {
         return this.eventsService.assignRide(
             id,
             passengerId,
             driverId,
+            direction,
+            req.user.userId as number,
+            req.impersonatorUserId ?? null
+        );
+    }
+
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/participants/:userId/payment')
+    @ApiOperation({ summary: 'Update payment status for a participant (host/co-host only)' })
+    @ApiResponse({ status: 200, description: 'Payment status updated successfully' })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @ApiResponse({ status: 403, description: 'Forbidden' })
+    @ApiResponse({ status: 404, description: 'Event or participant not found' })
+    updatePaymentStatus(
+        @Param('id', ParseIntPipe) id: number,
+        @Param('userId', ParseIntPipe) userId: number,
+        @Body() dto: UpdatePaymentStatusDto,
+        @Request() req: RequestWithUser
+    ) {
+        return this.eventsService.updatePaymentStatus(
+            id,
+            userId,
+            dto.hasPaid,
             req.user.userId as number,
             req.impersonatorUserId ?? null
         );

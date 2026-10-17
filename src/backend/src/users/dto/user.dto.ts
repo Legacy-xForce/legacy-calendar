@@ -17,4 +17,47 @@ export class UserDto {
         description: 'URL of the user profile picture, served by the auth microservice'
     })
     profilePictureUrl!: string | null;
+
+    @ApiProperty({
+        type: Boolean,
+        example: false,
+        description: 'Whether this is a temporary guest account created via a magic-link invite'
+    })
+    isGuest!: boolean;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'https://paypal.me/johndoe',
+        description: 'PayPal link for receiving payments',
+        required: false
+    })
+    paypalLink?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'IT60X0542811101000000123456',
+        description: 'IBAN for bank transfers',
+        required: false
+    })
+    ibanNumber?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'John Doe',
+        description: 'Account holder name for bank transfers',
+        required: false
+    })
+    ibanAccountHolder?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'https://revolut.me/johndoe',
+        description: 'Revolut link/username for receiving payments',
+        required: false
+    })
+    revolutLink?: string | null;
 }

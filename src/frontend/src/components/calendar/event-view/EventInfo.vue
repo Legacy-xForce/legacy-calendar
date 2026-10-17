@@ -195,7 +195,11 @@ const openLocation = () => {
                 @click="emit('open-chat')"
             >
                 <span v-for="msg in recentMessages" :key="msg.id" class="flex items-center gap-3 px-4 py-3">
-                    <UserAvatar :username="msg.authorUsername" class="size-7! text-[0.6875rem]!" />
+                    <UserAvatar
+                        :username="msg.authorUsername"
+                        :profilePictureUrl="msg.authorProfilePictureUrl"
+                        class="size-7! text-[0.6875rem]!"
+                    />
                     <span class="min-w-0 flex-1">
                         <span class="flex items-baseline justify-between gap-2">
                             <span class="text-meta text-fg truncate font-semibold">{{ msg.authorUsername }}</span>

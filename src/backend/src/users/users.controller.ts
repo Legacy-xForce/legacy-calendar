@@ -1,9 +1,23 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Inject } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    ParseIntPipe,
+    Patch,
+    Post,
+    Request,
+    UseGuards,
+    Inject
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AdminGuard } from '../auth/guards/admin.guard.js';
 import { UserAuthGuard } from '../auth/guards/user-auth.guard.js';
+import { type RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UpdatePaymentInfoDto } from './dto/update-payment-info.dto.js';
 import { UsersService } from './users.service.js';
 
 @ApiTags('users')
@@ -37,6 +51,15 @@ export class UsersController {
     @ApiResponse({ status: 404, description: 'User not found' })
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.usersService.findOne(id);
+    }
+
+    @Patch('me/payment-info')
+    @UseGuards(UserAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update the authenticated user own payment coordinates (PayPal, IBAN, Revolut)' })
+    @ApiResponse({ status: 200, description: 'Payment info updated' })
+    updatePaymentInfo(@Body() dto: UpdatePaymentInfoDto, @Request() req: RequestWithUser) {
+        return this.usersService.updatePaymentInfo(req.user.userId as number, dto);
     }
 
     @Patch(':id')

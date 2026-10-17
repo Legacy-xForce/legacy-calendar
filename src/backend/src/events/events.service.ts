@@ -10,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { NotificationCode } from '../notifications/notification-codes.js';
 import { EVENT_NOTIFICATION_MESSAGES, EVENT_NOTIFICATION_TITLES } from './event-notification.constants.js';
 import { mapEventToDto } from './event-response.mapper.js';
+import { hasSplitVehicleSeats } from './vehicle-seats.util.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
 
@@ -23,10 +24,15 @@ export class EventsService {
         @Inject(AuditLogService) private readonly auditLogService: AuditLogService
     ) {}
 
-    async create(createEventDto: CreateEventDto, userId: number, impersonatorId: number | null = null): Promise<EventResponseDto> {
-        const { participants = [], ...eventData } = createEventDto;
+    async create(
+        createEventDto: CreateEventDto,
+        userId: number,
+        impersonatorId: number | null = null
+    ): Promise<EventResponseDto> {
+        const { participants = [], coHosts = [], ...eventData } = createEventDto;
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
+        const coHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== hostId);
         this.logger.info('Creating event', {
             hostId,
             title: eventData.title,
@@ -62,9 +68,15 @@ export class EventsService {
                 });
             }
 
-            await this.auditLogService.recordEventCreated(event, { actorId: hostId, impersonatorId });
+            let savedEvent = event;
+            if (coHostIds.length > 0) {
+                await this.applyCoHostDiff(event.id, [], coHostIds, { actorId: hostId, impersonatorId });
+                savedEvent = (await this.eventsRepo.findById(event.id)) ?? event;
+            }
+
+            await this.auditLogService.recordEventCreated(savedEvent, { actorId: hostId, impersonatorId });
             this.logger.info('Event created', { eventId: event.id, hostId, participantCount: participantIds.length });
-            return mapEventToDto(event);
+            return mapEventToDto(savedEvent);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
                 this.logger.warn('Event create failed: referenced user not found', {
@@ -149,14 +161,14 @@ export class EventsService {
         this.logger.info('Updating event', { eventId: id, userId, fields: Object.keys(updateEventDto) });
         const event = await this.findEventOrThrow(id, userId);
 
-        if (event.hostId !== userId) {
+        if (!this.canManageEvent(event, userId)) {
             this.logger.warn('Event update forbidden for non-host', { eventId: id, userId, hostId: event.hostId });
-            throw new ForbiddenException('Only the host can update this event');
+            throw new ForbiddenException('Only the host or a co-host can update this event');
         }
 
         this.validateEventNotEnded(event);
 
-        const { participants, ...eventData } = updateEventDto;
+        const { participants, coHosts, ...eventData } = updateEventDto;
         const updateData: Prisma.EventUpdateInput = this.buildUpdateEventInput(eventData);
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
 
@@ -182,7 +194,18 @@ export class EventsService {
 
         const updatedEvent = await this.eventsRepo.update(id, updateData);
 
-        await this.auditLogService.recordEventUpdated(id, event, updatedEvent, { actorId: userId, impersonatorId });
+        let finalEvent = updatedEvent;
+        if (coHosts) {
+            const existingCoHostIds = event.coHosts.map((coHost) => coHost.userId);
+            const nextCoHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== event.hostId);
+            const { toAdd, toRemove } = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
+            if (toAdd.length > 0 || toRemove.length > 0) {
+                await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId });
+                finalEvent = (await this.eventsRepo.findById(id)) ?? updatedEvent;
+            }
+        }
+
+        await this.auditLogService.recordEventUpdated(id, event, finalEvent, { actorId: userId, impersonatorId });
 
         if (participantDiff) {
             const { toAdd } = participantDiff;
@@ -203,7 +226,9 @@ export class EventsService {
 
         if (participantDiff?.toRemove?.length) {
             for (const participantId of participantDiff.toRemove) {
-                const removedParticipant = event.participants.find((participant) => participant.userId === participantId);
+                const removedParticipant = event.participants.find(
+                    (participant) => participant.userId === participantId
+                );
                 if (removedParticipant) {
                     await this.auditLogService.recordParticipantRemoved(id, removedParticipant, {
                         actorId: userId,
@@ -236,9 +261,9 @@ export class EventsService {
         this.logger.info('Inviting user to event', { eventId, username, userId });
         const event = await this.findEventOrThrow(eventId, userId);
 
-        if (event.hostId !== userId) {
+        if (!this.canManageEvent(event, userId)) {
             this.logger.warn('Event invite forbidden for non-host', { eventId, userId, hostId: event.hostId });
-            throw new ForbiddenException('Only the host can invite users');
+            throw new ForbiddenException('Only the host or a co-host can invite users');
         }
 
         this.validateEventNotEnded(event);
@@ -246,11 +271,10 @@ export class EventsService {
         const invitedUser = await this.eventsRepo.inviteUser(eventId, username);
 
         if (invitedUser) {
-            await this.auditLogService.recordParticipantInvited(
-                eventId,
-                invitedUser,
-                { actorId: userId, impersonatorId }
-            );
+            await this.auditLogService.recordParticipantInvited(eventId, invitedUser, {
+                actorId: userId,
+                impersonatorId
+            });
             await this.notifyUserIds([invitedUser.id], {
                 eventId,
                 type: NotificationCode.INVITATION_NEW,
@@ -271,12 +295,7 @@ export class EventsService {
         return { message: 'User invited' };
     }
 
-    async join(
-        eventId: number,
-        userId: number,
-        participateDto: ParticipateDto,
-        impersonatorId: number | null = null
-    ) {
+    async join(eventId: number, userId: number, participateDto: ParticipateDto, impersonatorId: number | null = null) {
         this.logger.info('Joining event', { eventId, userId });
         const event = await this.findEventOrThrow(eventId, userId);
         const participant = this.getParticipant(event, userId);
@@ -284,12 +303,16 @@ export class EventsService {
 
         this.validateEventNotEnded(event);
 
-        if (!event.isOpen && !isParticipant && event.hostId !== userId) {
+        if (!event.isOpen && !isParticipant && !this.canManageEvent(event, userId)) {
             this.logger.warn('Join rejected: event is closed', { eventId, userId });
             throw new ForbiddenException('This event is closed and cannot be joined spontaneously');
         }
 
-        if (event.participationDeadline && new Date() > event.participationDeadline && event.hostId !== userId) {
+        if (
+            event.participationDeadline &&
+            new Date() > event.participationDeadline &&
+            !this.canManageEvent(event, userId)
+        ) {
             this.logger.warn('Join rejected: participation deadline passed', { eventId, userId });
             throw new ForbiddenException('The participation deadline for this event has passed');
         }
@@ -300,19 +323,16 @@ export class EventsService {
 
         if (!participant) {
             if (savedParticipant) {
-                await this.auditLogService.recordParticipantJoined(
-                    eventId,
-                    savedParticipant,
-                    { actorId: userId, impersonatorId }
-                );
+                await this.auditLogService.recordParticipantJoined(eventId, savedParticipant, {
+                    actorId: userId,
+                    impersonatorId
+                });
             }
         } else if (savedParticipant) {
-            await this.auditLogService.recordParticipantUpdated(
-                eventId,
-                participant,
-                savedParticipant,
-                { actorId: userId, impersonatorId }
-            );
+            await this.auditLogService.recordParticipantUpdated(eventId, participant, savedParticipant, {
+                actorId: userId,
+                impersonatorId
+            });
         }
 
         if (event.hostId !== userId) {
@@ -417,6 +437,7 @@ export class EventsService {
         eventId: number,
         passengerId: number,
         driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
         requestingUserId: number,
         impersonatorId: number | null = null
     ) {
@@ -430,14 +451,14 @@ export class EventsService {
 
         this.validateEventNotEnded(event);
 
-        const isHost = event.hostId === requestingUserId;
+        const isHost = this.canManageEvent(event, requestingUserId);
         const passenger = this.getParticipant(event, passengerId);
 
         if (!passenger) {
             throw new NotFoundException(`Passenger with id ${passengerId} is not in this event`);
         }
 
-        const passengerAssignment = this.getRideAssignment(event, passengerId);
+        const passengerAssignment = this.getRideAssignment(event, passengerId, direction);
         const isCurrentDriver = passengerAssignment?.driverId === requestingUserId;
         const isAssigningToSelf = driverId === requestingUserId;
         const isUnassigningFromSelf = driverId === null && isCurrentDriver;
@@ -485,8 +506,16 @@ export class EventsService {
             }
         }
 
-        const previousAssignment = passengerAssignment ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId } : null;
-        await this.eventsRepo.assignRide(eventId, passengerId, driverId);
+        const previousAssignment = passengerAssignment
+            ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId }
+            : null;
+        // Drivers who did not split their trips drive the same passengers both ways
+        const affectedDriverId = driverId ?? passengerAssignment?.driverId;
+        const affectedDriver =
+            affectedDriverId === undefined ? undefined : this.getParticipant(event, affectedDriverId);
+        const directions: ('OUTBOUND' | 'RETURN')[] =
+            affectedDriver && !hasSplitVehicleSeats(affectedDriver) ? ['OUTBOUND', 'RETURN'] : [direction];
+        await this.eventsRepo.assignRide(eventId, passengerId, driverId, directions, passengerAssignment?.driverId);
 
         if (driverId !== null) {
             await this.auditLogService.recordRideAssigned(
@@ -515,8 +544,79 @@ export class EventsService {
         return this.findOne(eventId, requestingUserId);
     }
 
+    async updatePaymentStatus(
+        eventId: number,
+        targetUserId: number,
+        hasPaid: boolean,
+        requestingUserId: number,
+        impersonatorId: number | null = null
+    ) {
+        this.logger.info('Updating participant payment status', { eventId, targetUserId, hasPaid, requestingUserId });
+        const event = await this.findEventOrThrow(eventId, requestingUserId);
+
+        const isHost = this.canManageEvent(event, requestingUserId);
+        if (!isHost) {
+            this.logger.warn('Payment update forbidden for non-host', {
+                eventId,
+                requestingUserId,
+                hostId: event.hostId
+            });
+            throw new ForbiddenException('Only the host or a co-host can update payment status');
+        }
+
+        const participant = this.getParticipant(event, targetUserId);
+        if (!participant) {
+            throw new NotFoundException(`Participant with userId ${targetUserId} not found in event ${eventId}`);
+        }
+
+        const updated = await this.eventsRepo.updatePaymentStatus(eventId, targetUserId, hasPaid);
+        await this.auditLogService.recordParticipantUpdated(
+            eventId,
+            participant,
+            { ...participant, hasPaid },
+            { actorId: requestingUserId, impersonatorId },
+            targetUserId
+        );
+
+        this.logger.info('Participant payment status updated', { eventId, targetUserId, hasPaid });
+        return { success: true, hasPaid: updated.hasPaid };
+    }
+
+    private canManageEvent(event: EventWithRelations, userId: number): boolean {
+        return event.hostId === userId || event.coHosts.some((coHost) => coHost.userId === userId);
+    }
+
+    private async applyCoHostDiff(
+        eventId: number,
+        toAdd: number[],
+        toRemove: number[],
+        actor: { actorId: number; impersonatorId: number | null }
+    ) {
+        if (toAdd.length > 0 || toRemove.length > 0) {
+            const currentIds = await this.eventsRepo.getCoHostIds(eventId);
+            await this.eventsRepo.setCoHosts(eventId, [
+                ...currentIds.filter((id) => !toRemove.includes(id)),
+                ...toAdd.filter((id) => !currentIds.includes(id))
+            ]);
+        }
+
+        for (const coHostId of toAdd) {
+            const user = await this.eventsRepo.getUserById(coHostId);
+            if (user) {
+                await this.auditLogService.recordCoHostAdded(eventId, user, actor);
+            }
+        }
+
+        for (const coHostId of toRemove) {
+            const user = await this.eventsRepo.getUserById(coHostId);
+            if (user) {
+                await this.auditLogService.recordCoHostRemoved(eventId, user, actor);
+            }
+        }
+    }
+
     private buildCreateEventInput(
-        eventData: Omit<CreateEventDto, 'participants'>
+        eventData: Omit<CreateEventDto, 'participants' | 'coHosts'>
     ): Omit<Prisma.EventCreateInput, 'host'> {
         const { startTime, endTime, participationDeadline, ...rest } = eventData;
 
@@ -528,7 +628,9 @@ export class EventsService {
         };
     }
 
-    private buildUpdateEventInput(eventData: Omit<UpdateEventDto, 'participants'>): Prisma.EventUpdateInput {
+    private buildUpdateEventInput(
+        eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>
+    ): Prisma.EventUpdateInput {
         const { startTime, endTime, participationDeadline, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };
 
@@ -578,15 +680,23 @@ export class EventsService {
     }
 
     private getParticipantUserIds(event: EventWithRelations): number[] {
-        return event.participants.map((participant) => participant.userId);
+        return event.participants.flatMap((participant) => (participant.userId === null ? [] : [participant.userId]));
     }
 
     private getParticipant(event: EventWithRelations, userId: number) {
-        return event.participants.find((participant) => participant.userId === userId);
+        return event.participants.find(
+            (participant) => (participant.userId ?? -participant.guestParticipant!.id) === userId
+        );
     }
 
-    private getRideAssignment(event: EventWithRelations, passengerId: number) {
-        return event.rideAssignments.find((assignment) => assignment.passengerId === passengerId);
+    private getRideAssignment(
+        event: EventWithRelations,
+        passengerId: number,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ) {
+        return event.rideAssignments.find(
+            (assignment) => assignment.passengerId === passengerId && assignment.direction === direction
+        );
     }
 
     private normalizeUserIds(userIds: number[]): number[] {

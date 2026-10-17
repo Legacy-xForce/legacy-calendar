@@ -12,7 +12,7 @@ export function injectEventView() {
     }
     return context;
 }
-import type { Event, EventFeature, EventParticipant, EventPersonSummary } from '../types/Event';
+import type { Event, EventFeature, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
 import { FEATURES } from '../constants/features';
@@ -83,12 +83,22 @@ export function useChatAccess(eventRef: Ref<Event | null>) {
     };
 }
 
-export function useEventView(eventRef: Ref<Event | null>) {
+export interface UseEventViewOptions {
+    // When set, used instead of the authenticated session's user - lets a guest
+    // (no session, no JWT) reuse this composable and the components built on it.
+    currentUser?: Ref<{ id: number; username: string; isAdmin: boolean } | null | undefined>;
+    // Guests have no JWT, so chat/audit-log access checks and the full users
+    // list (both JWT-gated endpoints) must be skipped rather than attempted.
+    guestMode?: boolean;
+}
+
+export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewOptions = {}) {
+    const isGuestMode = options.guestMode ?? false;
     const sessionStore = useSessionStore();
     const usersStore = useUsersStore();
     const { users: allUsers } = storeToRefs(usersStore);
 
-    const currentUser = computed(() => sessionStore.currentUser);
+    const currentUser = options.currentUser ?? computed(() => sessionStore.currentUser);
 
     const eventHost = computed(() => {
         const event = eventRef.value;
@@ -96,32 +106,6 @@ export function useEventView(eventRef: Ref<Event | null>) {
         if (event.host) return event.host;
         if (event.hostId === undefined || event.hostId === null || allUsers.value.length === 0) return null;
         return allUsers.value.find((user) => user.id === event.hostId) || null;
-    });
-
-    const eventCoHosts = computed(() => {
-        const event = eventRef.value;
-        if (!event || !event.coHosts) return [];
-        return event.coHosts;
-    });
-
-    const allEventHosts = computed(() => {
-        const hosts: EventPersonSummary[] = [];
-        if (eventHost.value) {
-            hosts.push(eventHost.value);
-        }
-        if (eventCoHosts.value && eventCoHosts.value.length > 0) {
-            for (const coHost of eventCoHosts.value) {
-                if (!hosts.some((h) => h.id === coHost.id)) {
-                    hosts.push(coHost);
-                }
-            }
-        }
-        return hosts;
-    });
-
-    const hostedByText = computed(() => {
-        if (allEventHosts.value.length === 0) return '';
-        return allEventHosts.value.map((h) => h.username).join(', ');
     });
 
     const resolvedInvitees = computed(() => {
@@ -138,8 +122,13 @@ export function useEventView(eventRef: Ref<Event | null>) {
     });
 
     const isHost = computed(() => {
-        if (!currentUser.value || !eventRef.value) return false;
-        return eventRef.value.host?.id === currentUser.value.id || eventRef.value.hostId === currentUser.value.id;
+        const user = currentUser.value;
+        if (!user || !eventRef.value) return false;
+        return (
+            eventRef.value.host?.id === user.id ||
+            eventRef.value.hostId === user.id ||
+            (eventRef.value.coHosts?.some((coHost) => coHost.id === user.id) ?? false)
+        );
     });
 
     const userParticipantStatus = computed(() => {
@@ -169,8 +158,10 @@ export function useEventView(eventRef: Ref<Event | null>) {
         });
     });
 
-    const { canAccessChat } = useChatAccess(eventRef);
-    const canAccessAuditLog = computed(() => hasLocalAuditLogAccess(eventRef.value, currentUser.value?.id));
+    const { canAccessChat } = isGuestMode ? { canAccessChat: ref(false) } : useChatAccess(eventRef);
+    const canAccessAuditLog = computed(
+        () => !isGuestMode && hasLocalAuditLogAccess(eventRef.value, currentUser.value?.id)
+    );
 
     const availableFeatureIds = computed(() => selectedFeaturesFromEvent(eventRef.value));
 
@@ -207,6 +198,28 @@ export function useEventView(eventRef: Ref<Event | null>) {
             .sort((a, b) => a.username.localeCompare(b.username));
     });
 
+    const hasSplitSeats = (driver: EventParticipant) =>
+        (driver.vehicleSeatsOutbound || driver.vehicleSeats) !== (driver.vehicleSeatsReturn || driver.vehicleSeats);
+
+    const getPassengerDriverId = (participant: EventParticipant, direction: RideDirection) => {
+        const outboundDriverId = participant.driverIdOutbound ?? participant.driverId;
+        if (direction === 'OUTBOUND') return outboundDriverId;
+        if (participant.driverIdReturn) return participant.driverIdReturn;
+        // Drivers who did not split their trips bring their outbound passengers back too
+        const outboundDriver = drivers.value.find((driver) => driver.id === outboundDriverId);
+        return outboundDriver && !hasSplitSeats(outboundDriver) ? outboundDriverId : undefined;
+    };
+
+    const getNeedsRide = (direction: RideDirection) =>
+        resolvedInvitees.value
+            .filter(
+                (participant) =>
+                    participant.status === 'ACCEPTED' &&
+                    participant.transportMode === 'NEEDS_RIDE' &&
+                    !getPassengerDriverId(participant, direction)
+            )
+            .sort((a, b) => a.username.localeCompare(b.username));
+
     const selfTransport = computed(() => {
         if (!eventRef.value?.participants) return [];
         return resolvedInvitees.value
@@ -215,6 +228,22 @@ export function useEventView(eventRef: Ref<Event | null>) {
     });
 
     const eventTotalBudget = computed(() => totalEventBudget(eventRef.value));
+
+    const paidAmount = computed(() =>
+        resolvedInvitees.value
+            .filter((participant) => participant.status === 'ACCEPTED' && participant.hasPaid === true)
+            .reduce(
+                (total, participant) =>
+                    total +
+                    participantFeatures(participant).reduce(
+                        (sum, feature) => sum + featureSplitPrice(eventRef.value, resolvedInvitees.value, feature),
+                        0
+                    ),
+                0
+            )
+    );
+
+    const unpaidAmount = computed(() => Math.max(0, eventTotalBudget.value - paidAmount.value));
 
     const getFeatureCount = (feature: EventFeature) => featureCount(resolvedInvitees.value, feature);
 
@@ -236,16 +265,19 @@ export function useEventView(eventRef: Ref<Event | null>) {
         return participantFeatures(participant).reduce((total, feature) => total + getFeatureSplitPrice(feature), 0);
     });
 
-    const getAssignedPassengers = (driverId: number) => {
+    const getAssignedPassengers = (driverId: number, direction: RideDirection = 'OUTBOUND') => {
         return resolvedInvitees.value.filter(
-            (participant) => participant.driverId === driverId || participant.driver?.id === driverId
+            (participant) => getPassengerDriverId(participant, direction) === driverId
         );
     };
 
-    const getAvailableSeats = (driver: EventParticipant | undefined) => {
+    const getAvailableSeats = (driver: EventParticipant | undefined, direction: RideDirection = 'OUTBOUND') => {
         if (!driver) return 0;
-        const assigned = getAssignedPassengers(driver.id).length;
-        const totalSeats = driver.vehicleSeats || 0;
+        const assigned = getAssignedPassengers(driver.id, direction).length;
+        const totalSeats =
+            direction === 'RETURN'
+                ? (driver.vehicleSeatsReturn ?? driver.vehicleSeats ?? 0)
+                : (driver.vehicleSeatsOutbound ?? driver.vehicleSeats ?? 0);
         // -1 for the driver themselves usually? The original code had: Math.max(0, totalSeats! - 1 - assigned);
         return Math.max(0, totalSeats - 1 - assigned);
     };
@@ -257,7 +289,8 @@ export function useEventView(eventRef: Ref<Event | null>) {
         if (rideNeedingParticipants.length === 0) return false;
 
         const totalSeats = drivers.value.reduce(
-            (acc, participant) => acc + Math.max(0, (participant.vehicleSeats || 0) - 1),
+            (acc, participant) =>
+                acc + Math.max(0, (participant.vehicleSeatsOutbound ?? participant.vehicleSeats ?? 0) - 1),
             0
         );
         return totalSeats < rideNeedingParticipants.length;
@@ -267,11 +300,41 @@ export function useEventView(eventRef: Ref<Event | null>) {
         return participantFeatures(resolvedInvitees.value.find((participant) => participant.id === userId));
     };
 
+    const resolvedCoHosts = computed(() =>
+        (eventRef.value?.coHosts ?? []).map((coHost) => {
+            if (coHost.username && coHost.profilePictureUrl !== undefined) return coHost;
+            const user = allUsers.value.find((u) => u.id === coHost.id);
+            return {
+                ...coHost,
+                username: coHost.username || user?.username || `User ${coHost.id}`,
+                profilePictureUrl: coHost.profilePictureUrl ?? user?.profilePictureUrl
+            };
+        })
+    );
+
+    const allEventHosts = computed(() => {
+        const hosts: EventPersonSummary[] = [];
+        if (eventHost.value) {
+            hosts.push(eventHost.value);
+        }
+        for (const coHost of resolvedCoHosts.value) {
+            if (!hosts.some((h) => h.id === coHost.id)) {
+                hosts.push(coHost);
+            }
+        }
+        return hosts;
+    });
+
+    const hostedByText = computed(() => {
+        if (allEventHosts.value.length === 0) return '';
+        return allEventHosts.value.map((h) => h.username).join(', ');
+    });
+
     return {
         // State
         currentUser,
         eventHost,
-        eventCoHosts,
+        coHosts: resolvedCoHosts,
         allEventHosts,
         hostedByText,
         selfTransport,
@@ -289,7 +352,10 @@ export function useEventView(eventRef: Ref<Event | null>) {
         featuresListColumns,
         drivers,
         needsRide,
+        getNeedsRide,
         eventTotalBudget,
+        paidAmount,
+        unpaidAmount,
         userTotalShare,
         isAldoMoro,
         dragOverDriverId,
@@ -299,12 +365,14 @@ export function useEventView(eventRef: Ref<Event | null>) {
         getFeatureSplitPrice,
         hasFeature,
         getAvailableSeats,
+        getAssignedPassengers,
+        hasSplitSeats,
         getParticipantFeatures,
         getStatusIcon: getParticipantStatusIcon,
         getStatusSeverity: getParticipantStatusSeverity,
         openNavigation,
 
         // Actions
-        fetchUsers: () => usersStore.fetchUsers()
+        fetchUsers: () => (isGuestMode ? Promise.resolve() : usersStore.fetchUsers())
     };
 }

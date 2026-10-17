@@ -2,9 +2,21 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, User as UserModel } from '../../prisma/generated/client.js';
 
-const USER_SELECT = { id: true, username: true, isAdmin: true, authId: true } satisfies Prisma.UserSelect;
+const USER_SELECT = {
+    id: true,
+    username: true,
+    isAdmin: true,
+    authId: true,
+    paypalLink: true,
+    ibanNumber: true,
+    ibanAccountHolder: true,
+    revolutLink: true
+} satisfies Prisma.UserSelect;
 
-export type UserRecord = Pick<UserModel, 'id' | 'username' | 'isAdmin' | 'authId'>;
+export type UserRecord = Pick<
+    UserModel,
+    'id' | 'username' | 'isAdmin' | 'authId' | 'paypalLink' | 'ibanNumber' | 'ibanAccountHolder' | 'revolutLink'
+>;
 
 @Injectable()
 export class UsersRepository {
@@ -30,8 +42,23 @@ export class UsersRepository {
         });
     }
 
+    findManyByIds(ids: number[]): Promise<UserRecord[]> {
+        if (ids.length === 0) {
+            return Promise.resolve([]);
+        }
+
+        return this.prisma.user.findMany({
+            where: { id: { in: ids } },
+            select: USER_SELECT
+        });
+    }
+
     findOneByUsername(username: string): Promise<UserModel | null> {
         return this.prisma.user.findUnique({ where: { username } });
+    }
+
+    findOneByAuthId(authId: string): Promise<UserRecord | null> {
+        return this.prisma.user.findUnique({ where: { authId }, select: USER_SELECT });
     }
 
     update(id: number, data: Prisma.UserUpdateInput): Promise<UserRecord> {

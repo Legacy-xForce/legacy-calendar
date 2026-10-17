@@ -8,6 +8,9 @@ import { router } from '../router/router';
 import { useSessionStore } from '../stores/session';
 import AppLogo from '../components/AppLogo.vue';
 import { requestNotificationPermission } from '../services/firebase';
+import { isPasskeySupported } from '../services/webauthn';
+
+const passkeySupported = isPasskeySupported();
 
 const toast = useToast();
 const sessionStore = useSessionStore();
@@ -38,8 +41,20 @@ const handleLogin = async () => {
         router.push('/calendar');
 
         await requestNotificationPermission();
-    } else {
-        errorMessage.value = sessionStore.error || 'That username and password combination did not work.';
+    } else if (sessionStore.error) {
+        // No error means login redirected (disabled account or missing access), so there is nothing to show
+        errorMessage.value = sessionStore.error;
+    }
+};
+
+const handlePasskeyLogin = async () => {
+    errorMessage.value = null;
+    const success = await sessionStore.loginWithPasskey(username.value || undefined);
+    if (success) {
+        router.push('/calendar');
+        await requestNotificationPermission();
+    } else if (sessionStore.error) {
+        errorMessage.value = sessionStore.error;
     }
 };
 </script>
@@ -101,6 +116,23 @@ const handleLogin = async () => {
                     :loading="sessionStore.loading"
                     :disabled="sessionStore.loading"
                 />
+
+                <template v-if="passkeySupported">
+                    <div class="text-meta text-subtle flex items-center gap-3" aria-hidden="true">
+                        <span class="bg-line h-px flex-1"></span>
+                        or
+                        <span class="bg-line h-px flex-1"></span>
+                    </div>
+                    <Button
+                        type="button"
+                        label="Sign in with a passkey"
+                        icon="pi pi-key"
+                        severity="secondary"
+                        class="w-full"
+                        :disabled="sessionStore.loading"
+                        @click="handlePasskeyLogin"
+                    />
+                </template>
             </form>
 
             <p class="text-meta text-subtle m-0 text-center">

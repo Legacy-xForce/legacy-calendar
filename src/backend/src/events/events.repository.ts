@@ -2,19 +2,35 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
 import { ParticipateDto } from './dto/participate.dto.js';
+import { normalizeVehicleSeats } from './vehicle-seats.util.js';
+
+const USER_SUMMARY_SELECT = {
+    id: true,
+    username: true,
+    isAdmin: true,
+    authId: true,
+    paypalLink: true,
+    ibanNumber: true,
+    ibanAccountHolder: true,
+    revolutLink: true
+} satisfies Prisma.UserSelect;
 
 export const EVENT_INCLUDE = {
-    host: { select: { id: true, username: true, isAdmin: true, authId: true } },
+    host: { select: USER_SUMMARY_SELECT },
+    coHosts: {
+        include: {
+            user: { select: USER_SUMMARY_SELECT }
+        },
+        orderBy: { addedAt: 'asc' as const }
+    },
     participants: {
         include: {
-            user: { select: { id: true, username: true, isAdmin: true, authId: true } }
+            user: { select: USER_SUMMARY_SELECT },
+            guestParticipant: { select: { id: true, displayName: true } }
         }
     },
     rideAssignments: {
-        include: {
-            driver: { select: { id: true, username: true, isAdmin: true, authId: true } },
-            passenger: { select: { id: true, username: true, isAdmin: true, authId: true } }
-        }
+        // IDs are namespaced: positive user IDs, negative guest participant IDs.
     }
 } satisfies Prisma.EventInclude;
 
@@ -88,8 +104,8 @@ export class EventsRepository {
     }
 
     async join(userId: number, eventId: number, participateDto: ParticipateDto) {
-        const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode, vehicleSeats } =
-            participateDto;
+        const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = participateDto;
+        const { vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn } = normalizeVehicleSeats(participateDto);
 
         return this.prisma.attendance.upsert({
             where: {
@@ -103,7 +119,9 @@ export class EventsRepository {
                 wantsAlcohol,
                 wantsBeer,
                 transportMode,
-                vehicleSeats
+                vehicleSeats,
+                vehicleSeatsOutbound,
+                vehicleSeatsReturn
             },
             create: {
                 userId,
@@ -115,34 +133,70 @@ export class EventsRepository {
                 wantsAlcohol,
                 wantsBeer,
                 transportMode,
-                vehicleSeats
+                vehicleSeats,
+                vehicleSeatsOutbound,
+                vehicleSeatsReturn
             }
         });
     }
 
-    async assignRide(eventId: number, passengerId: number, driverId: number | null) {
+    async updatePaymentStatus(eventId: number, userId: number, hasPaid: boolean) {
+        if (userId < 0) {
+            return this.prisma.attendance.update({
+                where: {
+                    guestParticipantId_eventId: { guestParticipantId: -userId, eventId }
+                },
+                data: {
+                    hasPaid
+                }
+            });
+        }
+        return this.prisma.attendance.update({
+            where: {
+                userId_eventId: { userId, eventId }
+            },
+            data: {
+                hasPaid
+            }
+        });
+    }
+
+    async assignRide(
+        eventId: number,
+        passengerId: number,
+        driverId: number | null,
+        directions: ('OUTBOUND' | 'RETURN')[],
+        previousDriverId?: number
+    ) {
         if (driverId === null) {
             return this.prisma.rideAssignment.deleteMany({
                 where: {
                     eventId,
-                    passengerId
+                    passengerId,
+                    direction: { in: directions },
+                    ...(previousDriverId !== undefined && { driverId: previousDriverId })
                 }
             });
         }
 
-        return this.prisma.rideAssignment.upsert({
-            where: {
-                eventId_passengerId: { eventId, passengerId }
-            },
-            update: {
-                driverId
-            },
-            create: {
-                eventId,
-                passengerId,
-                driverId
-            }
-        });
+        return this.prisma.$transaction(
+            directions.map((direction) =>
+                this.prisma.rideAssignment.upsert({
+                    where: {
+                        eventId_passengerId_direction: { eventId, passengerId, direction }
+                    },
+                    update: {
+                        driverId
+                    },
+                    create: {
+                        eventId,
+                        passengerId,
+                        driverId,
+                        direction
+                    }
+                })
+            )
+        );
     }
 
     async deleteRideAssignmentsForUsers(eventId: number, userIds: number[]) {
@@ -167,6 +221,8 @@ export class EventsRepository {
                 status: InviteStatus.DECLINED,
                 transportMode: TransportMode.NEEDS_RIDE,
                 vehicleSeats: 0,
+                vehicleSeatsOutbound: 0,
+                vehicleSeatsReturn: 0,
                 wantsFood: false,
                 wantsWeed: false,
                 wantsSleep: false,
@@ -182,6 +238,29 @@ export class EventsRepository {
             data,
             include: EVENT_INCLUDE
         });
+    }
+
+    async getCoHostIds(eventId: number): Promise<number[]> {
+        const coHosts = await this.prisma.eventCoHost.findMany({
+            where: { eventId },
+            select: { userId: true }
+        });
+        return coHosts.map((coHost) => coHost.userId);
+    }
+
+    async setCoHosts(eventId: number, userIds: number[]): Promise<void> {
+        await this.prisma.$transaction([
+            this.prisma.eventCoHost.deleteMany({
+                where: { eventId, userId: { notIn: userIds } }
+            }),
+            ...userIds.map((userId) =>
+                this.prisma.eventCoHost.upsert({
+                    where: { eventId_userId: { eventId, userId } },
+                    update: {},
+                    create: { eventId, userId }
+                })
+            )
+        ]);
     }
 
     async inviteUser(eventId: number, username: string) {
@@ -209,20 +288,20 @@ export class EventsRepository {
 
     async getParticipantTokens(eventId: number): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
-            where: { eventId },
+            where: { eventId, userId: { not: null } },
             include: { user: { include: { fcmTokens: true } } }
         });
 
-        return attendances.flatMap((a) => a.user.fcmTokens.map((t) => t.token));
+        return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
     }
 
     async getParticipantTokensByStatus(eventId: number, status: InviteStatus): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
-            where: { eventId, status },
+            where: { eventId, status, userId: { not: null } },
             include: { user: { include: { fcmTokens: true } } }
         });
 
-        return attendances.flatMap((a) => a.user.fcmTokens.map((t) => t.token));
+        return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
     }
 
     async getUserTokens(userIds: number[]): Promise<string[]> {
@@ -238,7 +317,11 @@ export class EventsRepository {
         const visibilityClauses: Prisma.EventWhereInput[] = [{ isPrivate: false }];
 
         if (userId !== undefined) {
-            visibilityClauses.push({ hostId: userId }, { participants: { some: { userId } } });
+            visibilityClauses.push(
+                { hostId: userId },
+                { participants: { some: { userId } } },
+                { coHosts: { some: { userId } } }
+            );
         }
 
         return { OR: visibilityClauses };

@@ -2,6 +2,44 @@ import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from '../../users/dto/user.dto.js';
 import { InviteStatus, TransportMode } from '../../../prisma/generated/client.js';
 
+export class EventHostDto extends UserDto {
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'https://paypal.me/johndoe',
+        description: 'PayPal link for receiving payments',
+        required: false
+    })
+    paypalLink?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'IT60X0542811101000000123456',
+        description: 'IBAN for bank transfers',
+        required: false
+    })
+    ibanNumber?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'John Doe',
+        description: 'Account holder name for bank transfers',
+        required: false
+    })
+    ibanAccountHolder?: string | null;
+
+    @ApiProperty({
+        type: String,
+        nullable: true,
+        example: 'https://revolut.me/johndoe',
+        description: 'Revolut link/username for receiving payments',
+        required: false
+    })
+    revolutLink?: string | null;
+}
+
 export class EventParticipantDto extends UserDto {
     @ApiProperty({ enum: InviteStatus, example: 'PENDING', description: 'Status of the invitation' })
     status!: InviteStatus;
@@ -27,11 +65,32 @@ export class EventParticipantDto extends UserDto {
     @ApiProperty({ type: Number, example: 4, description: 'Number of available seats' })
     vehicleSeats?: number;
 
+    @ApiProperty({ type: Number, example: 4, description: 'Number of available outbound seats' })
+    vehicleSeatsOutbound?: number;
+
+    @ApiProperty({ type: Number, example: 4, description: 'Number of available return seats' })
+    vehicleSeatsReturn?: number;
+
+    @ApiProperty({ type: Boolean, example: false, description: 'Payment status tracked by host/co-host' })
+    hasPaid?: boolean;
+
     @ApiProperty({ type: Number, example: 1, description: 'Driver ID', required: false })
     driverId?: number;
 
+    @ApiProperty({ type: Number, example: 1, description: 'Outbound driver ID', required: false })
+    driverIdOutbound?: number;
+
+    @ApiProperty({ type: Number, example: 1, description: 'Return driver ID', required: false })
+    driverIdReturn?: number;
+
     @ApiProperty({ type: () => UserDto, description: 'Driver details', required: false })
     driver?: UserDto;
+
+    @ApiProperty({ type: () => UserDto, description: 'Outbound driver details', required: false })
+    driverOutbound?: UserDto;
+
+    @ApiProperty({ type: () => UserDto, description: 'Return driver details', required: false })
+    driverReturn?: UserDto;
 }
 
 export class EventResponseDto {
@@ -77,8 +136,11 @@ export class EventResponseDto {
     })
     participationDeadline!: Date | null;
 
-    @ApiProperty({ type: () => UserDto, description: 'Host of the event' })
-    host!: UserDto;
+    @ApiProperty({ type: () => EventHostDto, description: 'Host of the event' })
+    host!: EventHostDto;
+
+    @ApiProperty({ type: () => [EventHostDto], description: 'Co-hosts of the event (can edit it like the host)' })
+    coHosts!: EventHostDto[];
 
     @ApiProperty({ type: () => [EventParticipantDto], description: 'List of participants' })
     participants!: EventParticipantDto[];

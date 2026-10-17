@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useToast } from 'primevue/usetoast';
+import UserAvatar from '../../UserAvatar.vue';
 import type { Event, EventFeature } from '../../../types/Event';
 import { FEATURES } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
@@ -18,8 +20,27 @@ const {
     currentUser,
     getFeatureCount,
     getFeatureSplitPrice,
-    getParticipantFeatures
+    getParticipantFeatures,
+    allEventHosts,
+    paidAmount,
+    unpaidAmount
 } = injectEventView();
+
+const toast = useToast();
+
+const hostsWithPaymentInfo = computed(() =>
+    allEventHosts.value.filter((host) => host.paypalLink || host.ibanNumber || host.revolutLink)
+);
+
+/** Stored links may be bare (`paypal.me/foo`); make them absolute for `href`. */
+const toAbsoluteUrl = (link: string) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
+const toLabel = (link: string) => link.replace(/^https?:\/\//i, '').replace(/^www\./, '');
+
+const copyIban = (iban: string) => {
+    navigator.clipboard.writeText(iban).then(() => {
+        toast.add({ severity: 'success', summary: 'IBAN copied', life: 2500 });
+    });
+};
 
 const featureMap = computed(
     () =>
@@ -85,8 +106,86 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
             </div>
         </div>
 
-        <p v-if="eventTotalBudget > 0" class="text-meta text-muted tabular m-0 px-1">
-            Total budget {{ formatCurrency(eventTotalBudget) }}
+        <p v-if="eventTotalBudget > 0" class="text-meta text-muted tabular m-0 flex flex-wrap gap-x-2 px-1">
+            <span>Total budget {{ formatCurrency(eventTotalBudget) }}</span>
+            <span class="text-emerald-300"
+                ><i class="pi pi-check mr-1 text-[0.5625rem]"></i>{{ formatCurrency(paidAmount) }} paid</span
+            >
+            <span v-if="unpaidAmount > 0">{{ formatCurrency(unpaidAmount) }} outstanding</span>
         </p>
+
+        <div v-if="hostsWithPaymentInfo.length" class="flex flex-col gap-2 pt-3">
+            <h4 class="text-meta text-muted m-0 font-medium">
+                {{ hostsWithPaymentInfo.length > 1 ? 'Send your share to one of the hosts' : 'Send your share to' }}
+            </h4>
+            <div
+                v-for="host in hostsWithPaymentInfo"
+                :key="host.id"
+                class="border-line bg-raised divide-line divide-y overflow-hidden rounded-2xl border"
+            >
+                <div class="flex items-center gap-3 px-4 py-2.5">
+                    <UserAvatar
+                        :profilePictureUrl="host.profilePictureUrl"
+                        :username="host.username"
+                        class="size-7! text-[0.6875rem]!"
+                    />
+                    <span class="text-body text-fg font-medium">{{ host.username }}</span>
+                </div>
+                <a
+                    v-if="host.paypalLink"
+                    :href="toAbsoluteUrl(host.paypalLink)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3 no-underline transition-colors"
+                >
+                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
+                        <i class="pi pi-paypal text-sm"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body block font-medium">PayPal</span>
+                        <span class="text-meta text-muted block truncate">{{ toLabel(host.paypalLink) }}</span>
+                    </span>
+                    <i class="pi pi-external-link text-subtle text-xs"></i>
+                </a>
+                <a
+                    v-if="host.revolutLink"
+                    :href="toAbsoluteUrl(host.revolutLink)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3 no-underline transition-colors"
+                >
+                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
+                        <i class="pi pi-money-bill text-sm"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body block font-medium">Revolut</span>
+                        <span class="text-meta text-muted block truncate">{{ toLabel(host.revolutLink) }}</span>
+                    </span>
+                    <i class="pi pi-external-link text-subtle text-xs"></i>
+                </a>
+                <div v-if="host.ibanNumber" class="flex items-center gap-3.5 px-4 py-3">
+                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
+                        <i class="pi pi-building-columns text-sm"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body text-fg block truncate font-mono font-medium">{{
+                            host.ibanNumber
+                        }}</span>
+                        <span class="text-meta text-muted block truncate">
+                            {{ host.ibanAccountHolder ? `IBAN · ${host.ibanAccountHolder}` : 'IBAN' }}
+                        </span>
+                    </span>
+                    <button
+                        type="button"
+                        class="pressable text-meta text-fg bg-surface-900 hover:bg-surface-850 flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 font-medium"
+                        aria-label="Copy IBAN"
+                        @click="copyIban(host.ibanNumber!)"
+                    >
+                        <i class="pi pi-copy text-[0.6875rem]"></i>
+                        Copy
+                    </button>
+                </div>
+            </div>
+        </div>
     </section>
 </template>

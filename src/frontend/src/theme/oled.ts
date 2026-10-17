@@ -57,9 +57,10 @@ const OledPreset = definePreset(Aura, {
                     hoverColor: '{emerald.300}',
                     activeColor: '{emerald.500}'
                 },
+                // Neutral selection highlight (selected options, chips), as decided upstream
                 highlight: {
-                    background: 'color-mix(in srgb, {emerald.400}, transparent 86%)',
-                    focusBackground: 'color-mix(in srgb, {emerald.400}, transparent 78%)',
+                    background: '{surface.800}',
+                    focusBackground: '{surface.700}',
                     color: '{surface.50}',
                     focusColor: '{surface.50}'
                 },
