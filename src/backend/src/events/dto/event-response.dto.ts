@@ -2,43 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from '../../users/dto/user.dto.js';
 import { InviteStatus, TransportMode } from '../../../prisma/generated/client.js';
 
-export class EventHostDto extends UserDto {
-    @ApiProperty({
-        type: String,
-        nullable: true,
-        example: 'https://paypal.me/johndoe',
-        description: 'PayPal link for receiving payments',
-        required: false
-    })
-    paypalLink?: string | null;
-
-    @ApiProperty({
-        type: String,
-        nullable: true,
-        example: 'IT60X0542811101000000123456',
-        description: 'IBAN for bank transfers',
-        required: false
-    })
-    ibanNumber?: string | null;
-
-    @ApiProperty({
-        type: String,
-        nullable: true,
-        example: 'John Doe',
-        description: 'Account holder name for bank transfers',
-        required: false
-    })
-    ibanAccountHolder?: string | null;
-
-    @ApiProperty({
-        type: String,
-        nullable: true,
-        example: 'https://revolut.me/johndoe',
-        description: 'Revolut link/username for receiving payments',
-        required: false
-    })
-    revolutLink?: string | null;
-}
+/**
+ * The host view of a user. The payment fields (`paypalLink`, `ibanNumber`,
+ * `ibanAccountHolder`, `revolutLink`) are inherited from {@link UserDto}.
+ */
+export class EventHostDto extends UserDto {}
 
 export class EventParticipantDto extends UserDto {
     @ApiProperty({ enum: InviteStatus, example: 'PENDING', description: 'Status of the invitation' })

@@ -5,7 +5,7 @@ import { UsersService } from '../../users/users.service.js';
 import { PasskeyRegisterVerifyDto, PasskeyLoginVerifyDto } from './dto/passkey.dto.js';
 import { AppLogger } from '../../logging/app-logger.js';
 import * as crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 
 interface StoredChallenge {
     challenge: string;
@@ -249,7 +249,8 @@ export class PasskeyService {
 
         const user = credential.user;
         const secret = this.configService.get<string>('JWT_SECRET') || 'legacy-calendar-default-secret';
-        const expiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '30d';
+        // Free-form from the env (`ms` syntax); runtime validates it, the types want the literal union.
+        const expiresIn = (this.configService.get<string>('JWT_EXPIRES_IN') || '30d') as SignOptions['expiresIn'];
 
         const payload = {
             sub: String(user.id),
