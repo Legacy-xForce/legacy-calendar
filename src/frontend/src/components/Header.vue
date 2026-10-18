@@ -27,7 +27,7 @@ const items = [
     <header
         class="pwa-mobile-hidden border-line sticky top-0 z-40 h-(--app-header-height) border-b bg-black/85 backdrop-blur-md"
     >
-        <div class="mx-auto flex h-full max-w-[96rem] items-center gap-8 px-6">
+        <div class="flex h-full items-center gap-8 px-6">
             <router-link :to="{ name: 'calendar' }" class="text-fg flex items-center gap-2.5 no-underline">
                 <AppLogo class="size-6" />
                 <span class="font-display text-title font-semibold tracking-tight">Legacy</span>
