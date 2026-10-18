@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwksRsa from 'jwks-rsa';
 import jwt from 'jsonwebtoken';
 import { UsersService } from '../../users/users.service.js';
+import { resolveJwtSecret } from '../jwt-secret.util.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 configService.get<string>('AUTH_JWKS_URI') || 'https://auth.legacy-group.tech/.well-known/jwks.json'
         }) as (req: unknown, rawJwtToken: unknown, done: (err: unknown, secretOrKey?: string | Buffer) => void) => void;
 
-        const localSecret = configService.get<string>('JWT_SECRET') || 'legacy-calendar-default-secret';
+        const localSecret = resolveJwtSecret(configService);
 
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

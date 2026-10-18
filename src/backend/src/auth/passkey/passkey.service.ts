@@ -6,6 +6,7 @@ import { PasskeyRegisterVerifyDto, PasskeyLoginVerifyDto } from './dto/passkey.d
 import { AppLogger } from '../../logging/app-logger.js';
 import * as crypto from 'crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
+import { resolveJwtSecret } from '../jwt-secret.util.js';
 
 interface StoredChallenge {
     challenge: string;
@@ -17,12 +18,14 @@ interface StoredChallenge {
 export class PasskeyService {
     private readonly logger = new AppLogger(PasskeyService.name);
     private readonly challenges = new Map<string, StoredChallenge>();
+    private readonly jwtSecret: string;
 
     constructor(
         @Inject(PrismaService) private readonly prisma: PrismaService,
         @Inject(UsersService) private readonly usersService: UsersService,
         @Inject(ConfigService) private readonly configService: ConfigService
     ) {
+        this.jwtSecret = resolveJwtSecret(configService);
         // Periodically prune expired challenges
         setInterval(() => this.cleanupExpiredChallenges(), 60000).unref();
     }
@@ -248,7 +251,7 @@ export class PasskeyService {
         });
 
         const user = credential.user;
-        const secret = this.configService.get<string>('JWT_SECRET') || 'legacy-calendar-default-secret';
+        const secret = this.jwtSecret;
         // Free-form from the env (`ms` syntax); runtime validates it, the types want the literal union.
         const expiresIn = (this.configService.get<string>('JWT_EXPIRES_IN') || '30d') as SignOptions['expiresIn'];
 

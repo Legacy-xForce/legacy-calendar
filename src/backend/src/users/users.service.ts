@@ -39,13 +39,20 @@ export class UsersService {
 
     async findOne(id: number): Promise<UserDto> {
         this.logger.trace('Fetching user', { userId: id });
+        return this.findOneForViewer(id, { userId: id });
+    }
+
+    // Payment coordinates are private: only the owner of the record (or an admin)
+    // may receive them. Everyone else gets the public shape of the user.
+    async findOneForViewer(id: number, viewer: { userId?: number; isAdmin?: boolean }): Promise<UserDto> {
         const user = await this.usersRepo.findOne(id);
         if (!user) {
             this.logger.warn('User not found', { userId: id });
             throw new NotFoundException(`User with id ${id} not found`);
         }
 
-        return this.toDto(user);
+        const includePaymentInfo = Boolean(viewer.isAdmin) || viewer.userId === user.id;
+        return this.toDto(user, { includePaymentInfo });
     }
 
     async findOneByUsername(username: string): Promise<UserModel | null> {
@@ -140,18 +147,23 @@ export class UsersService {
         }
     }
 
-    private toDto(user: UserRecord): UserDto {
-        return {
+    private toDto(user: UserRecord, options: { includePaymentInfo?: boolean } = {}): UserDto {
+        const dto: UserDto = {
             id: user.id,
             username: user.username,
             isAdmin: user.isAdmin,
             profilePictureUrl: buildProfilePictureUrl(user.authId),
-            isGuest: false,
-            paypalLink: user.paypalLink,
-            ibanNumber: user.ibanNumber,
-            ibanAccountHolder: user.ibanAccountHolder,
-            revolutLink: user.revolutLink
+            isGuest: false
         };
+
+        if (options.includePaymentInfo) {
+            dto.paypalLink = user.paypalLink;
+            dto.ibanNumber = user.ibanNumber;
+            dto.ibanAccountHolder = user.ibanAccountHolder;
+            dto.revolutLink = user.revolutLink;
+        }
+
+        return dto;
     }
 
     private handleUserWriteError(error: unknown, id: number): void {

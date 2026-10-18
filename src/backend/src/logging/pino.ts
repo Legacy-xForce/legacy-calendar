@@ -41,6 +41,21 @@ export function createLoggerModuleParams(): Params {
         renameContext: 'context',
         pinoHttp: {
             logger: rootLogger,
+            redact: {
+                paths: ['res.headers["set-cookie"]'],
+                censor: '[redacted]'
+            },
+            serializers: {
+                // Drop headers entirely (they carry bearer tokens and cookies) and
+                // scrub bearer-style secrets out of the request path.
+                req(request: { method?: string; url?: string; remoteAddress?: string }) {
+                    return {
+                        method: request.method,
+                        url: scrubSensitiveUrl(request.url),
+                        remoteAddress: request.remoteAddress
+                    };
+                }
+            },
             genReqId: (req) => {
                 const headerRequestId = req.headers['x-request-id'];
                 if (typeof headerRequestId === 'string' && headerRequestId.trim()) {
@@ -62,6 +77,18 @@ export function createLoggerModuleParams(): Params {
             }
         }
     };
+}
+
+// Guest magic-link tokens and invite paths are bearer credentials; never persist
+// the raw value in logs.
+const SENSITIVE_PATH_PATTERN = /(\/(?:guest-invites|invite)\/)[A-Za-z0-9_-]{8,}/g;
+
+function scrubSensitiveUrl(url?: string): string | undefined {
+    if (!url) {
+        return url;
+    }
+
+    return url.replace(SENSITIVE_PATH_PATTERN, '$1[redacted]');
 }
 
 function normalizeLevel(level: string): LogLevel {

@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { EventsModule } from './events/events.module.js';
 import { InvitesModule } from './invites/invites.module.js';
 import { ConfigModule } from '@nestjs/config';
+import { validateEnvironment } from './config/env.validation.js';
 
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -21,7 +22,7 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
 @Module({
     imports: [
         LoggerModule.forRoot(createLoggerModuleParams()),
-        ConfigModule.forRoot({ isGlobal: true }),
+        ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
         PrismaModule,
         AuthModule,
         UsersModule,

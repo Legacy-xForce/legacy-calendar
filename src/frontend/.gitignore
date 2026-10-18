@@ -24,3 +24,5 @@ public/meteocons
 *.sln
 *.sw?
 .env
+.env.*
+!.env.example

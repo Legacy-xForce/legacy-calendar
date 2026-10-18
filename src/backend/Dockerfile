@@ -24,6 +24,11 @@ RUN bunx --bun prisma generate
 
 ENV NODE_ENV=production
 
+# ffmpeg is required by MediaProcessorService for chat video processing.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create uploads directory and set permissions
 RUN mkdir -p /usr/src/app/uploads/profile-pictures && chown -R bun:bun /usr/src/app/uploads
 

@@ -6,9 +6,11 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - /home/ubuntu/legacy_calendar_data/firebase.json:/app/firebase.json
-      - /home/ubuntu/legacy_calendar_data/.env:/app/.env
-      - /home/ubuntu/legacy_calendar_data/uploads:/app/uploads
-      - /home/ubuntu/legacy_calendar_data/secrets:/app/secrets
+      # The image runs from /usr/src/app (Dockerfile WORKDIR), so config, uploads
+      # and secrets must be mounted there for process.cwd()-relative lookups.
+      - /home/ubuntu/legacy_calendar_data/firebase.json:/usr/src/app/firebase.json
+      - /home/ubuntu/legacy_calendar_data/.env:/usr/src/app/.env
+      - /home/ubuntu/legacy_calendar_data/uploads:/usr/src/app/uploads
+      - /home/ubuntu/legacy_calendar_data/secrets:/usr/src/app/secrets
     env_file:
       - /home/ubuntu/legacy_calendar_data/.env

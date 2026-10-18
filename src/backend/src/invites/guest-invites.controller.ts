@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, UseGuards, Request, Inject } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Patch, UseGuards, Request, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GuestTokenGuard } from './guards/guest-token.guard.js';
 import { type RequestWithGuestInvite } from './interfaces/request-with-guest.interface.js';
@@ -12,6 +12,7 @@ export class GuestInvitesController {
     constructor(@Inject(InvitesService) private readonly invitesService: InvitesService) {}
 
     @Get(':token')
+    @Header('Cache-Control', 'no-store')
     @ApiOperation({ summary: 'Get event details and the current guest participation via a magic link' })
     @ApiResponse({ status: 200, description: 'Return event and guest participation' })
     @ApiResponse({ status: 404, description: 'Invite not found' })
@@ -20,6 +21,7 @@ export class GuestInvitesController {
     }
 
     @Patch(':token')
+    @Header('Cache-Control', 'no-store')
     @ApiOperation({ summary: 'Set the guest username and/or update participation preferences' })
     @ApiResponse({ status: 200, description: 'Participation updated' })
     @ApiResponse({ status: 403, description: 'Forbidden - deadline passed or event ended' })
@@ -28,6 +30,7 @@ export class GuestInvitesController {
     }
 
     @Delete(':token')
+    @Header('Cache-Control', 'no-store')
     @ApiOperation({ summary: 'Leave the event as a guest' })
     @ApiResponse({ status: 200, description: 'Left event successfully' })
     leave(@Request() req: RequestWithGuestInvite) {
