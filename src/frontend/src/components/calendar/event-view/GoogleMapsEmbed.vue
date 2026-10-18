@@ -42,13 +42,14 @@ const embedSrc = computed(() => {
             allowfullscreen
         />
 
-        <div v-else class="flex h-full w-full items-center justify-center bg-zinc-950/80 text-center">
-            <div class="max-w-xs px-6">
-                <p class="text-sm font-semibold text-zinc-100">Google Maps API key is not configured.</p>
-                <p class="mt-1 text-xs text-zinc-400">
-                    Set <code>VITE_GOOGLE_MAPS_EMBED_API_KEY</code> to enable the map preview.
-                </p>
-            </div>
+        <div
+            v-else
+            class="bg-surface-900 flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center"
+        >
+            <i class="pi pi-map text-subtle text-xl"></i>
+            <p class="text-meta text-muted m-0 max-w-xs">
+                Map preview is off. Set <code class="text-fg">VITE_GOOGLE_MAPS_EMBED_API_KEY</code> to turn it on.
+            </p>
         </div>
     </div>
 </template>

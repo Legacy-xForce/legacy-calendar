@@ -111,7 +111,7 @@ function parseEventId(value: unknown) {
             <div class="flex min-w-0 flex-1 items-center gap-3">
                 <div class="min-w-0 flex-1">
                     <h2 class="text-title m-0 truncate">{{ title }}</h2>
-                    <p class="text-meta text-muted m-0 flex items-center gap-1.5">
+                    <p v-if="chatState.canAccessChat.value" class="text-meta text-muted m-0 flex items-center gap-1.5">
                         <span
                             class="size-1.5 rounded-full"
                             :class="chat.connected.value ? 'bg-emerald-400' : 'bg-surface-600'"

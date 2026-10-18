@@ -90,20 +90,14 @@ const onEditParticipation = () => {
 
 const onLeaveEvent = (isDecline = false) => {
     confirm.require({
+        header: isDecline ? 'Decline this invite?' : 'Leave this event?',
         message: isDecline
-            ? 'Are you sure you want to decline this invitation?'
-            : 'Are you sure you want to leave this event? If the event is private/invite only, you might not be able to join again.',
-        header: isDecline ? 'Confirm Decline' : 'Confirm Leave',
-        icon: 'pi pi-exclamation-triangle',
-        rejectProps: {
-            label: 'No',
-            severity: 'secondary',
-            text: true
-        },
-        acceptProps: {
-            label: isDecline ? 'Yes, Decline' : 'Yes, Leave',
-            severity: 'danger'
-        },
+            ? "The host will see that you can't make it."
+            : props.event?.isOpen
+              ? 'The host will see that you can no longer make it.'
+              : "It's invite only, so you might not be able to join again.",
+        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+        acceptProps: { label: isDecline ? 'Decline' : 'Leave', severity: 'danger' },
         accept: async () => {
             if (!props.event || !currentUser.value) return;
 
@@ -115,8 +109,8 @@ const onLeaveEvent = (isDecline = false) => {
             } catch {
                 toast.add({
                     severity: 'error',
-                    summary: 'Error',
-                    detail: eventsStore.error || `Failed to ${isDecline ? 'decline invitation' : 'leave event'}`,
+                    summary: isDecline ? "Couldn't decline" : "Couldn't leave the event",
+                    detail: eventsStore.error || 'Try again in a moment.',
                     life: 5000
                 });
             } finally {
@@ -157,8 +151,8 @@ const handleFeatureConfirm = async (data: {
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: eventsStore.error || 'Failed to join event',
+            summary: "Couldn't join",
+            detail: eventsStore.error || 'Try again in a moment.',
             life: 5000
         });
     } finally {
@@ -193,8 +187,8 @@ const assignRide = async (passengerId: number, driverId: number | null, directio
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: eventsStore.error || 'Failed to assign ride',
+            summary: "Couldn't assign the ride",
+            detail: eventsStore.error || 'Try again in a moment.',
             life: 5000
         });
     }
@@ -214,8 +208,8 @@ const assignRidesBatch = async (
     } catch {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: eventsStore.error || 'Failed to assign rides',
+            summary: "Couldn't assign the rides",
+            detail: eventsStore.error || 'Try again in a moment.',
             life: 5000
         });
     }

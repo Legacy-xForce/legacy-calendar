@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const {
+    isGuestMode,
     allEventHosts,
     hostedByText,
     isDeadlinePassed,
@@ -42,7 +43,9 @@ const actions = computed(() => {
     const list: { key: string; label: string; icon: string; run: () => void }[] = [];
     if (canAccessChat.value)
         list.push({ key: 'chat', label: 'Chat', icon: 'pi pi-comments', run: () => emit('open-chat') });
-    list.push({ key: 'share', label: 'Share', icon: 'pi pi-share-alt', run: () => shareEvent(props.event.id) });
+    // A shared event link needs an account, so it's no use to a guest
+    if (!isGuestMode)
+        list.push({ key: 'share', label: 'Share', icon: 'pi pi-share-alt', run: () => shareEvent(props.event.id) });
     if (canAccessAuditLog.value) {
         list.push({ key: 'log', label: 'Activity', icon: 'pi pi-history', run: () => emit('open-audit-log') });
     }
@@ -92,7 +95,7 @@ const actions = computed(() => {
             </div>
         </div>
 
-        <div class="grid auto-cols-fr grid-flow-col gap-2">
+        <div v-if="actions.length" class="grid auto-cols-fr grid-flow-col gap-2">
             <button
                 v-for="action in actions"
                 :key="action.key"

@@ -3,18 +3,20 @@ import { ref, computed, provide, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-import ProgressSpinner from 'primevue/progressspinner';
+import Skeleton from 'primevue/skeleton';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
-import Message from 'primevue/message';
 
 import type { Event, EventFeature, TransportMode } from '../types/Event';
 import api from '../services/API';
 import { useEventView, EventViewInjectionKey } from '../composables/useEventView';
 import { participantWantsFromSelection } from '../utils/event';
 import EventViewMode from '../components/calendar/event-view/EventViewMode.vue';
+import AppLogo from '../components/AppLogo.vue';
 
 const FeatureSelectionDialog = defineAsyncComponent(() => import('../components/calendar/FeatureSelectionDialog.vue'));
+
+const PLACEHOLDER_GUEST_NAME = 'Guest';
 
 const route = useRoute();
 const toast = useToast();
@@ -57,7 +59,9 @@ async function loadInvite() {
         guestUserId.value = response.data.guestUserId;
         isDeadlinePassed.value = response.data.isDeadlinePassed;
         canEdit.value = response.data.canEdit;
-        usernameInput.value = guestParticipant.value?.username || usernameInput.value;
+        // New guests carry the placeholder name until they pick one, so start with an empty field
+        const name = guestParticipant.value?.username;
+        usernameInput.value = name && name !== PLACEHOLDER_GUEST_NAME ? name : usernameInput.value;
     } catch {
         notFound.value = true;
     } finally {
@@ -67,9 +71,14 @@ async function loadInvite() {
 
 void loadInvite();
 
+const nameInput = ref<{ $el: HTMLInputElement } | null>(null);
+const nameMissing = ref(false);
+
 const onOpenPreferences = () => {
     if (!usernameInput.value.trim()) {
-        toast.add({ severity: 'warn', summary: 'Name required', detail: 'Please enter your name first', life: 4000 });
+        nameMissing.value = true;
+        nameInput.value?.$el.focus();
+        nameInput.value?.$el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
     showFeatureSelection.value = true;
@@ -86,6 +95,7 @@ const handleFeatureConfirm = async (data: {
 }) => {
     showFeatureSelection.value = false;
     savingUsername.value = true;
+    const wasJoined = hasJoined.value;
     try {
         const response = await api.updateGuestInvite(token.value, {
             username: usernameInput.value.trim(),
@@ -98,12 +108,12 @@ const handleFeatureConfirm = async (data: {
         event.value = response.data.event;
         isDeadlinePassed.value = response.data.isDeadlinePassed;
         canEdit.value = response.data.canEdit;
-        toast.add({ severity: 'success', summary: 'Saved', detail: 'Your participation has been saved', life: 3000 });
+        toast.add({ severity: 'success', summary: wasJoined ? 'Choices saved' : "You're in", life: 3000 });
     } catch (err: any) {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: err.response?.data?.message || 'Failed to save your participation',
+            summary: "Couldn't save your reply",
+            detail: err.response?.data?.message || 'Try again in a moment.',
             life: 5000
         });
     } finally {
@@ -113,11 +123,10 @@ const handleFeatureConfirm = async (data: {
 
 const onLeave = () => {
     confirm.require({
-        message: 'Are you sure you want to leave this event?',
-        header: 'Confirm Leave',
-        icon: 'pi pi-exclamation-triangle',
-        rejectProps: { label: 'No', severity: 'secondary', text: true },
-        acceptProps: { label: 'Yes, Leave', severity: 'danger' },
+        header: 'Leave this event?',
+        message: 'The host will see that you can no longer make it.',
+        rejectProps: { label: 'Stay', severity: 'secondary', text: true },
+        acceptProps: { label: 'Leave', severity: 'danger' },
         accept: async () => {
             leaving.value = true;
             try {
@@ -125,12 +134,12 @@ const onLeave = () => {
                 event.value = response.data.event;
                 isDeadlinePassed.value = response.data.isDeadlinePassed;
                 canEdit.value = response.data.canEdit;
-                toast.add({ severity: 'success', summary: 'Left Event', detail: 'You left the event', life: 3000 });
+                toast.add({ severity: 'success', summary: 'You left the event', life: 3000 });
             } catch (err: any) {
                 toast.add({
                     severity: 'error',
-                    summary: 'Error',
-                    detail: err.response?.data?.message || 'Failed to leave the event',
+                    summary: "Couldn't leave the event",
+                    detail: err.response?.data?.message || 'Try again in a moment.',
                     life: 5000
                 });
             } finally {
@@ -142,64 +151,97 @@ const onLeave = () => {
 </script>
 
 <template>
-    <div class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 pb-24 sm:p-6">
-        <div class="flex flex-col items-center gap-1 pt-4 text-center">
-            <h1 class="m-0 text-xl font-bold uppercase sm:text-2xl">You're Invited</h1>
-            <p class="text-surface-500 m-0 text-sm">Set your name and preferences below, no account needed.</p>
+    <div
+        class="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-6"
+        :class="event && !notFound ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-10'"
+    >
+        <div class="text-fg flex items-center gap-2.5">
+            <AppLogo class="size-6" />
+            <span class="font-display text-title font-semibold tracking-tight">Legacy</span>
+            <span class="text-meta text-subtle ml-auto">Guest invite</span>
         </div>
 
-        <div v-if="loading" class="flex justify-center py-16">
-            <ProgressSpinner />
+        <div v-if="loading" class="flex flex-col gap-4 pt-2" aria-busy="true">
+            <Skeleton height="7.5rem" border-radius="1rem" />
+            <Skeleton width="40%" height="1.5rem" border-radius="999px" />
+            <Skeleton width="75%" height="2.25rem" />
+            <Skeleton height="9rem" border-radius="1rem" />
         </div>
 
-        <Message v-else-if="notFound" severity="error" :closable="false">
-            This invite link is invalid or no longer exists.
-        </Message>
+        <div v-else-if="notFound" class="animate-rise-in flex flex-col items-center gap-3 pt-[18dvh] text-center">
+            <span class="bg-surface-900 text-muted flex size-14 items-center justify-center rounded-2xl">
+                <i class="pi pi-link text-xl"></i>
+            </span>
+            <h1 class="text-headline m-0">This invite doesn't work anymore</h1>
+            <p class="text-body text-muted m-0 max-w-xs">
+                The link may be old, or the event was deleted. Ask whoever sent it for a new one.
+            </p>
+            <router-link to="/" class="text-meta text-muted hover:text-fg mt-2 font-medium">
+                Have an account? Sign in
+            </router-link>
+        </div>
 
         <template v-else-if="event">
-            <div class="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-                <div class="flex flex-col gap-2">
-                    <label for="guest-username" class="text-sm font-bold tracking-wider text-zinc-500 uppercase">
-                        Your Name
-                    </label>
-                    <InputText
-                        id="guest-username"
-                        v-model="usernameInput"
-                        placeholder="Enter your name"
-                        class="rounded-xl!"
-                        :disabled="!canEdit"
-                    />
+            <section class="border-line bg-raised animate-rise-in flex flex-col gap-4 rounded-2xl border p-4">
+                <div>
+                    <h1 class="text-headline m-0">{{ hasJoined ? "You're going" : "You're invited" }}</h1>
+                    <p class="text-meta text-muted m-0 mt-0.5">
+                        <template v-if="!canEdit">Replies are closed. You can still see the plan below.</template>
+                        <template v-else-if="hasJoined">You can change your choices until replies close.</template>
+                        <template v-else>Add your name, then pick what you're in for. No account needed.</template>
+                    </p>
                 </div>
 
-                <Message v-if="isDeadlinePassed" severity="warn" :closable="false">
-                    The participation deadline has passed - you can still view the event, but can no longer edit your
-                    participation.
-                </Message>
-
-                <div class="flex flex-wrap gap-2">
-                    <Button
-                        v-if="canEdit"
-                        :label="hasJoined ? 'Edit My Preferences' : 'Set Preferences & Join'"
-                        icon="pi pi-check"
-                        severity="success"
-                        :loading="savingUsername"
-                        @click="onOpenPreferences"
-                        class="rounded-xl!"
+                <div v-if="canEdit" class="flex flex-col gap-1.5">
+                    <label for="guest-username" class="text-meta text-muted font-medium">Your name</label>
+                    <InputText
+                        id="guest-username"
+                        ref="nameInput"
+                        v-model="usernameInput"
+                        autocomplete="name"
+                        placeholder="How the group knows you"
+                        :invalid="nameMissing && !usernameInput.trim()"
+                        fluid
+                        @update:modelValue="nameMissing = false"
+                        @keydown.enter="onOpenPreferences"
                     />
+                    <p
+                        v-if="nameMissing && !usernameInput.trim()"
+                        class="text-meta animate-rise-in m-0 text-rose-300"
+                        role="alert"
+                    >
+                        Add your name so the host knows who's coming.
+                    </p>
+                </div>
+            </section>
+
+            <EventViewMode :event="event" />
+
+            <div
+                v-if="canEdit || (hasJoined && !isEnded)"
+                class="border-line fixed inset-x-0 bottom-0 z-40 border-t bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+            >
+                <div class="mx-auto flex w-full max-w-2xl gap-2 px-4 py-3 sm:px-6">
                     <Button
                         v-if="hasJoined && !isEnded"
-                        label="Leave Event"
-                        icon="pi pi-times"
+                        label="Leave"
+                        icon="pi pi-sign-out"
                         severity="danger"
-                        outlined
+                        text
                         :loading="leaving"
                         @click="onLeave"
-                        class="rounded-xl!"
+                    />
+                    <Button
+                        v-if="canEdit"
+                        :label="hasJoined ? 'Change my choices' : 'Join'"
+                        :icon="hasJoined ? 'pi pi-sliders-h' : 'pi pi-check'"
+                        :severity="hasJoined ? 'secondary' : undefined"
+                        class="flex-1 sm:ml-auto sm:flex-none sm:px-6"
+                        :loading="savingUsername"
+                        @click="onOpenPreferences"
                     />
                 </div>
             </div>
-
-            <EventViewMode :event="event" />
         </template>
 
         <FeatureSelectionDialog
@@ -210,7 +252,7 @@ const onLeave = () => {
             :initialVehicleSeats="guestParticipant?.vehicleSeats"
             :initialVehicleSeatsOutbound="guestParticipant?.vehicleSeatsOutbound"
             :initialVehicleSeatsReturn="guestParticipant?.vehicleSeatsReturn"
-            :submitLabel="hasJoined ? 'Save Changes' : 'Join Event'"
+            :submitLabel="hasJoined ? 'Save changes' : 'Join event'"
             :featurePrices="eventPrices"
             :featureSplitPrices="eventSplitPrices"
             @confirm="handleFeatureConfirm"

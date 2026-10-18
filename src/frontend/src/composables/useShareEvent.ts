@@ -12,8 +12,8 @@ export function useShareEvent() {
         navigator.clipboard.writeText(url).then(() => {
             toast.add({
                 severity: 'success',
-                summary: 'Link Copied',
-                detail: 'Event link has been copied to clipboard',
+                summary: 'Link copied',
+                detail: 'Only people with a Legacy account can open it.',
                 life: 3000
             });
         });

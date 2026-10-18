@@ -123,27 +123,14 @@ export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event 
 
     const handleDeleteEvent = async (id: number) => {
         confirm.require({
-            message: 'Are you sure you want to delete this event? This action cannot be undone.',
-            header: 'Confirm Deletion',
-            icon: 'pi pi-exclamation-triangle',
-            rejectProps: {
-                label: 'Cancel',
-                severity: 'secondary',
-                outlined: true
-            },
-            acceptProps: {
-                label: 'Delete Event',
-                severity: 'danger'
-            },
+            header: 'Delete this event?',
+            message: "It disappears for everyone who was invited, chat included. This can't be undone.",
+            rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+            acceptProps: { label: 'Delete', severity: 'danger' },
             accept: async () => {
                 const success = await eventsStore.deleteEvent(id);
                 if (success) {
-                    toast.add({
-                        severity: 'success',
-                        summary: 'Success',
-                        detail: 'Event deleted successfully',
-                        life: 3000
-                    });
+                    toast.add({ severity: 'success', summary: 'Event deleted', life: 2500 });
                     showViewDialogState.value = false;
                 }
             }

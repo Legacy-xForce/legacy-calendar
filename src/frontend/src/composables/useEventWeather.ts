@@ -65,7 +65,7 @@ export const mapWeatherCodeToSummary = (
     }
     if (code <= 3) {
         return {
-            summary: 'Partly Cloudy',
+            summary: 'Partly cloudy',
             meteoconSlug: isDay ? 'partly-cloudy-day' : 'partly-cloudy-night'
         };
     }
@@ -101,7 +101,7 @@ export const mapWeatherCodeToSummary = (
     }
     if (code <= 86) {
         return {
-            summary: 'Snow Showers',
+            summary: 'Snow showers',
             meteoconSlug: 'extreme-snow'
         };
     }

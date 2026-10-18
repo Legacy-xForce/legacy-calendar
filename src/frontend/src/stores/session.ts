@@ -143,8 +143,9 @@ export const useSessionStore = defineStore('session', () => {
         logger.debug('Restoring session from local storage');
         try {
             session.value.token = token;
+            // The router guard sends protected routes to /disabled. Navigating from here as well
+            // would reload /disabled itself on every mount.
             if (isAccountDisabled(token)) {
-                window.location.href = '/disabled';
                 return false;
             }
             const response = await api.getProfile();

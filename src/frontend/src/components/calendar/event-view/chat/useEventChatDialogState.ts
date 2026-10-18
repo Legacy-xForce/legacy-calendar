@@ -195,8 +195,8 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
         if (!nextText) {
             toast.add({
                 severity: 'warn',
-                summary: 'Empty message',
-                detail: 'Edited messages need some text.',
+                summary: 'Message is empty',
+                detail: 'Add some text, or delete the message instead.',
                 life: 3000
             });
             return;
@@ -209,9 +209,8 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
 
     const confirmDelete = (messageId: number) => {
         confirm.require({
-            message: 'Delete this message? This cannot be undone.',
-            header: 'Delete Message',
-            icon: 'pi pi-trash',
+            header: 'Delete this message?',
+            message: "It's removed for everyone in the chat. This can't be undone.",
             rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
             acceptProps: { label: 'Delete', severity: 'danger' },
             accept: () => chat.deleteMessage(messageId)
@@ -274,8 +273,8 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
         } catch (error) {
             toast.add({
                 severity: 'error',
-                summary: 'Chat error',
-                detail: error instanceof Error ? error.message : 'Failed to send message',
+                summary: "Couldn't send",
+                detail: error instanceof Error ? error.message : 'Try again in a moment.',
                 life: 4000
             });
         }
@@ -323,7 +322,7 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
             if (!error) return;
             toast.add({
                 severity: 'warn',
-                summary: 'Chat connection',
+                summary: 'Chat is having trouble',
                 detail: error,
                 life: 4000
             });
@@ -407,8 +406,8 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
             isChatMuted.value = previousValue;
             toast.add({
                 severity: 'error',
-                summary: 'Chat mute',
-                detail: nextValue ? 'Failed to mute chat notifications' : 'Failed to unmute chat notifications',
+                summary: nextValue ? "Couldn't mute the chat" : "Couldn't unmute the chat",
+                detail: 'Try again in a moment.',
                 life: 4000
             });
         } finally {

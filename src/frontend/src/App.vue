@@ -20,7 +20,8 @@ const route = useRoute();
 const toast = useToast();
 const sessionStore = useSessionStore();
 const logger = createLogger('App');
-const showHeader = computed(() => route.name !== 'login');
+// Wait for the first route to resolve so standalone pages don't flash the app chrome
+const showHeader = computed(() => route.matched.length > 0 && !route.meta.bare);
 
 type ForegroundNotification = {
     id: number;
@@ -62,8 +63,8 @@ onMounted(async () => {
         localStorage.removeItem('session_expired');
         toast.add({
             severity: 'warn',
-            summary: 'Session Expired',
-            detail: 'Your session has expired. Please log in again.',
+            summary: 'Signed out',
+            detail: 'Your session ran out. Sign in again to pick up where you left off.',
             life: 5000
         });
     }

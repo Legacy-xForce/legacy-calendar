@@ -2,7 +2,9 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import Skeleton from 'primevue/skeleton';
 import { useRouter } from 'vue-router';
+import { differenceInCalendarDays, format, isSameYear, isToday, isYesterday, startOfDay } from 'date-fns';
 import type { Event } from '../../../types/Event';
 import type { AuditLogActionType, AuditLogEntry, AuditLogUserRef } from '../../../types/AuditLog';
 import API from '../../../services/API';
@@ -49,6 +51,28 @@ const displayedEntries = computed(() => [...entries.value].reverse());
 const totalChangeCount = computed(() =>
     displayedEntries.value.reduce((total, entry) => total + getDiffItems(entry).length, 0)
 );
+
+const dayLabel = (date: Date) => {
+    if (isToday(date)) return 'Today';
+    if (isYesterday(date)) return 'Yesterday';
+    if (differenceInCalendarDays(new Date(), date) < 7) return format(date, 'EEEE');
+    return format(date, isSameYear(date, new Date()) ? 'EEE d MMMM' : 'd MMMM yyyy');
+};
+
+const entryGroups = computed(() => {
+    const groups: { key: string; label: string; entries: AuditLogEntry[] }[] = [];
+    for (const entry of displayedEntries.value) {
+        const day = startOfDay(new Date(entry.createdAt));
+        const key = day.toISOString();
+        let group = groups.at(-1);
+        if (group?.key !== key) {
+            group = { key, label: dayLabel(day), entries: [] };
+            groups.push(group);
+        }
+        group.entries.push(entry);
+    }
+    return groups;
+});
 const entryDiffItems = computed(
     () => new Map(displayedEntries.value.map((entry) => [entry.id, getDiffItems(entry)] as const))
 );
@@ -151,49 +175,49 @@ watch(
 );
 
 const actionMeta: Record<AuditLogActionType, ActionMeta> = {
-    EVENT_CREATED: { label: 'created the event', icon: 'pi pi-calendar-plus', colorClass: 'bg-zinc-800 text-zinc-300' },
-    EVENT_UPDATED: { label: 'updated the event', icon: 'pi pi-pencil', colorClass: 'bg-sky-500/10 text-sky-400' },
-    EVENT_DELETED: { label: 'deleted the event', icon: 'pi pi-trash', colorClass: 'bg-rose-500/10 text-rose-400' },
+    EVENT_CREATED: { label: 'created the event', icon: 'pi pi-calendar-plus', colorClass: 'bg-surface-800 text-fg' },
+    EVENT_UPDATED: { label: 'updated the event', icon: 'pi pi-pencil', colorClass: 'bg-sky-950 text-sky-300' },
+    EVENT_DELETED: { label: 'deleted the event', icon: 'pi pi-trash', colorClass: 'bg-rose-950 text-rose-300' },
     PARTICIPANT_JOINED: {
         label: 'joined the event',
         icon: 'pi pi-user-plus',
-        colorClass: 'bg-emerald-500/10 text-emerald-400'
+        colorClass: 'bg-emerald-950 text-emerald-300'
     },
     PARTICIPANT_DECLINED: {
         label: 'declined the invitation',
         icon: 'pi pi-user-minus',
-        colorClass: 'bg-rose-500/10 text-rose-400'
+        colorClass: 'bg-rose-950 text-rose-300'
     },
     PARTICIPANT_REMOVED: {
         label: 'was removed from the event',
         icon: 'pi pi-user-minus',
-        colorClass: 'bg-rose-500/10 text-rose-400'
+        colorClass: 'bg-rose-950 text-rose-300'
     },
     PARTICIPANT_UPDATED: {
         label: 'updated their participation',
         icon: 'pi pi-sliders-h',
-        colorClass: 'bg-sky-500/10 text-sky-400'
+        colorClass: 'bg-sky-950 text-sky-300'
     },
     PARTICIPANT_INVITED: {
         label: 'invited a user',
         icon: 'pi pi-envelope',
-        colorClass: 'bg-emerald-500/10 text-emerald-400'
+        colorClass: 'bg-emerald-950 text-emerald-300'
     },
     CO_HOST_ADDED: {
         label: 'added a co-host',
         icon: 'pi pi-user-plus',
-        colorClass: 'bg-emerald-500/10 text-emerald-400'
+        colorClass: 'bg-emerald-950 text-emerald-300'
     },
     CO_HOST_REMOVED: {
         label: 'removed a co-host',
         icon: 'pi pi-user-minus',
-        colorClass: 'bg-rose-500/10 text-rose-400'
+        colorClass: 'bg-rose-950 text-rose-300'
     },
-    RIDE_ASSIGNED: { label: 'assigned a ride', icon: 'pi pi-car', colorClass: 'bg-sky-500/10 text-sky-400' },
+    RIDE_ASSIGNED: { label: 'assigned a ride', icon: 'pi pi-car', colorClass: 'bg-sky-950 text-sky-300' },
     RIDE_UNASSIGNED: {
         label: 'unassigned a ride',
         icon: 'pi pi-times-circle',
-        colorClass: 'bg-sky-500/10 text-sky-400'
+        colorClass: 'bg-sky-950 text-sky-300'
     }
 };
 
@@ -237,12 +261,11 @@ const fieldLabels: Record<string, string> = {
     passengerId: 'Passenger',
     driverId: 'Driver',
     coHostId: 'Co-host',
-    username: 'Username'
+    hasPaid: 'Paid',
+    username: 'Name'
 };
 
 const DATE_FIELDS = new Set(['startTime', 'endTime', 'joinedAt', 'participationDeadline']);
-
-const getLocale = () => navigator.language || 'en-GB';
 
 const formatTimestamp = (value: string) => {
     const date = new Date(value);
@@ -250,13 +273,10 @@ const formatTimestamp = (value: string) => {
         return value;
     }
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return new Intl.DateTimeFormat(getLocale(), {
-        timeZone,
-        dateStyle: 'medium',
-        timeStyle: 'short'
-    }).format(date);
+    return format(date, isSameYear(date, new Date()) ? 'EEE d MMM · HH:mm' : 'd MMM yyyy · HH:mm');
 };
+
+const formatTime = (value: string) => format(new Date(value), 'HH:mm');
 
 const formatDiffValue = (value: unknown, fieldName: string) => {
     if (value === null || value === undefined) {
@@ -273,11 +293,8 @@ const formatDiffValue = (value: unknown, fieldName: string) => {
         }
 
         if (/^[A-Z][A-Z0-9_]*$/.test(value)) {
-            return value
-                .toLowerCase()
-                .split('_')
-                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                .join(' ');
+            const words = value.toLowerCase().replaceAll('_', ' ');
+            return words.charAt(0).toUpperCase() + words.slice(1);
         }
 
         return value;
@@ -300,7 +317,8 @@ const getEntryActionLabel = (entry: AuditLogEntry) => {
 
     if (entry.actionType === 'PARTICIPANT_UPDATED' && hasPaymentChange && participant) {
         const status = entry.payloadDiff.after.hasPaid === true ? 'paid' : 'unpaid';
-        return `marked ${participant.username} as ${status}`;
+        const who = participant.id === entry.actorId ? 'themselves' : participant.username;
+        return `marked ${who} as ${status}`;
     }
 
     return actionMeta[entry.actionType].label;
@@ -315,7 +333,10 @@ const hasDiffBlock = (entry: AuditLogEntry) => {
 const getFieldLabel = (fieldName: string) => {
     return (
         fieldLabels[fieldName] ??
-        fieldName.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (char) => char.toUpperCase())
+        fieldName
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .toLowerCase()
+            .replace(/^./, (char) => char.toUpperCase())
     );
 };
 
@@ -361,8 +382,7 @@ const getDiffItems = (entry: AuditLogEntry): DiffItem[] => {
 
 const getEntryDiffItems = (entry: AuditLogEntry) => entryDiffItems.value.get(entry.id) ?? [];
 
-const getActorLabel = (entry: AuditLogEntry) =>
-    entry.impersonatorUsername ? `${entry.impersonatorUsername} (as ${entry.actorUsername})` : entry.actorUsername;
+const getActorLabel = (entry: AuditLogEntry) => entry.impersonatorUsername ?? entry.actorUsername;
 
 const getActorAvatarProps = (entry: AuditLogEntry) =>
     entry.impersonatorUsername
@@ -376,158 +396,147 @@ const getActorAvatarProps = (entry: AuditLogEntry) =>
         modal
         dismissableMask
         :class="isMobile ? 'p-dialog-maximized' : ''"
-        :header="event ? `Audit Log · ${event.title}` : 'Audit Log'"
+        :header="event ? `Activity · ${event.title}` : 'Activity'"
         :pt="dialogPt"
         :draggable="false"
     >
         <template #header>
             <div class="min-w-0">
                 <h2 class="text-title m-0 truncate">Activity</h2>
-                <p class="text-meta text-muted m-0 truncate">
-                    <template v-if="!loading && !errorMessage">
-                        {{ displayedEntries.length }} event{{ displayedEntries.length === 1 ? '' : 's' }} ·
-                        {{ totalChangeCount }} change{{ totalChangeCount === 1 ? '' : 's' }}
+                <p class="text-meta text-muted tabular m-0 truncate">
+                    <template v-if="!loading && !errorMessage && displayedEntries.length">
+                        {{ displayedEntries.length }} {{ displayedEntries.length === 1 ? 'update' : 'updates' }} ·
+                        {{ totalChangeCount }} {{ totalChangeCount === 1 ? 'change' : 'changes' }}
                     </template>
                     <template v-else>{{ event?.title }}</template>
                 </p>
             </div>
         </template>
 
-        <div v-if="loading" class="flex h-full items-center justify-center">
-            <i class="pi pi-spin pi-spinner text-2xl text-zinc-500"></i>
+        <div v-if="loading" class="flex flex-col gap-3 p-4" aria-busy="true">
+            <Skeleton width="5rem" height="1rem" />
+            <Skeleton height="4.25rem" border-radius="1rem" />
+            <Skeleton height="4.25rem" border-radius="1rem" />
+            <Skeleton height="4.25rem" border-radius="1rem" />
         </div>
 
-        <div v-else-if="errorMessage" class="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10">
-                <i class="pi pi-exclamation-triangle text-2xl text-rose-400"></i>
-            </div>
-            <div class="max-w-sm space-y-1">
-                <h3 class="text-lg font-bold text-white">Couldn't load activity</h3>
-                <p class="text-sm text-zinc-400">{{ errorMessage }}</p>
-            </div>
-            <Button label="Retry" icon="pi pi-refresh" severity="secondary" text @click="retry" />
+        <div v-else-if="errorMessage" class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+            <i class="pi pi-history text-subtle text-2xl"></i>
+            <h3 class="text-headline m-0">Couldn't load activity</h3>
+            <p class="text-body text-muted m-0 max-w-xs">{{ errorMessage }}</p>
+            <Button label="Try again" icon="pi pi-refresh" severity="secondary" class="mt-2" @click="retry" />
         </div>
 
         <div
             v-else-if="entries.length === 0"
-            class="flex h-full flex-col items-center justify-center gap-4 p-8 text-center"
+            class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center"
         >
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-sky-500/10">
-                <i class="pi pi-clock text-2xl text-sky-400"></i>
-            </div>
-            <div class="max-w-sm space-y-1">
-                <h3 class="text-lg font-bold text-white">No activity yet</h3>
-                <p class="text-sm text-zinc-400">Changes to this event will show up here.</p>
-            </div>
+            <i class="pi pi-history text-subtle text-2xl"></i>
+            <h3 class="text-headline m-0">No activity yet</h3>
+            <p class="text-body text-muted m-0 max-w-xs">Edits, replies and rides for this event show up here.</p>
         </div>
 
-        <div v-else class="h-full overflow-y-auto p-4">
-            <div class="border-line bg-raised divide-line divide-y overflow-hidden rounded-2xl border">
-                <div v-for="entry in displayedEntries" :key="entry.id" class="p-3.5">
-                    <div class="flex items-start gap-3">
-                        <div
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                            :class="actionMeta[entry.actionType].colorClass"
+        <div v-else class="flex h-full flex-col gap-6 overflow-y-auto p-4">
+            <section v-for="group in entryGroups" :key="group.key" class="flex flex-col gap-2">
+                <h3 class="text-body text-fg m-0 font-semibold">{{ group.label }}</h3>
+                <ul
+                    class="border-line bg-raised divide-line m-0 list-none divide-y overflow-hidden rounded-2xl border p-0"
+                >
+                    <li v-for="entry in group.entries" :key="entry.id">
+                        <component
+                            :is="hasDiffBlock(entry) ? 'button' : 'div'"
+                            :type="hasDiffBlock(entry) ? 'button' : undefined"
+                            :aria-expanded="hasDiffBlock(entry) ? isEntryExpanded(entry.id) : undefined"
+                            class="flex w-full items-center gap-3 px-4 py-3 text-left"
+                            :class="hasDiffBlock(entry) ? 'hover:bg-surface-900 cursor-pointer transition-colors' : ''"
+                            @click="hasDiffBlock(entry) && toggleEntry(entry.id)"
                         >
-                            <i :class="`${actionMeta[entry.actionType].icon} text-sm`"></i>
-                        </div>
-
-                        <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                                <div class="flex min-w-0 items-center gap-2">
-                                    <UserAvatar v-bind="getActorAvatarProps(entry)" size="normal" />
-                                    <p class="m-0 min-w-0 text-sm text-zinc-200">
-                                        <span class="font-semibold text-white">{{ getActorLabel(entry) }}</span>
-                                        {{ ' ' }}{{ getEntryActionLabel(entry) }}
-                                    </p>
-                                </div>
-                                <span class="shrink-0 text-xs text-zinc-500">{{
-                                    formatTimestamp(entry.createdAt)
-                                }}</span>
-                            </div>
-
-                            <button
-                                v-if="hasDiffBlock(entry)"
-                                type="button"
-                                class="mt-1.5 flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300"
-                                @click="toggleEntry(entry.id)"
-                            >
-                                <i
-                                    :class="isEntryExpanded(entry.id) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-                                    class="text-[10px]"
-                                ></i>
-                                {{ getEntryDiffItems(entry).length }} change{{
-                                    getEntryDiffItems(entry).length === 1 ? '' : 's'
-                                }}
-                            </button>
-
-                            <div
-                                v-if="hasDiffBlock(entry) && isEntryExpanded(entry.id)"
-                                class="mt-2 space-y-1.5 rounded-lg bg-zinc-900/60 p-2.5 text-sm"
-                            >
-                                <div
-                                    v-for="item in getEntryDiffItems(entry)"
-                                    :key="item.fieldName"
-                                    class="flex flex-wrap items-center gap-1.5"
+                            <span class="relative shrink-0">
+                                <UserAvatar v-bind="getActorAvatarProps(entry)" class="text-body! size-10!" />
+                                <span
+                                    class="ring-raised absolute -right-1 -bottom-1 flex size-[1.125rem] items-center justify-center rounded-full ring-2"
+                                    :class="actionMeta[entry.actionType].colorClass"
+                                    aria-hidden="true"
                                 >
-                                    <span
-                                        class="h-1.5 w-1.5 shrink-0 rounded-full"
-                                        :class="diffDotClass[item.kind]"
-                                    ></span>
-                                    <span class="text-zinc-400">{{ getFieldLabel(item.fieldName) }}:</span>
-                                    <template v-if="item.kind === 'added'">
-                                        <span v-if="item.afterUser" class="flex items-center gap-1">
-                                            <UserAvatar
-                                                :username="item.afterUser.username"
-                                                :profile-picture-url="item.afterUser.profilePictureUrl"
-                                                class="h-4! w-4! text-[10px]!"
-                                            />
-                                            <span class="text-zinc-100">{{ item.afterUser.username }}</span>
-                                        </span>
-                                        <span v-else class="text-zinc-100">{{ item.afterText }}</span>
-                                    </template>
-                                    <template v-else-if="item.kind === 'removed'">
+                                    <i :class="actionMeta[entry.actionType].icon" class="text-[0.5625rem]"></i>
+                                </span>
+                            </span>
+
+                            <span class="min-w-0 flex-1">
+                                <span class="text-body text-muted block">
+                                    <span class="text-fg font-semibold">{{ getActorLabel(entry) }}</span>
+                                    <template v-if="entry.impersonatorUsername"> as {{ entry.actorUsername }}</template>
+                                    {{ ' ' }}{{ getEntryActionLabel(entry) }}
+                                </span>
+                                <span
+                                    v-if="hasDiffBlock(entry)"
+                                    class="text-meta text-subtle mt-0.5 flex items-center gap-1"
+                                >
+                                    {{ getEntryDiffItems(entry).length }}
+                                    {{ getEntryDiffItems(entry).length === 1 ? 'change' : 'changes' }}
+                                    <i
+                                        class="pi pi-chevron-down text-[0.625rem] transition-transform duration-200"
+                                        :class="isEntryExpanded(entry.id) ? 'rotate-180' : ''"
+                                    ></i>
+                                </span>
+                            </span>
+
+                            <time
+                                :datetime="entry.createdAt"
+                                :title="formatTimestamp(entry.createdAt)"
+                                class="text-meta text-subtle tabular shrink-0 self-start pt-0.5"
+                            >
+                                {{ formatTime(entry.createdAt) }}
+                            </time>
+                        </component>
+
+                        <dl
+                            v-if="hasDiffBlock(entry) && isEntryExpanded(entry.id)"
+                            class="bg-surface-900 animate-fade-in text-meta mx-4 mt-0 mb-3 ml-[4.25rem] flex flex-col gap-2 rounded-xl p-3"
+                        >
+                            <div
+                                v-for="item in getEntryDiffItems(entry)"
+                                :key="item.fieldName"
+                                class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1"
+                            >
+                                <span class="size-1.5 shrink-0 rounded-full" :class="diffDotClass[item.kind]"></span>
+                                <dt class="text-muted">{{ getFieldLabel(item.fieldName) }}</dt>
+                                <dd class="m-0 flex min-w-0 flex-wrap items-center gap-1.5">
+                                    <template v-if="item.kind !== 'added'">
                                         <span v-if="item.beforeUser" class="flex items-center gap-1">
                                             <UserAvatar
                                                 :username="item.beforeUser.username"
                                                 :profile-picture-url="item.beforeUser.profilePictureUrl"
-                                                class="h-4! w-4! text-[10px]!"
+                                                class="size-4! text-[0.5625rem]!"
                                             />
-                                            <span class="text-zinc-500 line-through">{{
-                                                item.beforeUser.username
-                                            }}</span>
+                                            <span class="text-subtle line-through">{{ item.beforeUser.username }}</span>
                                         </span>
-                                        <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
+                                        <span v-else class="text-subtle break-all line-through">{{
+                                            item.beforeText
+                                        }}</span>
                                     </template>
-                                    <template v-else>
-                                        <span v-if="item.beforeUser" class="flex items-center gap-1">
-                                            <UserAvatar
-                                                :username="item.beforeUser.username"
-                                                :profile-picture-url="item.beforeUser.profilePictureUrl"
-                                                class="h-4! w-4! text-[10px]!"
-                                            />
-                                            <span class="text-zinc-500 line-through">{{
-                                                item.beforeUser.username
-                                            }}</span>
-                                        </span>
-                                        <span v-else class="text-zinc-500 line-through">{{ item.beforeText }}</span>
-                                        <i class="pi pi-arrow-right text-[10px] text-zinc-600"></i>
+                                    <i
+                                        v-if="item.kind === 'updated'"
+                                        class="pi pi-arrow-right text-subtle text-[0.625rem]"
+                                        aria-label="changed to"
+                                    ></i>
+                                    <template v-if="item.kind !== 'removed'">
                                         <span v-if="item.afterUser" class="flex items-center gap-1">
                                             <UserAvatar
                                                 :username="item.afterUser.username"
                                                 :profile-picture-url="item.afterUser.profilePictureUrl"
-                                                class="h-4! w-4! text-[10px]!"
+                                                class="size-4! text-[0.5625rem]!"
                                             />
-                                            <span class="text-zinc-100">{{ item.afterUser.username }}</span>
+                                            <span class="text-fg">{{ item.afterUser.username }}</span>
                                         </span>
-                                        <span v-else class="text-zinc-100">{{ item.afterText }}</span>
+                                        <span v-else class="text-fg break-all">{{ item.afterText }}</span>
                                     </template>
-                                </div>
+                                </dd>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                        </dl>
+                    </li>
+                </ul>
+            </section>
         </div>
     </Dialog>
 </template>

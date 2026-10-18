@@ -332,6 +332,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
 
     return {
         // State
+        isGuestMode,
         currentUser,
         eventHost,
         coHosts: resolvedCoHosts,

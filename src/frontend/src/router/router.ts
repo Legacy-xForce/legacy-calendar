@@ -16,13 +16,20 @@ declare module 'vue-router' {
         requiresAuth?: boolean;
         requiresGuest?: boolean;
         requiresAdmin?: boolean;
+        /** Standalone page without the app header and tab bar */
+        bare?: boolean;
     }
 }
 
 const routes: RouteRecordRaw[] = [
-    { path: '/', name: 'login', component: Login, meta: { requiresGuest: true } },
-    { path: '/disabled', name: 'disabled-account', component: DisabledAccountView },
-    { path: '/insufficient-scope', name: 'insufficient-scope', component: InsufficientScopeView },
+    { path: '/', name: 'login', component: Login, meta: { requiresGuest: true, bare: true } },
+    { path: '/disabled', name: 'disabled-account', component: DisabledAccountView, meta: { bare: true } },
+    {
+        path: '/insufficient-scope',
+        name: 'insufficient-scope',
+        component: InsufficientScopeView,
+        meta: { bare: true }
+    },
     {
         path: '/calendar',
         name: 'calendar',
@@ -55,7 +62,7 @@ const routes: RouteRecordRaw[] = [
     },
     { path: '/upcoming/:id/edit', name: 'upcoming-event-edit', component: Upcoming, meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, requiresAdmin: true } },
-    { path: '/invite/:token', name: 'guest-invite', component: GuestInviteView },
+    { path: '/invite/:token', name: 'guest-invite', component: GuestInviteView, meta: { bare: true } },
     { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
     { path: '/403', name: 'forbidden', component: ErrorPage, props: { status: 403 } },
     { path: '/404', name: 'not-found', component: ErrorPage, props: { status: 404 } },
