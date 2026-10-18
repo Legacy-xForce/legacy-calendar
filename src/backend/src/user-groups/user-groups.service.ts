@@ -4,6 +4,7 @@ import { CreateUserGroupDto } from './dto/create-user-group.dto.js';
 import { UpdateUserGroupDto } from './dto/update-user-group.dto.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { Prisma } from '../../prisma/generated/client.js';
+import { normalizeIdList } from '../common/id.util.js';
 
 @Injectable()
 export class UserGroupsService {
@@ -33,7 +34,7 @@ export class UserGroupsService {
         const trimmedName = dto.name.trim();
 
         // deduplicate memberIds and filter positive ints
-        const memberIds = [...new Set(dto.memberIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))];
+        const memberIds = normalizeIdList(dto.memberIds, { positiveOnly: true });
 
         try {
             return await this.prisma.userGroup.create({
@@ -59,7 +60,7 @@ export class UserGroupsService {
             data.name = dto.name.trim();
         }
         if (dto.memberIds !== undefined) {
-            data.memberIds = [...new Set(dto.memberIds.map(Number).filter((mId) => Number.isFinite(mId) && mId > 0))];
+            data.memberIds = normalizeIdList(dto.memberIds, { positiveOnly: true });
         }
 
         try {

@@ -1,37 +1,26 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
+import { USER_SELECT } from '../users/users.repository.js';
 import { ParticipateDto } from './dto/participate.dto.js';
 import { normalizeVehicleSeats } from './vehicle-seats.util.js';
 
-const USER_SUMMARY_SELECT = {
-    id: true,
-    username: true,
-    isAdmin: true,
-    authId: true,
-    paypalLink: true,
-    ibanNumber: true,
-    ibanAccountHolder: true,
-    revolutLink: true
-} satisfies Prisma.UserSelect;
-
 export const EVENT_INCLUDE = {
-    host: { select: USER_SUMMARY_SELECT },
+    host: { select: USER_SELECT },
     coHosts: {
         include: {
-            user: { select: USER_SUMMARY_SELECT }
+            user: { select: USER_SELECT }
         },
         orderBy: { addedAt: 'asc' as const }
     },
     participants: {
         include: {
-            user: { select: USER_SUMMARY_SELECT },
+            user: { select: USER_SELECT },
             guestParticipant: { select: { id: true, displayName: true } }
         }
     },
-    rideAssignments: {
-        // IDs are namespaced: positive user IDs, negative guest participant IDs.
-    }
+    // RideAssignment ids are namespaced: positive user IDs, negative guest participant IDs.
+    rideAssignments: true
 } satisfies Prisma.EventInclude;
 
 export type EventWithRelations = Prisma.EventGetPayload<{
@@ -286,18 +275,9 @@ export class EventsRepository {
         return user;
     }
 
-    async getParticipantTokens(eventId: number): Promise<string[]> {
+    async getParticipantTokens(eventId: number, status?: InviteStatus): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
-            where: { eventId, userId: { not: null } },
-            include: { user: { include: { fcmTokens: true } } }
-        });
-
-        return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
-    }
-
-    async getParticipantTokensByStatus(eventId: number, status: InviteStatus): Promise<string[]> {
-        const attendances = await this.prisma.attendance.findMany({
-            where: { eventId, status, userId: { not: null } },
+            where: { eventId, ...(status ? { status } : {}), userId: { not: null } },
             include: { user: { include: { fcmTokens: true } } }
         });
 

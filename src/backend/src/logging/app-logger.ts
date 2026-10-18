@@ -1,8 +1,7 @@
 import type pino from 'pino';
 import pinoFactory from 'pino';
 import { PinoLogger } from 'nestjs-pino';
-
-type LogLevel = 'fatal' | 'critical' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+import { resolveDefaultLogLevel, type LogLevel } from './log-level.js';
 
 type LogDetails = unknown;
 
@@ -16,18 +15,14 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
     trace: 6
 };
 
-const DEFAULT_LEVEL = normalizeLevel(
-    process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'trace')
-);
-
 export class AppLogger {
     private readonly logger: pino.Logger;
 
     constructor(
         private readonly context: string,
-        private readonly minimumLevel: LogLevel = DEFAULT_LEVEL
+        private readonly minimumLevel: LogLevel = resolveDefaultLogLevel()
     ) {
-        const rootLogger = PinoLogger.root ?? pinoFactory({ level: DEFAULT_LEVEL });
+        const rootLogger = PinoLogger.root ?? pinoFactory({ level: resolveDefaultLogLevel() });
         this.logger = rootLogger.child ? rootLogger.child({ context: this.context }) : rootLogger;
     }
 
@@ -152,21 +147,4 @@ export class AppLogger {
 
         return value;
     }
-}
-
-function normalizeLevel(level: string): LogLevel {
-    const normalized = level.toLowerCase();
-    if (
-        normalized === 'fatal' ||
-        normalized === 'critical' ||
-        normalized === 'error' ||
-        normalized === 'warn' ||
-        normalized === 'info' ||
-        normalized === 'debug' ||
-        normalized === 'trace'
-    ) {
-        return normalized;
-    }
-
-    return 'trace';
 }

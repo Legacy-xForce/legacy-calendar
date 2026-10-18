@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PasskeyService } from './passkey.service.js';
 import {
     PasskeyRegisterOptionsDto,
@@ -12,12 +13,14 @@ import { type RequestWithUser } from '../interfaces/request-with-user.interface.
 
 @ApiTags('passkey')
 @Controller('auth/passkey')
+@UseGuards(ThrottlerGuard)
 export class PasskeyController {
     constructor(@Inject(PasskeyService) private readonly passkeyService: PasskeyService) {}
 
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post('register-options')
+    @Throttle({ default: { limit: 20, ttl: 60_000 } })
     @ApiOperation({ summary: 'Generate WebAuthn registration options for current user' })
     generateRegisterOptions(@Request() req: RequestWithUser, @Body() _dto: PasskeyRegisterOptionsDto) {
         return this.passkeyService.generateRegisterOptions(req.user.userId as number);
@@ -26,18 +29,21 @@ export class PasskeyController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post('register-verify')
+    @Throttle({ default: { limit: 20, ttl: 60_000 } })
     @ApiOperation({ summary: 'Verify WebAuthn registration and store credential' })
     verifyRegister(@Request() req: RequestWithUser, @Body() dto: PasskeyRegisterVerifyDto) {
         return this.passkeyService.verifyRegister(req.user.userId as number, dto);
     }
 
     @Post('login-options')
+    @Throttle({ default: { limit: 10, ttl: 60_000 } })
     @ApiOperation({ summary: 'Generate WebAuthn login assertion options' })
     generateLoginOptions(@Body() dto: PasskeyLoginOptionsDto) {
         return this.passkeyService.generateLoginOptions(dto.username);
     }
 
     @Post('login-verify')
+    @Throttle({ default: { limit: 10, ttl: 60_000 } })
     @ApiOperation({ summary: 'Verify WebAuthn assertion and issue authentication token' })
     verifyLogin(@Body() dto: PasskeyLoginVerifyDto) {
         return this.passkeyService.verifyLogin(dto);

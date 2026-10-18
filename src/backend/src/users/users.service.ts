@@ -6,7 +6,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdatePaymentInfoDto } from './dto/update-payment-info.dto.js';
 import { UserDto } from './dto/user.dto.js';
 import { UsersRepository, UserRecord } from './users.repository.js';
-import { buildProfilePictureUrl } from './profile-picture.util.js';
+import { mapUserToDto } from './user.mapper.js';
 import { AppLogger } from '../logging/app-logger.js';
 
 @Injectable()
@@ -148,22 +148,7 @@ export class UsersService {
     }
 
     private toDto(user: UserRecord, options: { includePaymentInfo?: boolean } = {}): UserDto {
-        const dto: UserDto = {
-            id: user.id,
-            username: user.username,
-            isAdmin: user.isAdmin,
-            profilePictureUrl: buildProfilePictureUrl(user.authId),
-            isGuest: false
-        };
-
-        if (options.includePaymentInfo) {
-            dto.paypalLink = user.paypalLink;
-            dto.ibanNumber = user.ibanNumber;
-            dto.ibanAccountHolder = user.ibanAccountHolder;
-            dto.revolutLink = user.revolutLink;
-        }
-
-        return dto;
+        return mapUserToDto(user, options);
     }
 
     private handleUserWriteError(error: unknown, id: number): void {

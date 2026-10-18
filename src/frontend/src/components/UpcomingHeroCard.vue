@@ -9,6 +9,7 @@ import { useEventWeather } from '../composables/useEventWeather';
 import { useSessionStore } from '../stores/session';
 import { getActiveParticipants, getEventEnd, getUserEventRole, openNavigation } from '../utils/event';
 import { normalizeHexColor } from '../utils/color';
+import { isOnlineLocation } from '../utils/url';
 import { DEFAULT_COLOR } from '../constants/colors';
 import UserAvatarGroup from './UserAvatarGroup.vue';
 import LinkifiedText from './LinkifiedText.vue';
@@ -36,7 +37,7 @@ const role = computed(() => getUserEventRole(props.event, sessionStore.currentUs
 const going = computed(() => getActiveParticipants(props.event.participants));
 const weather = computed(() => getWeatherForEvent(props.event.id));
 const weatherVisible = ref(false);
-const isOnline = computed(() => /^https?:\/\//i.test(props.event.location ?? ''));
+const isOnline = computed(() => isOnlineLocation(props.event.location));
 const canChat = computed(() => role.value === 'going' || role.value === 'hosting');
 
 const whenLabel = computed(() => {

@@ -1,9 +1,11 @@
 import { Body, Controller, Post, Request, UseGuards, Inject, HttpException, HttpStatus } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UsersService } from '../users/users.service.js';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { type RequestWithUser } from './interfaces/request-with-user.interface.js';
+import { getAuthHost } from '../config/auth-host.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -21,15 +23,16 @@ export class AuthController {
     }
 
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, ThrottlerGuard)
     @Post('change-password')
+    @Throttle({ default: { limit: 10, ttl: 60_000 } })
     @ApiOperation({ summary: 'Change user password (proxied to auth service)' })
     @ApiBody({ type: ChangePasswordDto })
     @ApiResponse({ status: 200, description: 'Password changed successfully' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async changePassword(@Request() req: RequestWithUser, @Body() changePasswordDto: ChangePasswordDto) {
         const authHeader = (req.headers?.authorization as string) || '';
-        const authHost = process.env.AUTH_HOST || 'https://auth.legacy-group.tech';
+        const authHost = getAuthHost();
 
         try {
             const res = await fetch(`${authHost}/auth/change-password`, {

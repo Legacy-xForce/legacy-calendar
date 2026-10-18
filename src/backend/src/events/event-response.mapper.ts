@@ -1,37 +1,12 @@
 import { EventHostDto, EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
-import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
+import { mapGuestToDto, mapUserToDto, type MappableUser } from '../users/user.mapper.js';
 import { EventWithRelations } from './events.repository.js';
 
-function mapUserDto(user: { id: number; username: string; isAdmin: boolean; authId: string | null }): UserDto {
-    return {
-        id: user.id,
-        username: user.username,
-        isAdmin: user.isAdmin,
-        profilePictureUrl: buildProfilePictureUrl(user.authId),
-        isGuest: false
-    };
-}
-
-// Only hosts/co-hosts surface payment coordinates - participants use mapUserDto so
-// they never receive each other's payment info via the participants list.
-function mapHostDto(user: {
-    id: number;
-    username: string;
-    isAdmin: boolean;
-    authId: string | null;
-    paypalLink: string | null;
-    ibanNumber: string | null;
-    ibanAccountHolder: string | null;
-    revolutLink: string | null;
-}): EventHostDto {
-    return {
-        ...mapUserDto(user),
-        paypalLink: user.paypalLink,
-        ibanNumber: user.ibanNumber,
-        ibanAccountHolder: user.ibanAccountHolder,
-        revolutLink: user.revolutLink
-    };
+// Only hosts/co-hosts surface payment coordinates - participants use the public
+// user shape so they never receive each other's payment info via the list.
+function mapHostDto(user: MappableUser): EventHostDto {
+    return mapUserToDto(user, { includePaymentInfo: true });
 }
 
 export function mapEventToDto(event: EventWithRelations): EventResponseDto {
@@ -42,15 +17,13 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             const guest = event.participants.find(
                 (attendance) => attendance.guestParticipantId === -id
             )?.guestParticipant;
-            return guest
-                ? { id, username: guest.displayName, isAdmin: false, profilePictureUrl: null, isGuest: true }
-                : undefined;
+            return guest ? mapGuestToDto(id, guest.displayName) : undefined;
         }
 
         const user =
             event.participants.find((attendance) => attendance.user?.id === id)?.user ??
             (event.host.id === id ? event.host : event.coHosts.find((coHost) => coHost.user.id === id)?.user);
-        return user ? mapUserDto(user) : undefined;
+        return user ? mapUserToDto(user) : undefined;
     };
     const rideAssignmentsByPassengerId = new Map<
         number,
@@ -70,14 +43,8 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
 
         return {
             ...(attendance.user
-                ? mapUserDto(attendance.user)
-                : {
-                      id: -attendance.guestParticipant!.id,
-                      username: attendance.guestParticipant!.displayName,
-                      isAdmin: false,
-                      profilePictureUrl: null,
-                      isGuest: true
-                  }),
+                ? mapUserToDto(attendance.user)
+                : mapGuestToDto(-attendance.guestParticipant!.id, attendance.guestParticipant!.displayName)),
             status: attendance.status,
             wantsFood: attendance.wantsFood,
             wantsWeed: attendance.wantsWeed,

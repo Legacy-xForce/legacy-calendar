@@ -5,6 +5,8 @@ import { AuditLogService } from '../audit-log/audit-log.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { NotificationCode } from '../notifications/notification-codes.js';
 import { EVENT_NOTIFICATION_TITLES, EVENT_NOTIFICATION_MESSAGES } from '../events/event-notification.constants.js';
+import { assertDeadlineNotPassed, assertEventNotEnded } from '../events/event-guards.js';
+import { buildNotificationData } from '../notifications/notification-data.util.js';
 import { mapEventToDto } from '../events/event-response.mapper.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { InvitesRepository, type GuestInviteWithRelations } from './invites.repository.js';
@@ -180,11 +182,16 @@ export class InvitesService {
             }
         }[action];
 
-        await this.notificationsService.sendMulticast(hostTokens, messages.title, messages.body, {
-            type: messages.type,
-            eventId: String(event.id),
-            actorUsername: username
-        });
+        await this.notificationsService.sendMulticast(
+            hostTokens,
+            messages.title,
+            messages.body,
+            buildNotificationData({
+                type: messages.type,
+                eventId: event.id,
+                actorUsername: username
+            })
+        );
     }
 
     private resolveExpiry(event: EventWithRelations): Date {
@@ -197,15 +204,11 @@ export class InvitesService {
     }
 
     private validateDeadlineNotPassed(event: EventWithRelations) {
-        if (event.participationDeadline && new Date() > event.participationDeadline) {
-            throw new ForbiddenException('The participation deadline for this event has passed');
-        }
+        assertDeadlineNotPassed(event);
     }
 
     private validateEventNotEnded(event: EventWithRelations) {
-        if (event.endTime && new Date() > event.endTime) {
-            throw new ForbiddenException('This event has already ended');
-        }
+        assertEventNotEnded(event, 'This event has already ended');
     }
 
     private async findEventOrThrow(eventId: number): Promise<EventWithRelations> {

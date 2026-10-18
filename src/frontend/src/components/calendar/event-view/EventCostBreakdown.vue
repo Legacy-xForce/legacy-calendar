@@ -5,6 +5,7 @@ import UserAvatar from '../../UserAvatar.vue';
 import type { Event, EventFeature } from '../../../types/Event';
 import { FEATURES } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
+import { formatDisplayUrl, toAbsoluteUrl } from '../../../utils/url';
 import { injectEventView } from '../../../composables/useEventView';
 
 defineProps<{
@@ -31,10 +32,6 @@ const toast = useToast();
 const hostsWithPaymentInfo = computed(() =>
     allEventHosts.value.filter((host) => host.paypalLink || host.ibanNumber || host.revolutLink)
 );
-
-/** Stored links may be bare (`paypal.me/foo`); make them absolute for `href`. */
-const toAbsoluteUrl = (link: string) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
-const toLabel = (link: string) => link.replace(/^https?:\/\//i, '').replace(/^www\./, '');
 
 const copyIban = (iban: string) => {
     navigator.clipboard.writeText(iban).then(() => {
@@ -143,7 +140,7 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                     </span>
                     <span class="min-w-0 flex-1">
                         <span class="text-body block font-medium">PayPal</span>
-                        <span class="text-meta text-muted block truncate">{{ toLabel(host.paypalLink) }}</span>
+                        <span class="text-meta text-muted block truncate">{{ formatDisplayUrl(host.paypalLink) }}</span>
                     </span>
                     <i class="pi pi-external-link text-subtle text-xs"></i>
                 </a>
@@ -159,7 +156,9 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                     </span>
                     <span class="min-w-0 flex-1">
                         <span class="text-body block font-medium">Revolut</span>
-                        <span class="text-meta text-muted block truncate">{{ toLabel(host.revolutLink) }}</span>
+                        <span class="text-meta text-muted block truncate">{{
+                            formatDisplayUrl(host.revolutLink)
+                        }}</span>
                     </span>
                     <i class="pi pi-external-link text-subtle text-xs"></i>
                 </a>

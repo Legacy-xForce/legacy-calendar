@@ -5,6 +5,7 @@ import type { Event } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { getActiveParticipants, getEventEnd, getUserEventRole } from '../utils/event';
 import { normalizeHexColor } from '../utils/color';
+import { isOnlineLocation } from '../utils/url';
 import { DEFAULT_COLOR } from '../constants/colors';
 import { useEventWeather } from '../composables/useEventWeather';
 import UserAvatarGroup from './UserAvatarGroup.vue';
@@ -33,7 +34,7 @@ const endsOnOtherDay = computed(() => !!end.value && !isSameDay(start.value, end
 const color = computed(() => normalizeHexColor(props.event.color, DEFAULT_COLOR));
 const role = computed(() => getUserEventRole(props.event, sessionStore.currentUser?.id));
 const going = computed(() => getActiveParticipants(props.event.participants));
-const isOnline = computed(() => /^https?:\/\//i.test(props.event.location ?? ''));
+const isOnline = computed(() => isOnlineLocation(props.event.location));
 const weather = computed(() => getWeatherForEvent(props.event.id));
 const weatherVisible = ref(false);
 </script>
