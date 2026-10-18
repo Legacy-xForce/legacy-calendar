@@ -1,11 +1,13 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ChatRepository, ChatMessageWithRelations, ReactionSummary } from './chat.repository.js';
+import { ChatRepository, ChatMessageWithRelations, ReactionSummary, groupReactions } from './chat.repository.js';
 import { EventsRepository } from '../events/events.repository.js';
+import { isEventHost, isEventParticipant } from '../events/event-access.util.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { InviteStatus, ChatMediaType } from '../../prisma/generated/client.js';
 import * as path from 'path';
 import { AppLogger } from '../logging/app-logger.js';
 import { NotificationCode } from '../notifications/notification-codes.js';
+import { buildNotificationData } from '../notifications/notification-data.util.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 
 export type ChatMessagePayload = {
@@ -47,12 +49,7 @@ export class ChatService {
             return false;
         }
 
-        if (event.hostId === userId) {
-            return true;
-        }
-
-        const attendance = event.participants.find((participant) => participant.userId === userId);
-        return attendance?.status === InviteStatus.ACCEPTED;
+        return isEventHost(event, userId) || isEventParticipant(event, userId, { acceptedOnly: true });
     }
 
     async sendMessage(
@@ -348,12 +345,17 @@ export class ChatService {
               ? `${authorUsername}: ${this.getMediaDescription(message.mediaType)}`
               : `${authorUsername}: Message`;
 
-        await this.notificationsService.sendMulticast(tokens, event.title, body, {
-            type: NotificationCode.CHAT_NEW_MESSAGE,
-            eventId: String(message.eventId),
-            messageId: String(message.id),
-            actorUsername: authorUsername
-        });
+        await this.notificationsService.sendMulticast(
+            tokens,
+            event.title,
+            body,
+            buildNotificationData({
+                type: NotificationCode.CHAT_NEW_MESSAGE,
+                eventId: message.eventId,
+                messageId: message.id,
+                actorUsername: authorUsername
+            })
+        );
         this.logger.info('Chat push notification sent', {
             messageId: message.id,
             eventId: message.eventId,
@@ -372,7 +374,7 @@ export class ChatService {
             text: message.text,
             mediaUrl: message.mediaUrl,
             mediaType: message.mediaType,
-            reactions: this.groupReactions(message.reactions),
+            reactions: groupReactions(message.reactions),
             isPinned: message.isPinned,
             createdAt: message.createdAt,
             isEdited: message.isEdited,
@@ -393,26 +395,6 @@ export class ChatService {
             messageId,
             reactions
         };
-    }
-
-    private groupReactions(reactions: ChatMessageWithRelations['reactions']): ReactionSummary[] {
-        const grouped = new Map<string, ReactionSummary>();
-
-        for (const reaction of reactions) {
-            const current = grouped.get(reaction.emoji);
-            if (current) {
-                current.count += 1;
-                current.userIds.push(reaction.userId);
-            } else {
-                grouped.set(reaction.emoji, {
-                    emoji: reaction.emoji,
-                    count: 1,
-                    userIds: [reaction.userId]
-                });
-            }
-        }
-
-        return [...grouped.values()];
     }
 
     private buildPreview(text: string): string {

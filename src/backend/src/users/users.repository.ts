@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, User as UserModel } from '../../prisma/generated/client.js';
 
-const USER_SELECT = {
+export const USER_SELECT = {
     id: true,
     username: true,
     isAdmin: true,

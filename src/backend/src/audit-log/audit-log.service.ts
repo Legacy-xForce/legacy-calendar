@@ -3,6 +3,7 @@ import { ActionType, Prisma } from '../../prisma/generated/client.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogRepository, type AuditLogEntryWithRelations } from './audit-log.repository.js';
 import { EventsRepository, type EventWithRelations } from '../events/events.repository.js';
+import { isEventManager, isEventParticipant } from '../events/event-access.util.js';
 import { UsersRepository, type UserRecord } from '../users/users.repository.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
 
@@ -267,11 +268,7 @@ export class AuditLogService {
     }
 
     private canViewEventAuditLog(event: EventWithRelations, userId: number) {
-        return (
-            event.hostId === userId ||
-            event.coHosts.some((coHost) => coHost.userId === userId) ||
-            event.participants.some((participant) => participant.userId === userId)
-        );
+        return isEventManager(event, userId) || isEventParticipant(event, userId);
     }
 
     private toResponse(

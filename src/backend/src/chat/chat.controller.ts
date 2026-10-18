@@ -31,6 +31,21 @@ type RequestWithUser = {
     };
 };
 
+// 25 MB is plenty for a chat image/short video; the previous 100 MB in-memory
+// buffer was a trivial memory-exhaustion vector.
+const MAX_CHAT_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+const chatMediaFileFilter = (
+    _req: unknown,
+    file: Express.Multer.File,
+    callback: (error: Error | null, acceptFile: boolean) => void
+) => {
+    const mimeType = file.mimetype ?? '';
+    const isMedia = mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/');
+
+    callback(isMedia ? null : new UnsupportedMediaTypeException('Unsupported media type'), isMedia);
+};
+
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
@@ -64,7 +79,12 @@ export class ChatController {
     }
 
     @Post(':eventId/upload')
-    @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: MAX_CHAT_UPLOAD_BYTES },
+            fileFilter: chatMediaFileFilter
+        })
+    )
     async uploadFile(
         @Param('eventId', ParseIntPipe) eventId: number,
         @UploadedFile() file: Express.Multer.File,

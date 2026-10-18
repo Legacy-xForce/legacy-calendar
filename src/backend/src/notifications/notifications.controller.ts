@@ -12,6 +12,7 @@ import {
     Res
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { NotificationsService } from './notifications.service.js';
 import { SubscribeNotificationDto } from './dto/subscribe-notification.dto.js';
@@ -24,7 +25,8 @@ export class NotificationsController {
     constructor(@Inject(NotificationsService) private readonly notificationsService: NotificationsService) {}
 
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, ThrottlerGuard)
+    @Throttle({ default: { limit: 30, ttl: 60_000 } })
     @Post('subscribe')
     @ApiOperation({ summary: 'Subscribe device to notifications' })
     @ApiResponse({ status: 201, description: 'Subscribed successfully' })
@@ -33,12 +35,13 @@ export class NotificationsController {
     }
 
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, ThrottlerGuard)
+    @Throttle({ default: { limit: 30, ttl: 60_000 } })
     @Post('unsubscribe')
     @ApiOperation({ summary: 'Unsubscribe device from notifications' })
     @ApiResponse({ status: 201, description: 'Unsubscribed successfully' })
-    async unsubscribe(@Body() body: SubscribeNotificationDto): Promise<void> {
-        await this.notificationsService.unsubscribe(body.token);
+    async unsubscribe(@Request() req: RequestWithUser, @Body() body: SubscribeNotificationDto): Promise<void> {
+        await this.notificationsService.unsubscribe(req.user.userId as number, body.token);
     }
 
     @ApiBearerAuth()

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Header, Patch, UseGuards, Request, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { GuestTokenGuard } from './guards/guest-token.guard.js';
 import { type RequestWithGuestInvite } from './interfaces/request-with-guest.interface.js';
 import { InvitesService } from './invites.service.js';
@@ -7,7 +8,8 @@ import { GuestParticipateDto } from './dto/guest-participate.dto.js';
 
 @ApiTags('invites')
 @Controller('guest-invites')
-@UseGuards(GuestTokenGuard)
+@UseGuards(GuestTokenGuard, ThrottlerGuard)
+@Throttle({ default: { limit: 60, ttl: 60_000 } })
 export class GuestInvitesController {
     constructor(@Inject(InvitesService) private readonly invitesService: InvitesService) {}
 

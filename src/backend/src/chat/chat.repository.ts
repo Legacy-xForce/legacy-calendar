@@ -17,6 +17,27 @@ export type ReactionSummary = {
     userIds: number[];
 };
 
+/** Group raw reactions into per-emoji summaries (order of first appearance). */
+export function groupReactions(reactions: ReadonlyArray<{ emoji: string; userId: number }>): ReactionSummary[] {
+    const grouped = new Map<string, ReactionSummary>();
+
+    for (const reaction of reactions) {
+        const current = grouped.get(reaction.emoji);
+        if (current) {
+            current.count += 1;
+            current.userIds.push(reaction.userId);
+        } else {
+            grouped.set(reaction.emoji, {
+                emoji: reaction.emoji,
+                count: 1,
+                userIds: [reaction.userId]
+            });
+        }
+    }
+
+    return [...grouped.values()];
+}
+
 @Injectable()
 export class ChatRepository {
     constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
@@ -113,21 +134,6 @@ export class ChatRepository {
             select: { emoji: true, userId: true }
         });
 
-        const grouped = new Map<string, ReactionSummary>();
-        for (const reaction of reactions) {
-            const current = grouped.get(reaction.emoji);
-            if (current) {
-                current.count += 1;
-                current.userIds.push(reaction.userId);
-            } else {
-                grouped.set(reaction.emoji, {
-                    emoji: reaction.emoji,
-                    count: 1,
-                    userIds: [reaction.userId]
-                });
-            }
-        }
-
-        return [...grouped.values()];
+        return groupReactions(reactions);
     }
 }

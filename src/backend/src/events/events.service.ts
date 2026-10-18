@@ -13,6 +13,10 @@ import { mapEventToDto } from './event-response.mapper.js';
 import { hasSplitVehicleSeats } from './vehicle-seats.util.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
+import { normalizeIdList } from '../common/id.util.js';
+import { buildNotificationData } from '../notifications/notification-data.util.js';
+import { assertEventNotEnded } from './event-guards.js';
+import { isEventManager } from './event-access.util.js';
 
 @Injectable()
 export class EventsService {
@@ -223,6 +227,20 @@ export class EventsService {
                     ),
                     actorUsername: this.getActorUsername(event.host.username)
                 });
+
+                // Participants added through PATCH are invited just like via the
+                // dedicated invite endpoint, so record the same audit entry.
+                for (const invitedUserId of toAdd) {
+                    const invitedUser = updatedEvent.participants.find(
+                        (participant) => participant.userId === invitedUserId
+                    )?.user;
+                    if (invitedUser) {
+                        await this.auditLogService.recordParticipantInvited(event.id, invitedUser, {
+                            actorId: userId,
+                            impersonatorId
+                        });
+                    }
+                }
             }
         }
 
@@ -594,7 +612,7 @@ export class EventsService {
     }
 
     private canManageEvent(event: EventWithRelations, userId: number): boolean {
-        return event.hostId === userId || event.coHosts.some((coHost) => coHost.userId === userId);
+        return isEventManager(event, userId);
     }
 
     private async applyCoHostDiff(
@@ -711,7 +729,7 @@ export class EventsService {
     }
 
     private normalizeUserIds(userIds: number[]): number[] {
-        return [...new Set(userIds.map((userId) => Number(userId)).filter(Number.isFinite))];
+        return normalizeIdList(userIds);
     }
 
     private async findEventOrThrow(id: number, userId?: number): Promise<EventWithRelations> {
@@ -725,9 +743,7 @@ export class EventsService {
     }
 
     private validateEventNotEnded(event: EventWithRelations) {
-        if (event.endTime && new Date() > event.endTime) {
-            throw new ForbiddenException('This event has already ended and cannot be modified');
-        }
+        assertEventNotEnded(event);
     }
 
     private async notifyParticipants(
@@ -736,7 +752,7 @@ export class EventsService {
         status?: InviteStatus
     ) {
         const tokens = status
-            ? await this.eventsRepo.getParticipantTokensByStatus(eventId, status)
+            ? await this.eventsRepo.getParticipantTokens(eventId, status)
             : await this.eventsRepo.getParticipantTokens(eventId);
 
         if (tokens.length > 0) {
@@ -772,16 +788,7 @@ export class EventsService {
     }
 
     private buildNotificationData(eventId: number, type: NotificationCode, actorUsername?: string) {
-        const data: Record<string, string> = {
-            type,
-            eventId: String(eventId)
-        };
-
-        if (actorUsername) {
-            data.actorUsername = actorUsername;
-        }
-
-        return data;
+        return buildNotificationData({ eventId, type, actorUsername });
     }
 
     private truncateText(value: string, maxLength: number): string {

@@ -1,16 +1,11 @@
 import { randomUUID } from 'crypto';
 import pino, { type Logger, type LoggerOptions } from 'pino';
 import type { Params } from 'nestjs-pino';
-
-type LogLevel = 'fatal' | 'critical' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
-
-const DEFAULT_LEVEL = normalizeLevel(
-    process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'trace')
-);
+import { resolveDefaultLogLevel } from './log-level.js';
 
 export function createRootLogger(): Logger {
     const options: LoggerOptions = {
-        level: DEFAULT_LEVEL,
+        level: resolveDefaultLogLevel(),
         timestamp: pino.stdTimeFunctions.isoTime,
         customLevels: {
             critical: 55
@@ -89,21 +84,4 @@ function scrubSensitiveUrl(url?: string): string | undefined {
     }
 
     return url.replace(SENSITIVE_PATH_PATTERN, '$1[redacted]');
-}
-
-function normalizeLevel(level: string): LogLevel {
-    const normalized = level.toLowerCase();
-    if (
-        normalized === 'fatal' ||
-        normalized === 'critical' ||
-        normalized === 'error' ||
-        normalized === 'warn' ||
-        normalized === 'info' ||
-        normalized === 'debug' ||
-        normalized === 'trace'
-    ) {
-        return normalized;
-    }
-
-    return 'trace';
 }

@@ -4,6 +4,7 @@ import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
+import type { Express } from 'express';
 import { AppLogger } from './logging/app-logger.js';
 import { Logger as PinoNestLogger } from 'nestjs-pino';
 import { isOriginAllowed } from './config/cors.js';
@@ -26,10 +27,21 @@ async function bootstrap() {
     // Response Compression with Gzip, Deflate and Brotli support
     app.use(compression());
 
+    // Trust the reverse proxy so rate limiting and logs key on the real client
+    // IP. Opt-in: only enable when the app really is behind a trusted proxy,
+    // otherwise X-Forwarded-For could be spoofed.
+    const trustProxy = process.env.TRUST_PROXY?.trim();
+    if (trustProxy) {
+        const value = trustProxy === 'true' ? 1 : Number.isNaN(Number(trustProxy)) ? trustProxy : Number(trustProxy);
+        const expressInstance = app.getHttpAdapter().getInstance() as Express;
+        expressInstance.set('trust proxy', value);
+    }
+
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
     // API docs are useful in development but should not be publicly exposed in production.
-    if (process.env.NODE_ENV !== 'production') {
+    const exposeSwagger = process.env.NODE_ENV !== 'production';
+    if (exposeSwagger) {
         const config = new DocumentBuilder()
             .setTitle('Legacy Calendar API')
             .setDescription('The legacy calendar server API description')
@@ -46,7 +58,7 @@ async function bootstrap() {
 
     logger.info('Application is running', {
         url: `http://localhost:${port}`,
-        swaggerUrl: `http://localhost:${port}/api`
+        ...(exposeSwagger ? { swaggerUrl: `http://localhost:${port}/api` } : {})
     });
 }
 

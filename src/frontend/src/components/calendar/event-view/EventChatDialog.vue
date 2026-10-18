@@ -8,6 +8,7 @@ import type { Event } from '../../../types/Event';
 import EventChatPanel from '../../chat/EventChatPanel.vue';
 import { useEventChatDialogState } from './chat/useEventChatDialogState';
 import { useMediaQuery, MOBILE_QUERY } from '../../../composables/useMediaQuery';
+import { getCurrentSection, getEventPathPrefix, parseEventId } from '../../../utils/route';
 
 const props = defineProps<{
     visible: boolean;
@@ -22,14 +23,13 @@ const route = useRoute();
 const router = useRouter();
 const isMobile = useMediaQuery(MOBILE_QUERY);
 
-const currentSection = computed(() =>
-    route.name === 'upcoming' || route.path.startsWith('/upcoming/') ? 'upcoming' : 'calendar'
-);
+const currentSection = computed(() => getCurrentSection(route.path, route.name));
 const currentEventPath = computed(() => {
     const eventId = props.event?.id ?? parseEventId(route.params.id);
-    if (!eventId) return currentSection.value === 'upcoming' ? '/upcoming' : '/event';
+    const prefix = getEventPathPrefix(currentSection.value);
+    if (!eventId) return prefix;
 
-    return `${currentSection.value === 'upcoming' ? '/upcoming' : '/event'}/${eventId}`;
+    return `${prefix}/${eventId}`;
 });
 
 const closeChat = () => {
@@ -77,19 +77,6 @@ const status = computed(() => {
 });
 
 const canSend = computed(() => !!draftText.value.trim() || !!selectedFile.value);
-
-function parseEventId(value: unknown) {
-    if (Array.isArray(value)) {
-        return parseEventId(value[0]);
-    }
-
-    if (typeof value !== 'string' || value.length === 0) {
-        return null;
-    }
-
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-}
 </script>
 
 <template>

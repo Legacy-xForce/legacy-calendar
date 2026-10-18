@@ -78,6 +78,9 @@ model Event {
   auditLogEntries       AuditLogEntry[]
   guestInviteTokens     GuestInviteToken[]
   coHosts               EventCoHost[]
+
+  @@index([startTime])
+  @@index([hostId])
 }
 
 model EventCoHost {

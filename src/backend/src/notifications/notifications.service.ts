@@ -5,6 +5,12 @@ import * as path from 'path';
 import { AppLogger } from '../logging/app-logger.js';
 import { NotificationCode } from './notification-codes.js';
 
+// Firebase error codes that mean the device token itself is no longer usable.
+const STALE_FCM_TOKEN_CODES = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token'
+]);
+
 @Injectable()
 export class NotificationsService implements OnModuleInit {
     private readonly logger = new AppLogger(NotificationsService.name);
@@ -54,12 +60,14 @@ export class NotificationsService implements OnModuleInit {
         this.logger.debug('FCM token subscribed', { userId });
     }
 
-    async unsubscribe(token: string): Promise<void> {
-        this.logger.info('Unsubscribing FCM token');
+    async unsubscribe(userId: number, token: string): Promise<void> {
+        this.logger.info('Unsubscribing FCM token', { userId });
+        // Scope the delete to the caller so one account cannot unbind another
+        // account's device token.
         await this.prisma.fcmToken.deleteMany({
-            where: { token }
+            where: { token, userId }
         });
-        this.logger.debug('FCM token unsubscribed');
+        this.logger.debug('FCM token unsubscribed', { userId });
     }
 
     async sendNotification(token: string, title: string, body: string, data?: Record<string, string>) {
@@ -106,11 +114,43 @@ export class NotificationsService implements OnModuleInit {
                 tokenCount: tokens.length,
                 title
             });
+            await this.pruneStaleTokens(tokens, response);
         } catch (error) {
             this.logger.error(
                 'Failed to send multicast notifications',
                 error instanceof Error ? (error.stack ?? error.message) : String(error)
             );
+        }
+    }
+
+    // Firebase reports uninstalled/rotated device tokens per recipient; delete
+    // them so future fan-outs do not keep hitting dead tokens.
+    private async pruneStaleTokens(tokens: string[], response: { responses: Array<{ error?: { code?: string } }> }) {
+        const staleTokens: string[] = [];
+
+        response.responses.forEach((result, index) => {
+            const code = result.error?.code;
+            if (code && STALE_FCM_TOKEN_CODES.has(code)) {
+                const token = tokens[index];
+                if (token) {
+                    staleTokens.push(token);
+                }
+            }
+        });
+
+        if (staleTokens.length === 0) {
+            return;
+        }
+
+        try {
+            const { count } = await this.prisma.fcmToken.deleteMany({
+                where: { token: { in: staleTokens } }
+            });
+            this.logger.info('Pruned stale FCM tokens', { prunedCount: count });
+        } catch (error) {
+            this.logger.warn('Failed to prune stale FCM tokens', {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 

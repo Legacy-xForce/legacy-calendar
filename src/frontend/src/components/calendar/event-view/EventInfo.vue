@@ -12,6 +12,8 @@ import UpcomingEventWeatherBadge from '../../UpcomingEventWeatherBadge.vue';
 import { useEventWeather } from '../../../composables/useEventWeather';
 import { useGeocode } from '../../../composables/useGeocode';
 import { useNow } from '../../../composables/useNow';
+import { getCurrentSection, getEventPathPrefix } from '../../../utils/route';
+import { isOnlineLocation } from '../../../utils/url';
 
 const WeatherDialog = defineAsyncComponent(() => import('./weather/WeatherDialog.vue'));
 const EventMapPreview = defineAsyncComponent(() => import('./EventMapPreview.vue'));
@@ -36,10 +38,8 @@ const weather = computed(() => getWeatherForEvent(props.event.id));
 const coords = computed(() => getCoordsForEvent(props.event.id));
 const weatherDetailVisible = ref(false);
 
-const currentSection = computed(() =>
-    route.name === 'upcoming' || route.path.startsWith('/upcoming/') ? 'upcoming' : 'calendar'
-);
-const eventPath = computed(() => `${currentSection.value === 'upcoming' ? '/upcoming' : '/event'}/${props.event.id}`);
+const currentSection = computed(() => getCurrentSection(route.path, route.name));
+const eventPath = computed(() => `${getEventPathPrefix(currentSection.value)}/${props.event.id}`);
 const mapDialogVisible = computed({
     get: () => route.path.endsWith('/map'),
     set: (visible: boolean) => {
@@ -53,7 +53,7 @@ const mapDialogVisible = computed({
 
 const start = computed(() => parseISO(props.event.startTime));
 const end = computed(() => (props.event.endTime ? parseISO(props.event.endTime) : null));
-const isOnline = computed(() => /^https?:\/\//i.test(props.event.location ?? ''));
+const isOnline = computed(() => isOnlineLocation(props.event.location));
 
 const whenPrimary = computed(() => format(start.value, 'EEEE d MMMM'));
 const whenSecondary = computed(() => {

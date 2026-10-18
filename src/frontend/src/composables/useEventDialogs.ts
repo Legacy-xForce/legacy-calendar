@@ -4,6 +4,7 @@ import { useEventsStore } from '../stores/events';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import type { Event } from '../types/Event';
+import { getCurrentSection, getEventPathPrefix, getRouteAction, parseEventId } from '../utils/route';
 
 export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event | null>) {
     const eventsStore = useEventsStore();
@@ -16,7 +17,7 @@ export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event 
     const navigationError = ref<string | null>(null);
 
     const currentSection = computed(() => getCurrentSection(route.path, route.name));
-    const eventPathPrefix = computed(() => (currentSection.value === 'upcoming' ? '/upcoming' : '/event'));
+    const eventPathPrefix = computed(() => getEventPathPrefix(currentSection.value));
     const basePagePath = computed(() => (currentSection.value === 'upcoming' ? '/upcoming' : '/calendar'));
     const selectedEventId = computed(() => parseEventId(route.params.id));
     const routeAction = computed(() => getRouteAction(route.path));
@@ -217,33 +218,4 @@ export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event 
         handleDeleteEvent,
         navigationError
     };
-}
-
-function getCurrentSection(path: string, routeName: unknown) {
-    if (routeName === 'upcoming' || path.startsWith('/upcoming/')) {
-        return 'upcoming';
-    }
-
-    return 'calendar';
-}
-
-function getRouteAction(path: string) {
-    if (path.endsWith('/chat')) return 'chat';
-    if (path.endsWith('/audit-log')) return 'audit-log';
-    if (path.endsWith('/map')) return 'map';
-    if (path.endsWith('/edit')) return 'edit';
-    return null;
-}
-
-function parseEventId(value: unknown) {
-    if (Array.isArray(value)) {
-        return parseEventId(value[0]);
-    }
-
-    if (typeof value !== 'string' || value.length === 0) {
-        return null;
-    }
-
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? null : parsed;
 }

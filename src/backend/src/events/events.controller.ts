@@ -22,6 +22,8 @@ import { EventResponseDto } from './dto/event-response.dto.js';
 import { type RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import { FindEventsQueryDto } from './dto/find-events-query.dto.js';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto.js';
+import { AssignRideDto } from './dto/assign-ride.dto.js';
+import { InviteUserDto } from './dto/invite-user.dto.js';
 
 @ApiTags('events')
 @Controller('events')
@@ -120,8 +122,8 @@ export class EventsController {
     @Post(':id/invite')
     @ApiOperation({ summary: 'Invite a user to an event' })
     @ApiResponse({ status: 201, description: 'User invited' })
-    invite(@Param('id', ParseIntPipe) id: number, @Body('username') username: string, @Request() req: RequestWithUser) {
-        return this.eventsService.invite(id, username, req.user.userId as number, req.impersonatorUserId ?? null);
+    invite(@Param('id', ParseIntPipe) id: number, @Body() dto: InviteUserDto, @Request() req: RequestWithUser) {
+        return this.eventsService.invite(id, dto.username, req.user.userId as number, req.impersonatorUserId ?? null);
     }
 
     @ApiBearerAuth()
@@ -175,18 +177,12 @@ export class EventsController {
     @Post(':id/assign-ride')
     @ApiOperation({ summary: 'Assign a ride to a passenger' })
     @ApiResponse({ status: 201, description: 'Ride assigned successfully' })
-    assignRide(
-        @Param('id', ParseIntPipe) id: number,
-        @Body('passengerId') passengerId: number,
-        @Body('driverId') driverId: number | null,
-        @Body('direction') direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
-        @Request() req: RequestWithUser
-    ) {
+    assignRide(@Param('id', ParseIntPipe) id: number, @Body() dto: AssignRideDto, @Request() req: RequestWithUser) {
         return this.eventsService.assignRide(
             id,
-            passengerId,
-            driverId,
-            direction,
+            dto.passengerId,
+            dto.driverId ?? null,
+            dto.direction ?? 'OUTBOUND',
             req.user.userId as number,
             req.impersonatorUserId ?? null
         );
