@@ -195,11 +195,13 @@ export class EventsService {
         const updatedEvent = await this.eventsRepo.update(id, updateData);
 
         let finalEvent = updatedEvent;
+        let coHostsChanged = false;
         if (coHosts) {
             const existingCoHostIds = event.coHosts.map((coHost) => coHost.userId);
             const nextCoHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== event.hostId);
             const { toAdd, toRemove } = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
             if (toAdd.length > 0 || toRemove.length > 0) {
+                coHostsChanged = true;
                 await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId });
                 finalEvent = (await this.eventsRepo.findById(id)) ?? updatedEvent;
             }
@@ -238,23 +240,32 @@ export class EventsService {
             }
         }
 
-        await this.notifyParticipants(
-            event.id,
-            {
-                type: NotificationCode.EVENT_UPDATED,
-                title: EVENT_NOTIFICATION_TITLES.eventUpdated,
-                body: EVENT_NOTIFICATION_MESSAGES.eventUpdated(updatedEvent.title),
-                actorUsername: this.getActorUsername(event.host.username)
-            },
-            InviteStatus.ACCEPTED
+        // Only notify participants when something actually changed: a no-op patch
+        // (or one re-submitting identical values) should stay silent.
+        const participantsChanged = Boolean(
+            participantDiff && (participantDiff.toAdd.length > 0 || participantDiff.toRemove.length > 0)
         );
+        const eventFieldsChanged = this.auditLogService.hasEventChanges(event, finalEvent);
+
+        if (eventFieldsChanged || participantsChanged || coHostsChanged) {
+            await this.notifyParticipants(
+                event.id,
+                {
+                    type: NotificationCode.EVENT_UPDATED,
+                    title: EVENT_NOTIFICATION_TITLES.eventUpdated,
+                    body: EVENT_NOTIFICATION_MESSAGES.eventUpdated(updatedEvent.title),
+                    actorUsername: this.getActorUsername(event.host.username)
+                },
+                InviteStatus.ACCEPTED
+            );
+        }
 
         this.logger.info('Event updated', {
             eventId: id,
             userId,
             participantDiff
         });
-        return mapEventToDto(updatedEvent);
+        return mapEventToDto(finalEvent);
     }
 
     async invite(eventId: number, username: string, userId: number, impersonatorId: number | null = null) {

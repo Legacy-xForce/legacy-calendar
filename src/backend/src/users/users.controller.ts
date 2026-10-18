@@ -46,11 +46,17 @@ export class UsersController {
     }
 
     @Get(':id')
+    @UseGuards(UserAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Get a user by ID' })
     @ApiResponse({ status: 200, description: 'Return user' })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
     @ApiResponse({ status: 404, description: 'User not found' })
-    findOne(@Param('id', ParseIntPipe) id: number) {
-        return this.usersService.findOne(id);
+    findOne(@Param('id', ParseIntPipe) id: number, @Request() req: RequestWithUser) {
+        return this.usersService.findOneForViewer(id, {
+            userId: req.user.userId,
+            isAdmin: req.user.isAdmin
+        });
     }
 
     @Patch('me/payment-info')

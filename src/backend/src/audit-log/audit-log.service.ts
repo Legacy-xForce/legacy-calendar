@@ -96,6 +96,12 @@ export class AuditLogService {
         return this.safeRecord('EVENT_UPDATED', eventId, actor, payloadDiff);
     }
 
+    /** Whether the persisted event fields actually differ between two snapshots. */
+    hasEventChanges(before: EventWithRelations, after: EventWithRelations): boolean {
+        const payloadDiff = this.buildObjectDiff(this.snapshotEvent(before), this.snapshotEvent(after));
+        return Object.keys(payloadDiff.before).length > 0 || Object.keys(payloadDiff.after).length > 0;
+    }
+
     recordEventDeleted(eventId: number, before: EventWithRelations, actor: AuditActor) {
         return this.safeRecord('EVENT_DELETED', eventId, actor, {
             before: this.snapshotEvent(before),

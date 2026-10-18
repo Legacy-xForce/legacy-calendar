@@ -18,6 +18,8 @@ import { ChatService } from './chat.service.js';
 import { HttpException } from '@nestjs/common';
 import { AppLogger } from '../logging/app-logger.js';
 import { UsersService } from '../users/users.service.js';
+import { resolveJwtSecret } from '../auth/jwt-secret.util.js';
+import { isOriginAllowed } from '../config/cors.js';
 
 type SocketUser = {
     userId: number;
@@ -33,7 +35,9 @@ type JwtPayload = {
 
 @WebSocketGateway({
     cors: {
-        origin: '*'
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            callback(null, isOriginAllowed(origin));
+        }
     }
 })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -42,6 +46,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     private readonly logger = new AppLogger(ChatGateway.name);
     private readonly jwksClient: jwksRsa.JwksClient;
+    private readonly jwtSecret: string;
 
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
@@ -53,6 +58,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 this.configService.get<string>('AUTH_JWKS_URI') ||
                 'https://auth.legacy-group.tech/.well-known/jwks.json'
         });
+        this.jwtSecret = resolveJwtSecret(configService);
     }
 
     afterInit(server: Server) {
@@ -376,7 +382,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const algorithm = decoded?.header?.alg;
 
         if (algorithm === 'HS256') {
-            const secret = this.configService.get<string>('JWT_SECRET') || 'legacy-calendar-default-secret';
+            const secret = this.jwtSecret;
             return await new Promise<JwtPayload>((resolve, reject) => {
                 jsonwebtoken.verify(token, secret, { algorithms: ['HS256'] }, (err, payload) => {
                     if (err) {
