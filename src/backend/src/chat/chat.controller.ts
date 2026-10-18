@@ -154,7 +154,9 @@ export class ChatController {
         if (mimeType.startsWith('image/')) {
             return {
                 mediaType: ChatMediaType.image,
-                ext: '.jpg'
+                // Bun.Image re-encodes to WebP, and the uploads route derives
+                // Content-Type from the extension, so the name has to say so.
+                ext: '.webp'
             };
         }
 
