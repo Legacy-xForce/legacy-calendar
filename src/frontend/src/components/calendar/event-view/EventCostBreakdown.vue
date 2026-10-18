@@ -2,10 +2,12 @@
 import { computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import UserAvatar from '../../UserAvatar.vue';
-import type { Event, EventFeature } from '../../../types/Event';
+import BankLogo from '../../BankLogo.vue';
+import type { Event, EventFeature, EventPersonSummary } from '../../../types/Event';
 import { FEATURES } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
 import { formatDisplayUrl, toAbsoluteUrl } from '../../../utils/url';
+import { formatIban, getItalianBankName, normalizeIban } from '../../../utils/iban';
 import { injectEventView } from '../../../composables/useEventView';
 
 defineProps<{
@@ -34,10 +36,14 @@ const hostsWithPaymentInfo = computed(() =>
 );
 
 const copyIban = (iban: string) => {
-    navigator.clipboard.writeText(iban).then(() => {
+    navigator.clipboard.writeText(normalizeIban(iban)).then(() => {
         toast.add({ severity: 'success', summary: 'IBAN copied', life: 2500 });
     });
 };
+
+/** Secondary line under the IBAN: the bank (when known) and the account holder. */
+const ibanLabel = (host: EventPersonSummary) =>
+    [getItalianBankName(host.ibanNumber) ?? 'IBAN', host.ibanAccountHolder].filter(Boolean).join(' · ');
 
 const featureMap = computed(
     () =>
@@ -163,16 +169,16 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                     <i class="pi pi-external-link text-subtle text-xs"></i>
                 </a>
                 <div v-if="host.ibanNumber" class="flex items-center gap-3.5 px-4 py-3">
-                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <i class="pi pi-building-columns text-sm"></i>
-                    </span>
+                    <BankLogo
+                        :iban="host.ibanNumber"
+                        :name="getItalianBankName(host.ibanNumber)"
+                        class="size-9 rounded-xl text-sm"
+                    />
                     <span class="min-w-0 flex-1">
                         <span class="text-body text-fg block truncate font-mono font-medium">{{
-                            host.ibanNumber
+                            formatIban(host.ibanNumber!)
                         }}</span>
-                        <span class="text-meta text-muted block truncate">
-                            {{ host.ibanAccountHolder ? `IBAN · ${host.ibanAccountHolder}` : 'IBAN' }}
-                        </span>
+                        <span class="text-meta text-muted block truncate">{{ ibanLabel(host) }}</span>
                     </span>
                     <button
                         type="button"
