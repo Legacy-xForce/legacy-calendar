@@ -11,6 +11,7 @@ import SelectButton from 'primevue/selectbutton';
 import { storeToRefs } from 'pinia';
 import { usePreferencesStore, type MobileCalendarLayout } from '../stores/preferences';
 import UserAvatar from '../components/UserAvatar.vue';
+import BankLogo from '../components/BankLogo.vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { notificationStorage } from '../services/notificationStorage';
@@ -22,6 +23,7 @@ import { isPasskeySupported } from '../services/webauthn';
 import { useUsersStore } from '../stores/users';
 import { useUserGroupsStore } from '../stores/userGroups';
 import type { UserGroup } from '../types/UserGroup';
+import { formatIban, getItalianBankName, isValidIban, normalizeIban } from '../utils/iban';
 
 const sessionStore = useSessionStore();
 const toast = useToast();
@@ -64,6 +66,11 @@ const revolutLink = ref('');
 const ibanNumber = ref('');
 const ibanAccountHolder = ref('');
 const paymentSaving = ref(false);
+const ibanTouched = ref(false);
+
+const ibanInvalid = computed(() => ibanNumber.value.trim().length > 0 && !isValidIban(ibanNumber.value));
+const ibanBankName = computed(() => getItalianBankName(ibanNumber.value));
+const paymentFormValid = computed(() => !ibanInvalid.value);
 
 watch(
     currentUser,
@@ -88,12 +95,22 @@ const paymentSummary = computed(() => {
 /** Only the bare domain/path is stored; links are made absolute when shown. */
 const normalizeLink = (value: string) => value.trim().replace(/^https?:\/\//i, '');
 
+const handleIbanBlur = () => {
+    ibanTouched.value = true;
+    if (ibanNumber.value.trim() && isValidIban(ibanNumber.value)) {
+        ibanNumber.value = formatIban(ibanNumber.value);
+    }
+};
+
 const handlePaymentInfoSave = async () => {
+    ibanTouched.value = true;
+    if (ibanInvalid.value) return;
+
     paymentSaving.value = true;
     try {
         const response = await api.updateMyPaymentInfo({
             paypalLink: normalizeLink(paypalLink.value),
-            ibanNumber: ibanNumber.value.trim(),
+            ibanNumber: normalizeIban(ibanNumber.value),
             ibanAccountHolder: ibanAccountHolder.value.trim(),
             revolutLink: normalizeLink(revolutLink.value)
         });
@@ -428,15 +445,30 @@ const handleClearCache = () => {
                             autocapitalize="characters"
                             spellcheck="false"
                             class="font-mono"
+                            :invalid="ibanTouched && ibanInvalid"
                             fluid
+                            @blur="handleIbanBlur"
                         />
+                        <p v-if="ibanTouched && ibanInvalid" class="text-meta m-0 text-rose-300">
+                            That doesn't look like a valid IBAN.
+                        </p>
+                        <p v-else-if="ibanBankName" class="text-meta m-0 flex items-center gap-1.5 text-emerald-300/90">
+                            <BankLogo :iban="ibanNumber" :name="ibanBankName" class="size-4 rounded text-[0.5rem]" />
+                            <span>{{ ibanBankName }}</span>
+                        </p>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label for="iban-account-holder" class="text-meta text-muted font-medium">Account holder</label>
                         <InputText id="iban-account-holder" v-model="ibanAccountHolder" autocomplete="name" fluid />
                     </div>
                     <p class="text-meta text-subtle m-0">Leave a field empty to hide it.</p>
-                    <Button type="submit" label="Save payment details" :loading="paymentSaving" class="mt-1" />
+                    <Button
+                        type="submit"
+                        label="Save payment details"
+                        :loading="paymentSaving"
+                        :disabled="!paymentFormValid"
+                        class="mt-1"
+                    />
                 </form>
             </div>
         </section>
