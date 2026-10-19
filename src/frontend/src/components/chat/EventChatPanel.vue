@@ -37,6 +37,7 @@ const {
     closeEditDialog
 } = chatState;
 
+// The template binds this as a ref; `void` keeps noUnusedLocals happy.
 void messagesContainer;
 
 const menu = ref();

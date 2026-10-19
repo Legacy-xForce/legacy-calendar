@@ -11,7 +11,6 @@ import { createPinia } from 'pinia';
 import './services/firebase';
 import { registerSW } from 'virtual:pwa-register';
 import Tooltip from 'primevue/tooltip';
-import Ripple from 'primevue/ripple';
 import { twMerge, type ClassNameValue } from 'tailwind-merge';
 import { mergeProps } from 'vue';
 
@@ -63,5 +62,4 @@ createApp(App)
     .use(ToastService)
     .use(ConfirmationService)
     .directive('tooltip', Tooltip)
-    .directive('ripple', Ripple)
     .mount('#app');

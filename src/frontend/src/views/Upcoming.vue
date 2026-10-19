@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { differenceInCalendarDays, format, isToday, isTomorrow, startOfDay } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import Button from 'primevue/button';
 import Skeleton from 'primevue/skeleton';
 import EventListItem from '../components/EventListItem.vue';
@@ -10,26 +10,11 @@ import type { Event } from '../types/Event';
 import { useEventsStore } from '../stores/events';
 import { useSessionStore } from '../stores/session';
 import { useEventWeather } from '../composables/useEventWeather';
-import { useEventDialogs } from '../composables/useEventDialogs';
+import { useEventDialogs, createEventViewDialogs } from '../composables/useEventDialogs';
 import { getUserEventRole } from '../utils/event';
+import { dayLabel } from '../utils/format';
 
-const loadEventViewDialog = () => import('../components/calendar/EventViewDialog.vue');
-// Chat, activity and edit stack on the event sheet. Loading them after it keeps them on top when a
-// link (like a chat notification) opens both at once; otherwise the sheet could mount last and cover them.
-const afterEventView =
-    <T,>(load: () => Promise<T>) =>
-    () =>
-        loadEventViewDialog().then(load);
-const EventViewDialog = defineAsyncComponent(loadEventViewDialog);
-const EventChatDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/event-view/EventChatDialog.vue'))
-);
-const EventAuditLogDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/event-view/EventAuditLogDialog.vue'))
-);
-const EventEditDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/EventEditDialog.vue'))
-);
+const { EventViewDialog, EventChatDialog, EventAuditLogDialog, EventEditDialog } = createEventViewDialogs();
 
 const eventsStore = useEventsStore();
 const sessionStore = useSessionStore();
@@ -49,13 +34,6 @@ const otherEvents = computed(() => (events.value.length > 1 ? events.value.slice
 const invitedCount = computed(
     () => events.value.filter((event) => getUserEventRole(event, sessionStore.currentUser?.id) === 'invited').length
 );
-
-const dayLabel = (date: Date) => {
-    if (isToday(date)) return 'Today';
-    if (isTomorrow(date)) return 'Tomorrow';
-    if (differenceInCalendarDays(date, new Date()) < 7) return format(date, 'EEEE');
-    return format(date, 'EEE d MMMM');
-};
 
 const groups = computed(() => {
     const result: { key: string; label: string; date: string; events: Event[] }[] = [];

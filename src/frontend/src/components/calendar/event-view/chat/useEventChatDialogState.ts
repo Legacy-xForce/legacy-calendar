@@ -10,7 +10,7 @@ import {
     type InjectionKey,
     type Ref
 } from 'vue';
-import { format, formatDistanceToNowStrict, isToday, isYesterday, parseISO } from 'date-fns';
+import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import type { Event as CalendarEvent } from '../../../../types/Event';
@@ -20,6 +20,7 @@ import { useSessionStore } from '../../../../stores/session';
 import { uploadsBaseURL } from '../../../../services/API';
 import API from '../../../../services/API';
 import { hasLocalChatAccess } from '../../../../utils/event';
+import { dayLabel } from '../../../../utils/format';
 
 type EventRef = Ref<CalendarEvent | null>;
 
@@ -515,9 +516,7 @@ export function injectEventChatDialogState() {
 
 function getDateLabel(value: string | Date) {
     const date = typeof value === 'string' ? parseISO(value) : value;
-    if (isToday(date)) return 'Today';
-    if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'EEEE, d MMMM');
+    return dayLabel(date, { long: true });
 }
 
 function sortByDateAsc<T extends { createdAt: string | Date }>(a: T, b: T) {

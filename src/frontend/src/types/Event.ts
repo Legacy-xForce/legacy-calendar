@@ -32,6 +32,16 @@ export const TRANSPORT_MODES = ['NEEDS_RIDE', 'SELF', 'DRIVER'] as const;
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
 export type RideDirection = 'OUTBOUND' | 'RETURN';
 
+export interface FeatureSelectionResult {
+    features: EventFeature[];
+    transport: {
+        transportMode: TransportMode;
+        vehicleSeats?: number;
+        vehicleSeatsOutbound?: number;
+        vehicleSeatsReturn?: number;
+    };
+}
+
 export interface EventPersonSummary {
     id: number;
     username: string;

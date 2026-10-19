@@ -68,12 +68,6 @@ export function toggleFeature(features: EventFeature[], feature: EventFeature) {
     features.splice(index, 1);
 }
 
-export function combineDateAndTime(datePart: Date, timePart: Date): Date {
-    const combined = new Date(datePart);
-    combined.setHours(timePart.getHours(), timePart.getMinutes(), 0, 0);
-    return combined;
-}
-
 function startOfDay(date: Date) {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);

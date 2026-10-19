@@ -6,6 +6,7 @@ import * as jwksRsa from 'jwks-rsa';
 import jwt from 'jsonwebtoken';
 import { UsersService } from '../../users/users.service.js';
 import { resolveJwtSecret } from '../jwt-secret.util.js';
+import { resolveJwksUri } from '../../config/jwks.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -17,8 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             cache: true,
             rateLimit: true,
             jwksRequestsPerMinute: 10,
-            jwksUri:
-                configService.get<string>('AUTH_JWKS_URI') || 'https://auth.legacy-group.tech/.well-known/jwks.json'
+            jwksUri: resolveJwksUri(configService)
         }) as (req: unknown, rawJwtToken: unknown, done: (err: unknown, secretOrKey?: string | Buffer) => void) => void;
 
         const localSecret = resolveJwtSecret(configService);

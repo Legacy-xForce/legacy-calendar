@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import UserAvatar from './UserAvatar.vue';
+import { BOTTOM_NAVIGATION, stopImpersonating } from '../constants/navigation';
 
 const route = useRoute();
 const sessionStore = useSessionStore();
@@ -10,21 +11,7 @@ const currentUser = computed(() => sessionStore.currentUser);
 const isAuthenticated = computed(() => sessionStore.isAuthenticated);
 const isImpersonating = computed(() => !!localStorage.getItem('impersonate_user_id'));
 
-const tabs = [
-    {
-        name: 'calendar',
-        label: 'Calendar',
-        icon: 'pi pi-calendar',
-        match: (path: string) => path === '/calendar' || path.startsWith('/event')
-    },
-    { name: 'upcoming', label: 'Upcoming', icon: 'pi pi-list', match: (path: string) => path.startsWith('/upcoming') },
-    { name: 'profile', label: 'Profile', icon: null, match: (path: string) => path === '/profile' || path === '/admin' }
-];
-
-const stopImpersonating = () => {
-    localStorage.removeItem('impersonate_user_id');
-    window.location.href = '/admin';
-};
+const tabs = BOTTOM_NAVIGATION;
 </script>
 
 <template>

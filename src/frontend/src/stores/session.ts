@@ -187,10 +187,6 @@ export const useSessionStore = defineStore('session', () => {
         logger.info('Logged out');
     }
 
-    function clearError() {
-        error.value = null;
-    }
-
     async function updateProfile(updates: Partial<User>) {
         if (session.value.user) {
             session.value.user = { ...session.value.user, ...updates };
@@ -290,7 +286,6 @@ export const useSessionStore = defineStore('session', () => {
         registerPasskey,
         load,
         logout,
-        clearError,
         updateProfile,
         changePassword
     };

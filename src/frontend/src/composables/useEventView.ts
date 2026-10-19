@@ -15,15 +15,12 @@ export function injectEventView() {
 import type { Event, EventFeature, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
-import { FEATURES } from '../constants/features';
 import {
     canUserRespondToEvent,
     createFeatureRecord,
     featureCount,
     featurePricesFromEvent,
     featureSplitPrice,
-    getParticipantStatusIcon,
-    getParticipantStatusSeverity,
     participantFeatures,
     selectedFeaturesFromEvent,
     totalEventBudget,
@@ -171,14 +168,6 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         createFeatureRecord((feature) => featureSplitPrice(eventRef.value, resolvedInvitees.value, feature))
     );
 
-    const featuresListColumns = computed(() =>
-        FEATURES.filter((feature) => availableFeatureIds.value.includes(feature.id)).map((feature) => ({
-            field: feature.id,
-            header: feature.label,
-            icon: feature.icon
-        }))
-    );
-
     const drivers = computed(() => {
         if (!eventRef.value?.participants) return [];
         return resolvedInvitees.value
@@ -249,11 +238,6 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
 
     const getFeatureSplitPrice = (feature: EventFeature) =>
         featureSplitPrice(eventRef.value, resolvedInvitees.value, feature);
-
-    const hasFeature = (userId: number, feature: EventFeature) => {
-        const participant = resolvedInvitees.value.find((p) => p.id === userId);
-        return participantFeatures(participant).includes(feature);
-    };
 
     const userTotalShare = computed(() => {
         const user = currentUser.value;
@@ -334,7 +318,6 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         // State
         isGuestMode,
         currentUser,
-        eventHost,
         coHosts: resolvedCoHosts,
         allEventHosts,
         hostedByText,
@@ -350,9 +333,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         availableFeatureIds,
         eventPrices,
         eventSplitPrices,
-        featuresListColumns,
         drivers,
-        needsRide,
         getNeedsRide,
         eventTotalBudget,
         paidAmount,
@@ -364,13 +345,10 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         // Utils
         getFeatureCount,
         getFeatureSplitPrice,
-        hasFeature,
         getAvailableSeats,
         getAssignedPassengers,
         hasSplitSeats,
         getParticipantFeatures,
-        getStatusIcon: getParticipantStatusIcon,
-        getStatusSeverity: getParticipantStatusSeverity,
         openNavigation,
 
         // Actions

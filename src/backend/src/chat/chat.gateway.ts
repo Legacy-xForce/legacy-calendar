@@ -20,6 +20,7 @@ import { AppLogger } from '../logging/app-logger.js';
 import { UsersService } from '../users/users.service.js';
 import { resolveJwtSecret } from '../auth/jwt-secret.util.js';
 import { isOriginAllowed } from '../config/cors.js';
+import { resolveJwksUri } from '../config/jwks.js';
 
 type SocketUser = {
     userId: number;
@@ -54,9 +55,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         @Inject(UsersService) private readonly usersService: UsersService
     ) {
         this.jwksClient = new jwksRsa.JwksClient({
-            jwksUri:
-                this.configService.get<string>('AUTH_JWKS_URI') ||
-                'https://auth.legacy-group.tech/.well-known/jwks.json'
+            jwksUri: resolveJwksUri(this.configService)
         });
         this.jwtSecret = resolveJwtSecret(configService);
     }
