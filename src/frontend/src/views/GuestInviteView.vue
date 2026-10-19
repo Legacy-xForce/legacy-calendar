@@ -219,7 +219,7 @@ const onLeave = () => {
 
             <div
                 v-if="canEdit || (hasJoined && !isEnded)"
-                class="border-line fixed inset-x-0 bottom-0 z-40 border-t bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+                class="border-line bg-canvas/90 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
             >
                 <div class="mx-auto flex w-full max-w-2xl gap-2 px-4 py-3 sm:px-6">
                     <Button

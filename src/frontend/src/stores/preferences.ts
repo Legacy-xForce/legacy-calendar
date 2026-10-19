@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import { getStoredTheme, setTheme as persistTheme, type ThemeId } from '../theme/themes';
 
 /**
  * How the calendar is laid out on phones:
@@ -23,6 +24,7 @@ function readLayout(): MobileCalendarLayout {
 /** UI preferences kept on this device only. */
 export const usePreferencesStore = defineStore('preferences', () => {
     const mobileCalendarLayout = ref<MobileCalendarLayout>(readLayout());
+    const theme = ref<ThemeId>(getStoredTheme());
 
     watch(mobileCalendarLayout, (layout) => {
         try {
@@ -36,8 +38,14 @@ export const usePreferencesStore = defineStore('preferences', () => {
         mobileCalendarLayout.value = mobileCalendarLayout.value === 'agenda' ? 'grid' : 'agenda';
     };
 
+    const setTheme = (id: ThemeId) => {
+        theme.value = persistTheme(id);
+    };
+
     return {
         mobileCalendarLayout,
-        toggleMobileCalendarLayout
+        toggleMobileCalendarLayout,
+        theme,
+        setTheme
     };
 });

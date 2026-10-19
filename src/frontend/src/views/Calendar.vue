@@ -116,7 +116,7 @@ const isSelected = (day: CalendarDay) => isSameDay(day.date, selectedDate.value)
 const dayNumberClass = (day: CalendarDay) => {
     const selected = isSelected(day);
     if (selected && day.isToday) return 'bg-accent text-primary-contrast font-semibold';
-    if (selected) return 'bg-fg text-black font-semibold';
+    if (selected) return 'bg-fg text-primary-contrast font-semibold';
     if (day.isToday) return 'text-accent font-semibold';
     if (!day.isCurrentMonth) return 'text-surface-700';
     if (day.isPast) return 'text-muted';

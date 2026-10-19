@@ -315,7 +315,7 @@ function parseEventId(value: unknown) {
 
         <div
             v-if="navigationError"
-            class="text-meta mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-100"
+            class="text-meta mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-amber-200"
         >
             {{ navigationError }}
         </div>

@@ -10,6 +10,7 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import SelectButton from 'primevue/selectbutton';
 import { storeToRefs } from 'pinia';
 import { usePreferencesStore, type MobileCalendarLayout } from '../stores/preferences';
+import { THEMES } from '../theme/themes';
 import UserAvatar from '../components/UserAvatar.vue';
 import BankLogo from '../components/BankLogo.vue';
 import { useToast } from 'primevue/usetoast';
@@ -30,7 +31,10 @@ const toast = useToast();
 const confirm = useConfirm();
 const logger = createLogger('ProfileView');
 
-const { mobileCalendarLayout } = storeToRefs(usePreferencesStore());
+const preferencesStore = usePreferencesStore();
+const { mobileCalendarLayout, theme } = storeToRefs(preferencesStore);
+const { setTheme } = preferencesStore;
+const themes = THEMES;
 
 const calendarLayouts: { value: MobileCalendarLayout; label: string; icon: string; hint: string }[] = [
     {
@@ -357,6 +361,51 @@ const handleClearCache = () => {
                 <p class="text-meta text-muted m-0">{{ isAdmin ? 'Administrator' : 'Member' }}</p>
             </div>
         </header>
+
+        <section class="flex flex-col gap-2">
+            <div>
+                <h2 class="eyebrow m-0">Appearance</h2>
+                <p class="text-meta text-subtle m-0 mt-1">OLED or Catppuccin. Saved on this device only.</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Theme">
+                <button
+                    v-for="option in themes"
+                    :key="option.id"
+                    type="button"
+                    role="radio"
+                    :aria-checked="theme === option.id"
+                    :aria-label="`${option.label}, ${option.mode}`"
+                    class="pressable flex items-center gap-2 rounded-full border py-1 pr-2.5 pl-1.5 transition-colors"
+                    :class="
+                        theme === option.id
+                            ? 'border-accent bg-accent-soft text-fg'
+                            : 'border-line bg-raised text-muted hover:bg-surface-950 hover:text-fg'
+                    "
+                    @click="setTheme(option.id)"
+                >
+                    <span
+                        class="border-line flex size-6 shrink-0 items-center justify-center rounded-full border"
+                        :style="{ backgroundColor: option.preview.canvas }"
+                    >
+                        <span
+                            class="flex h-3.5 w-3.5 flex-col justify-center gap-px rounded-[4px] p-0.5"
+                            :style="{ backgroundColor: option.preview.raised }"
+                        >
+                            <span
+                                class="h-px w-2 rounded-full"
+                                :style="{ backgroundColor: option.preview.text }"
+                            ></span>
+                            <span
+                                class="h-px w-1.5 rounded-full"
+                                :style="{ backgroundColor: option.preview.accent }"
+                            ></span>
+                        </span>
+                    </span>
+                    <span class="text-meta font-medium">{{ option.shortLabel }}</span>
+                    <i v-if="theme === option.id" class="pi pi-check text-accent text-[0.625rem]"></i>
+                </button>
+            </div>
+        </section>
 
         <section class="flex flex-col gap-2">
             <div>

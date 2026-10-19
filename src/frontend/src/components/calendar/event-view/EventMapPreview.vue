@@ -21,7 +21,7 @@ const emit = defineEmits<{
     >
         <GoogleMapsEmbed :query="location" :lat="lat" :lon="lon" :zoom="14" />
         <span
-            class="text-meta text-fg absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-black/80 px-3 py-1.5 font-medium transition-colors group-hover:bg-black"
+            class="text-meta text-fg bg-surface-950/80 group-hover:bg-surface-950 absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors"
         >
             <i class="pi pi-map text-[0.6875rem]"></i>
             Open map

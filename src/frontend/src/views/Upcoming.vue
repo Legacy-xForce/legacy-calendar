@@ -148,7 +148,7 @@ const openViewEvent = (event: Event) => {
 
             <section v-for="(group, index) in groups" :key="group.key" class="flex flex-col gap-2">
                 <h2
-                    class="text-body text-fg sticky top-[env(safe-area-inset-top)] z-10 m-0 -mx-4 flex items-baseline gap-2 bg-black/90 px-4 py-2 font-semibold backdrop-blur-md md:-mx-6 md:px-6 lg:top-(--app-header-height)"
+                    class="text-body text-fg bg-canvas/90 sticky top-[env(safe-area-inset-top)] z-10 m-0 -mx-4 flex items-baseline gap-2 px-4 py-2 font-semibold backdrop-blur-md md:-mx-6 md:px-6 lg:top-(--app-header-height)"
                 >
                     {{ group.label }}
                     <span v-if="group.date" class="text-meta text-subtle font-medium">{{ group.date }}</span>

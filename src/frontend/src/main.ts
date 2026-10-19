@@ -5,7 +5,8 @@ import { router } from './router/router';
 import PrimeVue from 'primevue/config';
 import ToastService from 'primevue/toastservice';
 import ConfirmationService from 'primevue/confirmationservice';
-import OledPreset from './theme/oled';
+import AppPreset from './theme/preset';
+import { applyTheme, getStoredTheme } from './theme/themes';
 import { createPinia } from 'pinia';
 import './services/firebase';
 import { registerSW } from 'virtual:pwa-register';
@@ -27,13 +28,16 @@ const customMergeProps = (
 
 registerSW({ immediate: true });
 
+// Apply before mounting so the first paint uses the saved theme.
+applyTheme(getStoredTheme());
+
 createApp(App)
     .use(router)
     .use(createPinia())
     .use(PrimeVue, {
         ripple: false,
         theme: {
-            preset: OledPreset,
+            preset: AppPreset,
             options: {
                 darkModeSelector: '.dark'
             }

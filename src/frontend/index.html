@@ -12,6 +12,22 @@
   <meta name="theme-color" content="#000000" />
   <meta name="color-scheme" content="dark" />
   <meta name="darkreader-lock" />
+  <script>
+    // Apply the saved theme before the first paint to avoid a flash of the default palette.
+    (() => {
+      try {
+        const themes = ['oled', 'catppuccin-mocha', 'catppuccin-macchiato', 'catppuccin-frappe', 'catppuccin-latte'];
+        const stored = localStorage.getItem('pref_theme');
+        const theme = themes.includes(stored) ? stored : 'oled';
+        const light = theme === 'catppuccin-latte';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark', !light);
+        document.documentElement.style.colorScheme = light ? 'light' : 'dark';
+      } catch {
+        // Storage can be unavailable; fall through to the dark OLED defaults.
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://legacy-calendar.duckdns.org:3001" crossorigin />
   <link rel="dns-prefetch" href="https://legacy-calendar.duckdns.org:3001" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />

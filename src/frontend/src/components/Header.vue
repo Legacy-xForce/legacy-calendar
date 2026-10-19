@@ -25,7 +25,7 @@ const items = [
 
 <template>
     <header
-        class="pwa-mobile-hidden border-line sticky top-0 z-40 h-(--app-header-height) border-b bg-black/85 backdrop-blur-md"
+        class="pwa-mobile-hidden border-line bg-canvas/85 sticky top-0 z-40 h-(--app-header-height) border-b backdrop-blur-md"
     >
         <div class="flex h-full items-center gap-8 px-6">
             <router-link :to="{ name: 'calendar' }" class="text-fg flex items-center gap-2.5 no-underline">

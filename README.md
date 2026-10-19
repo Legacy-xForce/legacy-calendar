@@ -113,7 +113,7 @@ The frontend is a Vue 3 SPA with route-level code splitting and store-driven sta
 - `src/stores/users.ts` supports the admin user management screen
 - `src/components` contains reusable UI building blocks
 - `src/composables` contains feature logic such as calendar behavior, sharing, geocoding, weather, and chat
-- `src/theme/oled.ts` defines the custom dark theme
+- `src/theme/preset.ts` defines the shared PrimeVue theme, and `src/theme/themes.ts` registers the selectable OLED and Catppuccin themes
 
 ## Design Choices
 

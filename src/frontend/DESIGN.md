@@ -48,7 +48,7 @@ components:
 
 **Creative North Star: "Obsidian Focus"**
 
-Legacy Calendar is an uncompromisingly dark, high-utility tool for an intimate friend group. It is used mostly on phones, at night, often from the installed PWA. The design is quiet but confident: absolute black, one emerald accent, and the events' own colors carrying the life of the interface.
+Legacy Calendar is an uncompromisingly dark, high-utility tool for an intimate friend group. It is used mostly on phones, at night, often from the installed PWA. The design is quiet but confident: absolute black in OLED, one accent per theme (emerald by default, Catppuccin mauve in the Catppuccin themes), and the events' own colors carrying the life of the interface.
 
 **Key characteristics**
 
@@ -56,7 +56,7 @@ Legacy Calendar is an uncompromisingly dark, high-utility tool for an intimate f
 - **Event colors are the palette.** UI chrome stays neutral; each event's chosen color tints its rows, chips and dots.
 - **Native-feeling on mobile.** Dialogs are bottom sheets with a grab handle and drag-to-dismiss; dates use native pickers.
 
-Source of truth for tokens: `src/style.css` (`@theme`) and `src/theme/oled.ts` (PrimeVue preset). Keep them in sync.
+Source of truth for tokens: `src/style.css` (`@theme` plus the `data-theme` palette blocks) and `src/theme/preset.ts` (PrimeVue preset, which references those CSS variables). `src/theme/themes.ts` registers the selectable themes and their settings-screen previews.
 
 ## 2. Colors
 
@@ -86,7 +86,7 @@ One neutral scale, faintly tinted toward the accent hue (OKLCH hue 165, chroma â
 
 **The Void Rule.** Root backgrounds are absolute `#000000`.
 
-**The One Accent Rule.** Emerald is the only UI accent and stays under roughly 10% of any screen. Variety comes from event colors.
+**The One Accent Rule.** Each theme has a single UI accent (emerald in OLED, mauve in Catppuccin) and it stays under roughly 10% of any screen. Variety comes from event colors.
 
 **The Tint, Don't Stripe Rule.** Event identity is a color dot or a 7â€“20% tint of the event color (`color-mix(in oklab, var(--event-color) 7%, var(--color-raised))`). Never a colored side stripe.
 

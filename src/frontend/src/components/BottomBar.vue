@@ -30,7 +30,7 @@ const stopImpersonating = () => {
 <template>
     <nav
         v-if="isAuthenticated"
-        class="pwa-mobile-show border-line fixed right-0 bottom-0 left-0 z-50 border-t bg-black/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+        class="pwa-mobile-show border-line bg-canvas/90 fixed right-0 bottom-0 left-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
         aria-label="Main"
     >
         <div class="mx-auto flex h-(--tabbar-height) max-w-md items-stretch justify-around px-2">

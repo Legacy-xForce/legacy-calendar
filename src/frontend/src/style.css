@@ -126,6 +126,235 @@
     /* Height of the mobile tab bar, without the safe-area inset */
     --tabbar-height: 3.75rem;
     --app-header-height: 4rem;
+
+    /* Roles that depend on the theme mode rather than a single surface shade */
+    --color-mask: rgb(0 0 0 / 0.72);
+    --color-fg-strong: #ffffff;
+    --color-muted-strong: var(--color-surface-300);
+    --color-primary-hover: var(--color-emerald-300);
+    --color-primary-active: var(--color-emerald-500);
+    --shadow-overlay: 0 18px 40px -16px rgb(0 0 0 / 0.9);
+    --shadow-modal: 0 24px 64px -24px rgb(0 0 0 / 0.95);
+}
+
+/*
+ * Catppuccin palettes. The flavor blocks define the raw colors, then the shared
+ * rules below map them onto the app's surface scale and semantic roles.
+ * https://catppuccin.com/palette
+ */
+html[data-theme='catppuccin-mocha'] {
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-crust: #11111b;
+    --ctp-surface0: #313244;
+    --ctp-surface1: #45475a;
+    --ctp-surface2: #585b70;
+    --ctp-overlay0: #6c7086;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay2: #9399b2;
+    --ctp-subtext0: #a6adc8;
+    --ctp-subtext1: #bac2de;
+    --ctp-text: #cdd6f4;
+    --ctp-green: #a6e3a1;
+    --ctp-red: #f38ba8;
+    --ctp-yellow: #f9e2af;
+    --ctp-sky: #89dceb;
+    --ctp-mauve: #cba6f7;
+}
+
+html[data-theme='catppuccin-macchiato'] {
+    --ctp-base: #24273a;
+    --ctp-mantle: #1e2030;
+    --ctp-crust: #181926;
+    --ctp-surface0: #363a4f;
+    --ctp-surface1: #494d64;
+    --ctp-surface2: #5b6078;
+    --ctp-overlay0: #6e738d;
+    --ctp-overlay1: #8087a2;
+    --ctp-overlay2: #939ab7;
+    --ctp-subtext0: #a5adcb;
+    --ctp-subtext1: #b8c0e0;
+    --ctp-text: #cad3f5;
+    --ctp-green: #a6da95;
+    --ctp-red: #ed8796;
+    --ctp-yellow: #eed49f;
+    --ctp-sky: #91d7e3;
+    --ctp-mauve: #c6a0f6;
+}
+
+html[data-theme='catppuccin-frappe'] {
+    --ctp-base: #303446;
+    --ctp-mantle: #292c3c;
+    --ctp-crust: #232634;
+    --ctp-surface0: #414559;
+    --ctp-surface1: #51576d;
+    --ctp-surface2: #626880;
+    --ctp-overlay0: #737994;
+    --ctp-overlay1: #838ba7;
+    --ctp-overlay2: #949cbb;
+    --ctp-subtext0: #a5adce;
+    --ctp-subtext1: #b5bfe2;
+    --ctp-text: #c6d0f5;
+    --ctp-green: #a6d189;
+    --ctp-red: #e78284;
+    --ctp-yellow: #e5c890;
+    --ctp-sky: #99d1db;
+    --ctp-mauve: #ca9ee6;
+}
+
+html[data-theme='catppuccin-latte'] {
+    --ctp-base: #eff1f5;
+    --ctp-mantle: #e6e9ef;
+    --ctp-crust: #dce0e8;
+    --ctp-surface0: #ccd0da;
+    --ctp-surface1: #bcc0cc;
+    --ctp-surface2: #acb0be;
+    --ctp-overlay0: #9ca0b0;
+    --ctp-overlay1: #8c8fa1;
+    --ctp-overlay2: #7c7f93;
+    --ctp-subtext0: #6c6f85;
+    --ctp-subtext1: #5c5f77;
+    --ctp-text: #4c4f69;
+    --ctp-green: #40a02b;
+    --ctp-red: #d20f39;
+    --ctp-yellow: #df8e1d;
+    --ctp-sky: #04a5e5;
+    --ctp-mauve: #8839ef;
+}
+
+html[data-theme^='catppuccin-'] {
+    --color-surface-0: #ffffff;
+    --color-surface-50: var(--ctp-text);
+    --color-surface-100: var(--ctp-subtext1);
+    --color-surface-200: var(--ctp-subtext0);
+    --color-surface-300: var(--ctp-overlay2);
+    --color-surface-400: var(--ctp-overlay1);
+    --color-surface-500: var(--ctp-overlay0);
+    --color-surface-600: var(--ctp-surface2);
+    --color-surface-700: var(--ctp-surface1);
+    --color-surface-800: var(--ctp-surface0);
+    --color-surface-850: var(--ctp-surface0);
+    --color-surface-900: var(--ctp-mantle);
+    --color-surface-925: var(--ctp-base);
+    --color-surface-950: var(--ctp-crust);
+
+    --color-canvas: var(--ctp-crust);
+    --color-raised: var(--ctp-base);
+    --color-overlay: var(--ctp-mantle);
+    --color-hover: var(--ctp-surface0);
+    --color-line: var(--ctp-surface0);
+    --color-line-strong: var(--ctp-surface1);
+    --color-fg: var(--ctp-text);
+    --color-fg-strong: #ffffff;
+    --color-muted: var(--ctp-subtext0);
+    --color-muted-strong: var(--ctp-subtext1);
+    --color-subtle: var(--ctp-overlay1);
+    --color-mask: rgb(0 0 0 / 0.6);
+
+    --color-primary: var(--ctp-mauve);
+    --color-primary-hover: color-mix(in oklab, var(--ctp-mauve) 76%, var(--ctp-text));
+    --color-primary-active: color-mix(in oklab, var(--ctp-mauve) 82%, var(--ctp-crust));
+    --color-primary-contrast: var(--ctp-crust);
+    --color-accent: var(--ctp-mauve);
+    --color-accent-soft: color-mix(in oklab, var(--ctp-mauve) 14%, transparent);
+    --color-going: var(--ctp-green);
+    --color-invited: var(--ctp-yellow);
+    --color-declined: var(--ctp-red);
+
+    --shadow-overlay: 0 18px 40px -16px rgb(0 0 0 / 0.55);
+    --shadow-modal: 0 24px 64px -24px rgb(0 0 0 / 0.65);
+
+    --color-emerald-100: color-mix(in oklab, var(--ctp-green) 65%, var(--ctp-text));
+    --color-emerald-200: color-mix(in oklab, var(--ctp-green) 82%, var(--ctp-text));
+    --color-emerald-300: var(--ctp-green);
+    --color-emerald-400: var(--ctp-green);
+    --color-emerald-500: color-mix(in oklab, var(--ctp-green) 88%, var(--ctp-crust));
+    --color-emerald-600: color-mix(in oklab, var(--ctp-green) 74%, var(--ctp-crust));
+    --color-emerald-900: color-mix(in oklab, var(--ctp-green) 22%, var(--ctp-crust));
+    --color-emerald-950: color-mix(in oklab, var(--ctp-green) 14%, var(--ctp-crust));
+
+    --color-rose-100: color-mix(in oklab, var(--ctp-red) 65%, var(--ctp-text));
+    --color-rose-200: color-mix(in oklab, var(--ctp-red) 82%, var(--ctp-text));
+    --color-rose-300: var(--ctp-red);
+    --color-rose-400: var(--ctp-red);
+    --color-rose-500: var(--ctp-red);
+    --color-rose-950: color-mix(in oklab, var(--ctp-red) 14%, var(--ctp-crust));
+
+    --color-amber-100: color-mix(in oklab, var(--ctp-yellow) 70%, var(--ctp-text));
+    --color-amber-200: var(--ctp-yellow);
+    --color-amber-300: var(--ctp-yellow);
+    --color-amber-500: var(--ctp-yellow);
+    --color-amber-600: color-mix(in oklab, var(--ctp-yellow) 70%, var(--ctp-crust));
+    --color-amber-900: color-mix(in oklab, var(--ctp-yellow) 22%, var(--ctp-crust));
+    --color-amber-950: color-mix(in oklab, var(--ctp-yellow) 14%, var(--ctp-crust));
+
+    --color-sky-100: color-mix(in oklab, var(--ctp-sky) 65%, var(--ctp-text));
+    --color-sky-300: var(--ctp-sky);
+    --color-sky-400: var(--ctp-sky);
+    --color-sky-500: var(--ctp-sky);
+    --color-sky-600: color-mix(in oklab, var(--ctp-sky) 74%, var(--ctp-crust));
+    --color-sky-900: color-mix(in oklab, var(--ctp-sky) 22%, var(--ctp-crust));
+    --color-sky-950: color-mix(in oklab, var(--ctp-sky) 14%, var(--ctp-crust));
+
+    --color-red-300: color-mix(in oklab, var(--ctp-red) 82%, var(--ctp-text));
+    --color-red-400: var(--ctp-red);
+    --color-red-500: var(--ctp-red);
+    --color-red-600: color-mix(in oklab, var(--ctp-red) 74%, var(--ctp-crust));
+}
+
+html[data-theme='catppuccin-latte'] {
+    --color-surface-0: #2f3145;
+    --color-surface-900: var(--ctp-crust);
+    --color-surface-950: color-mix(in oklab, var(--ctp-crust) 65%, var(--ctp-surface0));
+
+    --color-canvas: var(--ctp-mantle);
+    --color-overlay: var(--ctp-base);
+    --color-fg-strong: #2f3145;
+    --color-mask: rgb(76 79 105 / 0.35);
+
+    --color-primary-hover: color-mix(in oklab, var(--ctp-mauve) 85%, var(--ctp-text));
+    --color-primary-active: color-mix(in oklab, var(--ctp-mauve) 80%, var(--ctp-crust));
+    --color-primary-contrast: #ffffff;
+
+    --shadow-overlay: 0 18px 40px -16px rgb(76 79 105 / 0.25);
+    --shadow-modal: 0 24px 64px -24px rgb(76 79 105 / 0.35);
+
+    --color-emerald-100: color-mix(in oklab, var(--ctp-green) 12%, var(--ctp-base));
+    --color-emerald-200: color-mix(in oklab, var(--ctp-green) 75%, var(--ctp-text));
+    --color-emerald-300: var(--ctp-green);
+    --color-emerald-400: var(--ctp-green);
+    --color-emerald-500: var(--ctp-green);
+    --color-emerald-600: color-mix(in oklab, var(--ctp-green) 80%, var(--ctp-text));
+    --color-emerald-900: color-mix(in oklab, var(--ctp-green) 16%, var(--ctp-base));
+    --color-emerald-950: color-mix(in oklab, var(--ctp-green) 10%, var(--ctp-base));
+
+    --color-rose-100: color-mix(in oklab, var(--ctp-red) 12%, var(--ctp-base));
+    --color-rose-200: color-mix(in oklab, var(--ctp-red) 85%, var(--ctp-text));
+    --color-rose-300: var(--ctp-red);
+    --color-rose-400: var(--ctp-red);
+    --color-rose-500: var(--ctp-red);
+    --color-rose-950: color-mix(in oklab, var(--ctp-red) 10%, var(--ctp-base));
+
+    --color-amber-100: color-mix(in oklab, var(--ctp-yellow) 14%, var(--ctp-base));
+    --color-amber-200: color-mix(in oklab, var(--ctp-yellow) 60%, var(--ctp-text));
+    --color-amber-300: var(--ctp-yellow);
+    --color-amber-500: color-mix(in oklab, var(--ctp-yellow) 90%, var(--ctp-text));
+    --color-amber-600: color-mix(in oklab, var(--ctp-yellow) 65%, var(--ctp-text));
+    --color-amber-900: color-mix(in oklab, var(--ctp-yellow) 18%, var(--ctp-base));
+    --color-amber-950: color-mix(in oklab, var(--ctp-yellow) 10%, var(--ctp-base));
+
+    --color-sky-100: color-mix(in oklab, var(--ctp-sky) 12%, var(--ctp-base));
+    --color-sky-300: color-mix(in oklab, var(--ctp-sky) 55%, var(--ctp-text));
+    --color-sky-400: color-mix(in oklab, var(--ctp-sky) 50%, var(--ctp-text));
+    --color-sky-500: color-mix(in oklab, var(--ctp-sky) 55%, var(--ctp-text));
+    --color-sky-600: color-mix(in oklab, var(--ctp-sky) 50%, var(--ctp-text));
+    --color-sky-900: color-mix(in oklab, var(--ctp-sky) 18%, var(--ctp-base));
+    --color-sky-950: color-mix(in oklab, var(--ctp-sky) 10%, var(--ctp-base));
+
+    --color-red-300: color-mix(in oklab, var(--ctp-red) 80%, var(--ctp-text));
+    --color-red-400: var(--ctp-red);
+    --color-red-500: var(--ctp-red);
+    --color-red-600: color-mix(in oklab, var(--ctp-red) 80%, var(--ctp-text));
 }
 
 body {
@@ -218,7 +447,7 @@ button,
 }
 
 .p-dialog-mask.p-overlay-mask {
-    background: rgb(0 0 0 / 0.72);
+    background: var(--color-mask);
 }
 
 .p-dialog-header .p-dialog-close-button,
@@ -256,7 +485,7 @@ button,
     background: var(--color-surface-900) !important;
     border: 1px solid var(--color-line) !important;
     border-radius: 1rem !important;
-    box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.9) !important;
+    box-shadow: var(--shadow-overlay) !important;
     backdrop-filter: none !important;
 }
 
