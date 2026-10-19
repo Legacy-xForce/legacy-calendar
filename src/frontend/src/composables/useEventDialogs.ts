@@ -1,10 +1,36 @@
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, ref, watch, defineAsyncComponent, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useEventsStore } from '../stores/events';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import type { Event } from '../types/Event';
 import { getCurrentSection, getEventPathPrefix, getRouteAction, parseEventId } from '../utils/route';
+
+/**
+ * Async dialogs that stack on top of the event view sheet. Loading them after it
+ * keeps them on top when a link (like a chat notification) opens both at once;
+ * otherwise the sheet could mount last and cover them.
+ */
+export function createEventViewDialogs() {
+    const loadEventViewDialog = () => import('../components/calendar/EventViewDialog.vue');
+    const afterEventView =
+        <T>(load: () => Promise<T>) =>
+        () =>
+            loadEventViewDialog().then(load);
+
+    return {
+        EventViewDialog: defineAsyncComponent(loadEventViewDialog),
+        EventChatDialog: defineAsyncComponent(
+            afterEventView(() => import('../components/calendar/event-view/EventChatDialog.vue'))
+        ),
+        EventAuditLogDialog: defineAsyncComponent(
+            afterEventView(() => import('../components/calendar/event-view/EventAuditLogDialog.vue'))
+        ),
+        EventEditDialog: defineAsyncComponent(
+            afterEventView(() => import('../components/calendar/EventEditDialog.vue'))
+        )
+    };
+}
 
 export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event | null>) {
     const eventsStore = useEventsStore();

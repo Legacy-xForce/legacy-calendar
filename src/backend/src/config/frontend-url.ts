@@ -9,10 +9,14 @@
 
 const DEFAULT_FRONTEND_URL = 'https://calendar.legacy-group.tech';
 
-export function getFrontendUrl(): string {
-    const configured = process.env.FRONTEND_URL?.split(',')
+/** Configured frontend origins, trimmed and without empty entries. */
+export function getFrontendUrls(): string[] {
+    return (process.env.FRONTEND_URL ?? '')
+        .split(',')
         .map((origin) => origin.trim())
-        .find(Boolean);
+        .filter(Boolean);
+}
 
-    return configured ?? DEFAULT_FRONTEND_URL;
+export function getFrontendUrl(): string {
+    return getFrontendUrls()[0] ?? DEFAULT_FRONTEND_URL;
 }

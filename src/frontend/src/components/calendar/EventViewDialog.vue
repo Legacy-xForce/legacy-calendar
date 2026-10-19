@@ -8,13 +8,16 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useRoute, useRouter } from 'vue-router';
 
-import type { Event, EventFeature, RideDirection, TransportMode } from '../../types/Event';
+import type { Event, FeatureSelectionResult, ParticipateDto, RideDirection } from '../../types/Event';
 import { useEventsStore } from '../../stores/events';
 import EventViewMode from './event-view/EventViewMode.vue';
 import { useEventView, EventViewInjectionKey } from '../../composables/useEventView';
+import { createFeatureRecord, participantWantsFromSelection } from '../../utils/event';
+import { normalizeHexColor } from '../../utils/color';
+import { DEFAULT_COLOR } from '../../constants/colors';
+import { parseEventId } from '../../utils/route';
 
 const FeatureSelectionDialog = defineAsyncComponent(() => import('./FeatureSelectionDialog.vue'));
-import type { ParticipateDto } from '../../types/Event';
 
 const props = defineProps<{
     visible: boolean;
@@ -123,15 +126,7 @@ const onLeaveEvent = (isDecline = false) => {
 const onCancelParticipation = () => onLeaveEvent(false);
 const onDecline = () => onLeaveEvent(true);
 
-const handleFeatureConfirm = async (data: {
-    features: EventFeature[];
-    transport: {
-        transportMode: TransportMode;
-        vehicleSeats?: number;
-        vehicleSeatsOutbound?: number;
-        vehicleSeatsReturn?: number;
-    };
-}) => {
+const handleFeatureConfirm = async (data: FeatureSelectionResult) => {
     showFeatureSelection.value = false;
     if (!props.event || !currentUser.value) return;
 
@@ -245,10 +240,6 @@ const onOpenChat = () => {
     void router.push({ path: `${currentEventPath.value}/chat` });
 };
 
-import { createFeatureRecord, participantWantsFromSelection } from '../../utils/event';
-import { normalizeHexColor } from '../../utils/color';
-import { DEFAULT_COLOR } from '../../constants/colors';
-
 const eventColor = computed(() => normalizeHexColor(props.event?.color, DEFAULT_COLOR));
 const headerDate = computed(() => (props.event ? format(new Date(props.event.startTime), 'EEE d MMM · HH:mm') : ''));
 
@@ -260,19 +251,6 @@ watch(
         }
     }
 );
-
-function parseEventId(value: unknown) {
-    if (Array.isArray(value)) {
-        return parseEventId(value[0]);
-    }
-
-    if (typeof value !== 'string' || value.length === 0) {
-        return null;
-    }
-
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-}
 </script>
 
 <template>

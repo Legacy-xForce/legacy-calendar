@@ -4,12 +4,13 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Skeleton from 'primevue/skeleton';
 import { useRouter } from 'vue-router';
-import { differenceInCalendarDays, format, isSameYear, isToday, isYesterday, startOfDay } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import type { Event } from '../../../types/Event';
 import type { AuditLogActionType, AuditLogEntry, AuditLogUserRef } from '../../../types/AuditLog';
 import API from '../../../services/API';
 import UserAvatar from '../../UserAvatar.vue';
 import { useMediaQuery, MOBILE_QUERY } from '../../../composables/useMediaQuery';
+import { dayLabel, formatTimestamp } from '../../../utils/format';
 
 type DiffKind = 'added' | 'removed' | 'updated';
 
@@ -28,7 +29,8 @@ type DiffItem = {
     kind: DiffKind;
 };
 
-const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'passengerId', 'driverId', 'coHostId']);
+// Keep in sync with DIFF_USER_ID_FIELDS in backend/src/audit-log/audit-log.service.ts
+const DIFF_USER_ID_FIELDS = new Set(['hostId', 'userId', 'participantId', 'passengerId', 'driverId', 'coHostId']);
 
 const props = defineProps<{
     visible: boolean;
@@ -52,13 +54,6 @@ const totalChangeCount = computed(() =>
     displayedEntries.value.reduce((total, entry) => total + getDiffItems(entry).length, 0)
 );
 
-const dayLabel = (date: Date) => {
-    if (isToday(date)) return 'Today';
-    if (isYesterday(date)) return 'Yesterday';
-    if (differenceInCalendarDays(new Date(), date) < 7) return format(date, 'EEEE');
-    return format(date, isSameYear(date, new Date()) ? 'EEE d MMMM' : 'd MMMM yyyy');
-};
-
 const entryGroups = computed(() => {
     const groups: { key: string; label: string; entries: AuditLogEntry[] }[] = [];
     for (const entry of displayedEntries.value) {
@@ -66,7 +61,7 @@ const entryGroups = computed(() => {
         const key = day.toISOString();
         let group = groups.at(-1);
         if (group?.key !== key) {
-            group = { key, label: dayLabel(day), entries: [] };
+            group = { key, label: dayLabel(day, { includeYear: true }), entries: [] };
             groups.push(group);
         }
         group.entries.push(entry);
@@ -266,15 +261,6 @@ const fieldLabels: Record<string, string> = {
 };
 
 const DATE_FIELDS = new Set(['startTime', 'endTime', 'joinedAt', 'participationDeadline']);
-
-const formatTimestamp = (value: string) => {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return format(date, isSameYear(date, new Date()) ? 'EEE d MMM · HH:mm' : 'd MMM yyyy · HH:mm');
-};
 
 const formatTime = (value: string) => format(new Date(value), 'HH:mm');
 

@@ -1,3 +1,5 @@
+import { getFrontendUrls } from './frontend-url.js';
+
 /**
  * Origin allowlist shared by the HTTP server and the Socket.IO gateway.
  *
@@ -27,10 +29,7 @@ type OriginRule = {
 };
 
 function getConfiguredOrigins(): string[] {
-    return (process.env.FRONTEND_URL ?? '')
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean);
+    return getFrontendUrls();
 }
 
 function toOriginRule(configured: string): OriginRule | null {

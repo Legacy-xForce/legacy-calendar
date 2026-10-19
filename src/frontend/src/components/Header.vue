@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import UserAvatar from './UserAvatar.vue';
 import AppLogo from './AppLogo.vue';
 import { useSessionStore } from '../stores/session';
+import { HEADER_NAVIGATION, stopImpersonating } from '../constants/navigation';
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -12,15 +13,7 @@ const isAuthenticated = computed(() => sessionStore.isAuthenticated);
 const currentUser = computed(() => sessionStore.currentUser);
 const isImpersonating = computed(() => !!localStorage.getItem('impersonate_user_id'));
 
-const stopImpersonating = () => {
-    localStorage.removeItem('impersonate_user_id');
-    window.location.href = '/admin';
-};
-
-const items = [
-    { label: 'Calendar', name: 'calendar', match: (path: string) => path === '/calendar' || path.startsWith('/event') },
-    { label: 'Upcoming', name: 'upcoming', match: (path: string) => path.startsWith('/upcoming') }
-];
+const items = HEADER_NAVIGATION;
 </script>
 
 <template>

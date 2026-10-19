@@ -134,10 +134,6 @@ export function useCalendar() {
         currentDate.value = subMonths(currentDate.value, 1);
     };
 
-    const fetchEvents = async () => {
-        await refreshVisibleRange();
-    };
-
     const isTodayMonth = computed(() => isSameMonth(currentDate.value, new Date()));
 
     return {
@@ -153,7 +149,6 @@ export function useCalendar() {
         prefetchNextMonth,
         prefetchPrevMonth,
         prefetchTodayMonth,
-        fetchEvents,
         addEvent: eventsStore.createEvent,
         deleteEvent: eventsStore.deleteEvent,
         joinEvent: eventsStore.joinEvent

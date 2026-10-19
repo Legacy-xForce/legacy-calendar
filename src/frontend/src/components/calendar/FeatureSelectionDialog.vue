@@ -4,7 +4,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import SeatStepper from './SeatStepper.vue';
-import { type EventFeature, type TransportMode } from '../../types/Event';
+import { type EventFeature, type FeatureSelectionResult, type TransportMode } from '../../types/Event';
 
 import { FEATURES } from '../../constants/features';
 import { TRANSPORT_OPTIONS } from '../../constants/transport';
@@ -28,18 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update:visible', value: boolean): void;
-    (
-        e: 'confirm',
-        data: {
-            features: EventFeature[];
-            transport: {
-                transportMode: TransportMode;
-                vehicleSeats?: number;
-                vehicleSeatsOutbound?: number;
-                vehicleSeatsReturn?: number;
-            };
-        }
-    ): void;
+    (e: 'confirm', data: FeatureSelectionResult): void;
 }>();
 
 const MIN_SEATS = 2;

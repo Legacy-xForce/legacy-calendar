@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import api from '../services/API';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
@@ -174,31 +174,7 @@ export const useEventsStore = defineStore('events', () => {
         return Promise.all([refreshActiveRange(), fetchUpcomingEvents()]);
     }
 
-    // --- Getters ---
-
-    const getEventsByDate = computed(() => {
-        return (date: Date) => {
-            const targetDate = new Date(date);
-            targetDate.setHours(0, 0, 0, 0);
-
-            return events.value.filter((event) => {
-                const eventDate = new Date(event.startTime);
-                eventDate.setHours(0, 0, 0, 0);
-                return eventDate.getTime() === targetDate.getTime();
-            });
-        };
-    });
-
-    const getEventById = computed(() => {
-        return (id: number) => events.value.find((event) => event.id === id);
-    });
-
     // --- Actions ---
-
-    async function fetchEvents() {
-        logger.debug('Fetching events for active range');
-        return refreshActiveRange();
-    }
 
     async function fetchCalendarEvents(
         range: CalendarVisibleRange,
@@ -333,10 +309,6 @@ export const useEventsStore = defineStore('events', () => {
         );
     }
 
-    function clearError() {
-        error.value = null;
-    }
-
     return {
         events,
         loading,
@@ -344,11 +316,6 @@ export const useEventsStore = defineStore('events', () => {
         lastErrorStatus,
         upcomingEvents,
         activeRange,
-        rangeCache,
-        pendingRequests,
-        getEventsByDate,
-        getEventById,
-        fetchEvents,
         fetchCalendarEvents,
         refreshActiveRange,
         prefetchCalendarEvents,
@@ -360,7 +327,6 @@ export const useEventsStore = defineStore('events', () => {
         joinEvent,
         leaveEvent,
         assignRide,
-        assignRidesBatch,
-        clearError
+        assignRidesBatch
     };
 });

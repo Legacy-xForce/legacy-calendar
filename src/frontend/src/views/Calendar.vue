@@ -10,7 +10,7 @@ import { useToast } from 'primevue/usetoast';
 import Button from 'primevue/button';
 import CalendarCell from '../components/calendar/CalendarCell.vue';
 import EventListItem from '../components/EventListItem.vue';
-import { useEventDialogs } from '../composables/useEventDialogs';
+import { useEventDialogs, createEventViewDialogs } from '../composables/useEventDialogs';
 import { useMediaQuery, MOBILE_QUERY } from '../composables/useMediaQuery';
 import { getUserEventRole } from '../utils/event';
 import { normalizeHexColor } from '../utils/color';
@@ -19,23 +19,7 @@ import type { CalendarDay } from '../types/Calendar';
 import type { CreateEventDto, Event } from '../types/Event';
 
 const EventDialog = defineAsyncComponent(() => import('../components/calendar/EventDialog.vue'));
-const loadEventViewDialog = () => import('../components/calendar/EventViewDialog.vue');
-// Chat, activity and edit stack on the event sheet. Loading them after it keeps them on top when a
-// link (like a chat notification) opens both at once; otherwise the sheet could mount last and cover them.
-const afterEventView =
-    <T,>(load: () => Promise<T>) =>
-    () =>
-        loadEventViewDialog().then(load);
-const EventViewDialog = defineAsyncComponent(loadEventViewDialog);
-const EventChatDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/event-view/EventChatDialog.vue'))
-);
-const EventAuditLogDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/event-view/EventAuditLogDialog.vue'))
-);
-const EventEditDialog = defineAsyncComponent(
-    afterEventView(() => import('../components/calendar/EventEditDialog.vue'))
-);
+const { EventViewDialog, EventChatDialog, EventAuditLogDialog, EventEditDialog } = createEventViewDialogs();
 const DayViewDialog = defineAsyncComponent(() => import('../components/calendar/DayViewDialog.vue'));
 
 const toast = useToast();

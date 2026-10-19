@@ -13,15 +13,3 @@ export const NotificationCode = {
 export type NotificationCode = (typeof NotificationCode)[keyof typeof NotificationCode];
 
 export type NotificationSettings = Record<NotificationCode, boolean>;
-
-export const NotificationLabel: Record<NotificationCode, string> = {
-    [NotificationCode.INVITATION_NEW]: 'New Invitation',
-    [NotificationCode.EVENT_CREATED]: 'Event Created',
-    [NotificationCode.EVENT_UPDATED]: 'Event Updated',
-    [NotificationCode.EVENT_CANCELLED]: 'Event Cancelled',
-    [NotificationCode.PARTICIPATION_ACCEPTED]: 'Participation Accepted (Host)',
-    [NotificationCode.PARTICIPATION_UPDATED]: 'Participation Updated (Host)',
-    [NotificationCode.PARTICIPATION_CANCELLED]: 'Participation Cancelled (Host)',
-    [NotificationCode.RIDE_ASSIGNED]: 'Ride Assigned',
-    [NotificationCode.CHAT_NEW_MESSAGE]: 'Chat New Message'
-};

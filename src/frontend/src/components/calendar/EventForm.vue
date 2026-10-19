@@ -213,16 +213,8 @@ const submit = () => {
         location: location.value || undefined,
         startTime: start.value.toISOString(),
         endTime: showEnd.value && end.value ? end.value.toISOString() : undefined,
-        participants: isEdit.value
-            ? selectedParticipants.value
-            : selectedParticipants.value.length > 0
-              ? selectedParticipants.value
-              : undefined,
-        coHosts: isEdit.value
-            ? selectedCoHosts.value
-            : selectedCoHosts.value.length > 0
-              ? selectedCoHosts.value
-              : undefined,
+        participants: isEdit.value || selectedParticipants.value.length > 0 ? selectedParticipants.value : undefined,
+        coHosts: isEdit.value || selectedCoHosts.value.length > 0 ? selectedCoHosts.value : undefined,
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
         color: eventColor.value,

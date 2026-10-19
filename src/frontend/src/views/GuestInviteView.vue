@@ -7,7 +7,7 @@ import Skeleton from 'primevue/skeleton';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 
-import type { Event, EventFeature, TransportMode } from '../types/Event';
+import type { Event, FeatureSelectionResult } from '../types/Event';
 import api from '../services/API';
 import { useEventView, EventViewInjectionKey } from '../composables/useEventView';
 import { participantWantsFromSelection } from '../utils/event';
@@ -84,15 +84,7 @@ const onOpenPreferences = () => {
     showFeatureSelection.value = true;
 };
 
-const handleFeatureConfirm = async (data: {
-    features: EventFeature[];
-    transport: {
-        transportMode: TransportMode;
-        vehicleSeats?: number;
-        vehicleSeatsOutbound?: number;
-        vehicleSeatsReturn?: number;
-    };
-}) => {
+const handleFeatureConfirm = async (data: FeatureSelectionResult) => {
     showFeatureSelection.value = false;
     savingUsername.value = true;
     const wasJoined = hasJoined.value;

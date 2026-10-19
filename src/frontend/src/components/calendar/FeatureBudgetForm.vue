@@ -1,20 +1,14 @@
 <script setup lang="ts">
 import { FEATURES } from '../../constants/features';
 import type { EventFeature } from '../../types/Event';
+import { toggleFeature as toggleFeatureInSelection } from '../../utils/event';
 import ToggleSwitch from 'primevue/toggleswitch';
 import InputNumber from 'primevue/inputnumber';
 
 const selectedFeatures = defineModel<EventFeature[]>('selectedFeatures', { required: true });
 const featurePrices = defineModel<Record<EventFeature, number | null>>('featurePrices', { required: true });
 
-function toggleFeature(featureId: EventFeature) {
-    const index = selectedFeatures.value.indexOf(featureId);
-    if (index === -1) {
-        selectedFeatures.value.push(featureId);
-    } else {
-        selectedFeatures.value.splice(index, 1);
-    }
-}
+const toggleFeature = (feature: EventFeature) => toggleFeatureInSelection(selectedFeatures.value, feature);
 </script>
 
 <template>

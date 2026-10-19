@@ -7,7 +7,11 @@
 
 const REQUIRED_KEYS = ['DATABASE_URL', 'JWT_SECRET'] as const;
 
-const FORBIDDEN_JWT_SECRETS = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
+/**
+ * Well-known placeholder values that must never be accepted as a real secret.
+ * Shared with the runtime resolver so validation and boot rules cannot drift.
+ */
+export const FORBIDDEN_JWT_SECRETS = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
 
 export function validateEnvironment(config: Record<string, unknown>): Record<string, unknown> {
     const errors: string[] = [];

@@ -1,11 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-
-/**
- * Well-known placeholder values that must never be accepted as a real secret.
- * They previously shipped as implicit fallbacks, which made forged HS256 tokens
- * (including admin tokens) possible whenever JWT_SECRET was not configured.
- */
-const FORBIDDEN_SECRET_VALUES = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
+import { FORBIDDEN_JWT_SECRETS } from '../config/env.validation.js';
 
 /**
  * Resolves the HS256 signing secret from configuration and fails fast when it is
@@ -19,7 +13,7 @@ export function resolveJwtSecret(configService: ConfigService): string {
         throw new Error('JWT_SECRET is not configured. Refusing to start without an explicit JWT signing secret.');
     }
 
-    if (FORBIDDEN_SECRET_VALUES.has(secret)) {
+    if (FORBIDDEN_JWT_SECRETS.has(secret)) {
         throw new Error('JWT_SECRET is set to a well-known placeholder value. Configure a unique, random secret.');
     }
 
