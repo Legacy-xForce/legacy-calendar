@@ -10,10 +10,9 @@
 export function attendanceId(attendance: {
     userId: number | null;
     guestParticipantId?: number | null;
-    guestParticipant?: { id: number } | null;
 }): number {
     if (attendance.userId !== null) return attendance.userId;
-    return guestId(attendance.guestParticipantId ?? attendance.guestParticipant?.id ?? 0);
+    return guestId(attendance.guestParticipantId ?? 0);
 }
 
 /** Namespaced id for a guest participant row. */
