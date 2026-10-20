@@ -1,7 +1,13 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
-import { AuthIdentityService, type AuthIdentity, type AuthTokenPayload } from '../auth-identity.service.js';
+import type { Request } from 'express';
+import {
+    AuthIdentityService,
+    tokenAlgorithm,
+    type AuthIdentity,
+    type AuthTokenPayload
+} from '../auth-identity.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -9,6 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
+            passReqToCallback: true,
             secretOrKeyProvider: (
                 _req: unknown,
                 rawJwtToken: unknown,
@@ -23,8 +30,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: AuthTokenPayload): Promise<AuthIdentity> {
-        const identity = await this.identityService.resolvePayload(payload);
+    async validate(request: Request, payload: AuthTokenPayload): Promise<AuthIdentity> {
+        // The signature was verified with the key for this header's `alg`.
+        const algorithm = tokenAlgorithm(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
+        const identity = await this.identityService.resolvePayload(payload, algorithm);
         if (!identity) {
             throw new UnauthorizedException('Missing or invalid authentication token');
         }

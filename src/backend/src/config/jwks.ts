@@ -13,3 +13,16 @@ export function resolveJwksUri(configService: ConfigService): string {
 
     return `${getAuthHost().replace(/\/+$/, '')}/.well-known/jwks.json`;
 }
+
+/**
+ * `iss` that Legacy Auth puts in its access tokens. Defaults to the auth host,
+ * which is what the auth service uses unless its JWT_ISSUER is overridden.
+ */
+export function resolveAuthIssuer(configService: ConfigService): string {
+    const configured = configService.get<string>('AUTH_ISSUER')?.trim();
+    if (configured) {
+        return configured;
+    }
+
+    return getAuthHost().replace(/\/+$/, '');
+}
