@@ -64,7 +64,7 @@ export class NotificationsController {
         @Request() req: RequestWithUser,
         @Res({ passthrough: true }) res: Response
     ): Promise<void> {
-        const created = await this.notificationsService.createChatMute(req.user.userId as number, eventId);
+        const created = await this.notificationsService.setChatMute(req.user.userId as number, eventId, true);
         res.status(created ? 201 : 200);
     }
 
@@ -79,7 +79,7 @@ export class NotificationsController {
         @Request() req: RequestWithUser,
         @Res({ passthrough: true }) res: Response
     ): Promise<void> {
-        const removed = await this.notificationsService.removeChatMute(req.user.userId as number, eventId);
+        const removed = await this.notificationsService.setChatMute(req.user.userId as number, eventId, false);
         if (!removed) {
             res.status(404);
             return;

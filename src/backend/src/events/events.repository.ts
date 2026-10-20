@@ -4,6 +4,7 @@ import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generat
 import { USER_SELECT } from '../users/users.repository.js';
 import { ParticipateDto } from './dto/participate.dto.js';
 import { normalizeVehicleSeats } from './vehicle-seats.util.js';
+import { guestParticipantIdOf } from '../common/participant-id.util.js';
 
 export const EVENT_INCLUDE = {
     host: { select: USER_SELECT },
@@ -133,7 +134,7 @@ export class EventsRepository {
         if (userId < 0) {
             return this.prisma.attendance.update({
                 where: {
-                    guestParticipantId_eventId: { guestParticipantId: -userId, eventId }
+                    guestParticipantId_eventId: { guestParticipantId: guestParticipantIdOf(userId), eventId }
                 },
                 data: {
                     hasPaid

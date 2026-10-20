@@ -2,6 +2,7 @@ import { EventHostDto, EventParticipantDto, EventResponseDto } from './dto/event
 import { UserDto } from '../users/dto/user.dto.js';
 import { mapGuestToDto, mapUserToDto, type MappableUser } from '../users/user.mapper.js';
 import { EventWithRelations } from './events.repository.js';
+import { attendanceId, guestParticipantIdOf } from '../common/participant-id.util.js';
 
 // Only hosts/co-hosts surface payment coordinates - participants use the public
 // user shape so they never receive each other's payment info via the list.
@@ -10,12 +11,10 @@ function mapHostDto(user: MappableUser): EventHostDto {
 }
 
 export function mapEventToDto(event: EventWithRelations): EventResponseDto {
-    const mapParticipantId = (attendance: (typeof event.participants)[number]) =>
-        attendance.userId ?? -attendance.guestParticipant!.id;
     const mapPerson = (id: number): UserDto | undefined => {
         if (id < 0) {
             const guest = event.participants.find(
-                (attendance) => attendance.guestParticipantId === -id
+                (attendance) => attendance.guestParticipantId === guestParticipantIdOf(id)
             )?.guestParticipant;
             return guest ? mapGuestToDto(id, guest.displayName) : undefined;
         }
@@ -37,14 +36,15 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
     });
 
     const participantsDto: EventParticipantDto[] = event.participants.map((attendance) => {
-        const assignments = rideAssignmentsByPassengerId.get(mapParticipantId(attendance));
+        const participantId = attendanceId(attendance);
+        const assignments = rideAssignmentsByPassengerId.get(participantId);
         const outboundAssignment = assignments?.outbound;
         const returnAssignment = assignments?.return;
 
         return {
             ...(attendance.user
                 ? mapUserToDto(attendance.user)
-                : mapGuestToDto(-attendance.guestParticipant!.id, attendance.guestParticipant!.displayName)),
+                : mapGuestToDto(participantId, attendance.guestParticipant!.displayName)),
             status: attendance.status,
             wantsFood: attendance.wantsFood,
             wantsWeed: attendance.wantsWeed,

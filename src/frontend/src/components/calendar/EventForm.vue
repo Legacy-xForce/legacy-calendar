@@ -5,7 +5,6 @@ import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
-import MultiSelect from 'primevue/multiselect';
 import SelectButton from 'primevue/selectbutton';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
@@ -13,7 +12,7 @@ import type { CreateEventDto, Event, EventFeature } from '../../types/Event';
 import type { User } from '../../types/User';
 import { VISIBILITY_OPTIONS, type EventVisibility } from '../../constants/visibility';
 import { DEFAULT_COLOR } from '../../constants/colors';
-import UserAvatar from '../UserAvatar.vue';
+import UserMultiSelect from '../UserMultiSelect.vue';
 import DateTimeField from '../DateTimeField.vue';
 import FeatureBudgetForm from './FeatureBudgetForm.vue';
 import EventColorSelector from './EventColorSelector.vue';
@@ -78,7 +77,6 @@ const people = computed(() => {
     }
     return byId;
 });
-const userMap = people;
 const hostId = computed(() => props.event?.hostId ?? props.event?.host?.id ?? props.excludeUserId);
 const participantOptions = computed(() => [...people.value.values()].filter((user) => user.id !== props.excludeUserId));
 
@@ -370,42 +368,14 @@ defineExpose({ submit });
                     Invite
                     <span v-if="selectedParticipants.length" class="tabular">· {{ selectedParticipants.length }}</span>
                 </label>
-                <MultiSelect
-                    inputId="event-participants"
+                <UserMultiSelect
                     v-model="selectedParticipants"
+                    inputId="event-participants"
                     :options="participantOptions"
-                    optionLabel="username"
-                    optionValue="id"
                     placeholder="Choose friends"
-                    display="chip"
                     filter
-                    filterPlaceholder="Search"
-                    :showToggleAll="false"
-                    fluid
-                >
-                    <template #option="slotProps">
-                        <div class="flex items-center gap-2.5">
-                            <UserAvatar
-                                :profilePictureUrl="slotProps.option.profilePictureUrl"
-                                :username="slotProps.option.username"
-                                class="size-7! text-[0.6875rem]!"
-                            />
-                            <span>{{ slotProps.option.username }}</span>
-                        </div>
-                    </template>
-                    <template #chip="slotProps">
-                        <span
-                            class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5"
-                        >
-                            <UserAvatar
-                                :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
-                                :username="userMap.get(slotProps.value)?.username"
-                                class="size-5! text-[0.5625rem]!"
-                            />
-                            {{ userMap.get(slotProps.value)?.username }}
-                        </span>
-                    </template>
-                </MultiSelect>
+                    virtualScroll
+                />
 
                 <!-- Invitation groups -->
                 <div
@@ -476,40 +446,12 @@ defineExpose({ submit });
                     Co-hosts
                     <span v-if="selectedCoHosts.length" class="tabular">· {{ selectedCoHosts.length }}</span>
                 </label>
-                <MultiSelect
-                    inputId="event-cohosts"
+                <UserMultiSelect
                     v-model="selectedCoHosts"
+                    inputId="event-cohosts"
                     :options="coHostOptions"
-                    optionLabel="username"
-                    optionValue="id"
                     placeholder="Choose from who you invited"
-                    display="chip"
-                    :showToggleAll="false"
-                    fluid
-                >
-                    <template #option="slotProps">
-                        <div class="flex items-center gap-2.5">
-                            <UserAvatar
-                                :profilePictureUrl="slotProps.option.profilePictureUrl"
-                                :username="slotProps.option.username"
-                                class="size-7! text-[0.6875rem]!"
-                            />
-                            <span>{{ slotProps.option.username }}</span>
-                        </div>
-                    </template>
-                    <template #chip="slotProps">
-                        <span
-                            class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5"
-                        >
-                            <UserAvatar
-                                :profilePictureUrl="userMap.get(slotProps.value)?.profilePictureUrl"
-                                :username="userMap.get(slotProps.value)?.username"
-                                class="size-5! text-[0.5625rem]!"
-                            />
-                            {{ userMap.get(slotProps.value)?.username }}
-                        </span>
-                    </template>
-                </MultiSelect>
+                />
                 <small class="text-meta text-subtle">Co-hosts can edit the event and manage people, like you.</small>
             </div>
         </section>

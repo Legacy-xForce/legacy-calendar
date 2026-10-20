@@ -167,76 +167,22 @@ export class ChatService {
 
     async pinMessage(messageId: number, userId: number, isAdmin: boolean): Promise<ChatMessageWithRelations> {
         this.logger.info('Pinning chat message', { messageId, userId, isAdmin });
-        const message = await this.chatRepo.findMessageById(messageId);
-        if (!message) {
-            throw new NotFoundException('Message not found');
-        }
-
-        const event = await this.eventsRepo.findById(message.eventId);
-        if (!event) {
-            throw new NotFoundException('Event not found');
-        }
-
-        if (event.hostId !== userId && !isAdmin) {
-            this.logger.warn('Pin message rejected: not authorized', {
-                messageId,
-                userId,
-                isAdmin,
-                hostId: event.hostId
-            });
-            throw new ForbiddenException('Only host or admin can pin messages');
-        }
+        await this.loadModeratableMessage(messageId, userId, isAdmin, 'pin');
 
         return this.chatRepo.updateMessage(messageId, { isPinned: true });
     }
 
     async unpinMessage(messageId: number, userId: number, isAdmin: boolean): Promise<ChatMessageWithRelations> {
         this.logger.info('Unpinning chat message', { messageId, userId, isAdmin });
-        const message = await this.chatRepo.findMessageById(messageId);
-        if (!message) {
-            throw new NotFoundException('Message not found');
-        }
-
-        const event = await this.eventsRepo.findById(message.eventId);
-        if (!event) {
-            throw new NotFoundException('Event not found');
-        }
-
-        if (event.hostId !== userId && !isAdmin) {
-            this.logger.warn('Unpin message rejected: not authorized', {
-                messageId,
-                userId,
-                isAdmin,
-                hostId: event.hostId
-            });
-            throw new ForbiddenException('Only host or admin can unpin messages');
-        }
+        await this.loadModeratableMessage(messageId, userId, isAdmin, 'unpin');
 
         return this.chatRepo.updateMessage(messageId, { isPinned: false });
     }
 
     async deleteMessage(messageId: number, userId: number, isAdmin: boolean): Promise<ChatMessageWithRelations> {
         this.logger.warn('Deleting chat message', { messageId, userId, isAdmin });
-        const message = await this.chatRepo.findMessageById(messageId);
-        if (!message) {
-            throw new NotFoundException('Message not found');
-        }
-
-        const event = await this.eventsRepo.findById(message.eventId);
-        if (!event) {
-            throw new NotFoundException('Event not found');
-        }
-
-        if (message.authorId !== userId && event.hostId !== userId && !isAdmin) {
-            this.logger.warn('Delete message rejected: not authorized', {
-                messageId,
-                userId,
-                isAdmin,
-                authorId: message.authorId,
-                hostId: event.hostId
-            });
-            throw new ForbiddenException('Not authorized to delete this message');
-        }
+        // Authors may delete their own messages; pinning stays host/admin only.
+        const message = await this.loadModeratableMessage(messageId, userId, isAdmin, 'delete', { allowAuthor: true });
 
         if (message.mediaUrl) {
             const filePath = path.join(process.cwd(), message.mediaUrl);
@@ -281,6 +227,47 @@ export class ChatService {
             text: nextText,
             isEdited: true
         });
+    }
+
+    /**
+     * Load a message and enforce the moderation rule shared by pin/unpin/delete:
+     * host or admin, plus the author for delete only.
+     */
+    private async loadModeratableMessage(
+        messageId: number,
+        userId: number,
+        isAdmin: boolean,
+        action: 'pin' | 'unpin' | 'delete',
+        options: { allowAuthor?: boolean } = {}
+    ): Promise<ChatMessageWithRelations> {
+        const message = await this.chatRepo.findMessageById(messageId);
+        if (!message) {
+            throw new NotFoundException('Message not found');
+        }
+
+        const event = await this.eventsRepo.findById(message.eventId);
+        if (!event) {
+            throw new NotFoundException('Event not found');
+        }
+
+        const isAllowed =
+            isAdmin || event.hostId === userId || (options.allowAuthor === true && message.authorId === userId);
+        if (!isAllowed) {
+            this.logger.warn(`Chat message ${action} rejected: not authorized`, {
+                messageId,
+                userId,
+                isAdmin,
+                authorId: message.authorId,
+                hostId: event.hostId
+            });
+            throw new ForbiddenException(
+                action === 'delete'
+                    ? 'Not authorized to delete this message'
+                    : `Only host or admin can ${action} messages`
+            );
+        }
+
+        return message;
     }
 
     async sendPushNotification(message: ChatMessageWithRelations, connectedUserIds: Set<number>): Promise<void> {

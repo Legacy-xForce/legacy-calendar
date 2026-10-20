@@ -180,8 +180,16 @@ export class NotificationsService implements OnModuleInit {
         return mutes.map((mute) => mute.userId);
     }
 
-    async createChatMute(userId: number, eventId: number): Promise<boolean> {
+    /** Create or remove a chat mute. Returns whether the stored state changed. */
+    async setChatMute(userId: number, eventId: number, muted: boolean): Promise<boolean> {
         await this.assertCanModifyChatMute(userId, eventId);
+
+        if (!muted) {
+            const removed = await this.prisma.chatMute.deleteMany({
+                where: { userId, eventId }
+            });
+            return removed.count > 0;
+        }
 
         const existing = await this.prisma.chatMute.findUnique({
             where: {
@@ -191,7 +199,6 @@ export class NotificationsService implements OnModuleInit {
                 }
             }
         });
-
         if (existing) {
             return false;
         }
@@ -202,35 +209,6 @@ export class NotificationsService implements OnModuleInit {
                 eventId
             }
         });
-
-        return true;
-    }
-
-    async removeChatMute(userId: number, eventId: number): Promise<boolean> {
-        await this.assertCanModifyChatMute(userId, eventId);
-
-        const existing = await this.prisma.chatMute.findUnique({
-            where: {
-                userId_eventId: {
-                    userId,
-                    eventId
-                }
-            }
-        });
-
-        if (!existing) {
-            return false;
-        }
-
-        await this.prisma.chatMute.delete({
-            where: {
-                userId_eventId: {
-                    userId,
-                    eventId
-                }
-            }
-        });
-
         return true;
     }
 
