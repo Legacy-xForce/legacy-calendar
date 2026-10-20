@@ -28,6 +28,23 @@ export type EventWithRelations = Prisma.EventGetPayload<{
     include: typeof EVENT_INCLUDE;
 }>;
 
+/** Minimal event graph used by chat access checks and notifications. */
+export const CHAT_ACCESS_SELECT = {
+    id: true,
+    title: true,
+    hostId: true,
+    participants: {
+        select: {
+            userId: true,
+            status: true
+        }
+    }
+} satisfies Prisma.EventSelect;
+
+export type EventChatAccess = Prisma.EventGetPayload<{
+    select: typeof CHAT_ACCESS_SELECT;
+}>;
+
 @Injectable()
 export class EventsRepository {
     constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
@@ -89,6 +106,14 @@ export class EventsRepository {
         });
     }
 
+    /** Chat only needs the host and participant RSVPs, not the full event graph. */
+    async findChatAccessById(id: number): Promise<EventChatAccess | null> {
+        return this.prisma.event.findUnique({
+            where: { id },
+            select: CHAT_ACCESS_SELECT
+        });
+    }
+
     async remove(id: number): Promise<Event> {
         return this.prisma.event.delete({ where: { id } });
     }
@@ -126,6 +151,10 @@ export class EventsRepository {
                 vehicleSeats,
                 vehicleSeatsOutbound,
                 vehicleSeatsReturn
+            },
+            include: {
+                user: { select: USER_SELECT },
+                guestParticipant: { select: { id: true, displayName: true } }
             }
         });
     }
@@ -151,42 +180,57 @@ export class EventsRepository {
         });
     }
 
-    async assignRide(
+    async assignRides(
         eventId: number,
-        passengerId: number,
-        driverId: number | null,
-        directions: ('OUTBOUND' | 'RETURN')[],
-        previousDriverId?: number
+        assignments: Array<{
+            passengerId: number;
+            driverId: number | null;
+            directions: ('OUTBOUND' | 'RETURN')[];
+            previousDriverId?: number;
+        }>
     ) {
-        if (driverId === null) {
-            return this.prisma.rideAssignment.deleteMany({
-                where: {
-                    eventId,
-                    passengerId,
-                    direction: { in: directions },
-                    ...(previousDriverId !== undefined && { driverId: previousDriverId })
-                }
-            });
+        if (assignments.length === 0) {
+            return [];
         }
 
-        return this.prisma.$transaction(
-            directions.map((direction) =>
-                this.prisma.rideAssignment.upsert({
-                    where: {
-                        eventId_passengerId_direction: { eventId, passengerId, direction }
-                    },
-                    update: {
-                        driverId
-                    },
-                    create: {
-                        eventId,
-                        passengerId,
-                        driverId,
-                        direction
-                    }
-                })
-            )
-        );
+        const operations: Prisma.PrismaPromise<unknown>[] = [];
+
+        for (const { passengerId, driverId, directions, previousDriverId } of assignments) {
+            if (driverId === null) {
+                operations.push(
+                    this.prisma.rideAssignment.deleteMany({
+                        where: {
+                            eventId,
+                            passengerId,
+                            direction: { in: directions },
+                            ...(previousDriverId !== undefined && { driverId: previousDriverId })
+                        }
+                    })
+                );
+                continue;
+            }
+
+            for (const direction of directions) {
+                operations.push(
+                    this.prisma.rideAssignment.upsert({
+                        where: {
+                            eventId_passengerId_direction: { eventId, passengerId, direction }
+                        },
+                        update: {
+                            driverId
+                        },
+                        create: {
+                            eventId,
+                            passengerId,
+                            driverId,
+                            direction
+                        }
+                    })
+                );
+            }
+        }
+
+        return this.prisma.$transaction(operations);
     }
 
     async deleteRideAssignmentsForUsers(eventId: number, userIds: number[]) {

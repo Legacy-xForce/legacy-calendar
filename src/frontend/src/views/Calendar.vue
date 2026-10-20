@@ -258,6 +258,7 @@ onMounted(() => window.addEventListener('keydown', handleKeydown));
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleKeydown);
     resizeObserver?.disconnect();
+    eventsStore.clearActiveRange();
 });
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

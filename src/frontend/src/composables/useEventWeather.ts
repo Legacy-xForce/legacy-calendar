@@ -1,10 +1,10 @@
 import { ref, watch, type Ref } from 'vue';
-import { get, set } from 'idb-keyval';
 import { fetchWeatherApi } from 'openmeteo';
 import type { Event } from '../types/Event';
 import type { EventWeather } from '../types/Weather';
 import { useGeocode } from './useGeocode';
 import { createLogger } from '../services/logger';
+import { readTimedCache, writeTimedCache } from '../utils/idbCache';
 
 // Persistent Cache Keys (Prefixes)
 const FORECAST_PREFIX = 'weather_forecast_';
@@ -120,6 +120,26 @@ const loadingWeather = ref(false);
 const weatherError = ref<string | null>(null);
 const logger = createLogger('Weather');
 
+const WEATHER_CONCURRENCY = 4;
+
+/**
+ * Geocoding is still serialized by useGeocode's global throttle; this only
+ * allows the forecast requests that follow it to overlap.
+ */
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
+    let nextIndex = 0;
+    const workerCount = Math.min(limit, items.length);
+    const workers = Array.from({ length: workerCount }, async () => {
+        while (nextIndex < items.length) {
+            const item = items[nextIndex];
+            nextIndex += 1;
+            await worker(item);
+        }
+    });
+
+    await Promise.all(workers);
+}
+
 export function useEventWeather(events?: Ref<Event[]>) {
     let isProcessing = false;
     const { getOrResolveCoords } = useGeocode();
@@ -135,15 +155,18 @@ export function useEventWeather(events?: Ref<Event[]>) {
 
         const cacheKey = `${FORECAST_PREFIX}${lat.toFixed(4)},${lon.toFixed(4)}_${startStr}`;
 
-        // 1. Check persistent cache
+        // 1. Check persistent cache. Forecasts for the current week or future
+        // should be refreshed occasionally; historical forecasts can be cached
+        // indefinitely.
         try {
-            const cached = await get(cacheKey);
-            // Forecasts for the current week or future should be refreshed occasionally
-            // Historical forecasts (past weeks) can be cached indefinitely
             const isHistorical = weekStart.getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000;
-            if (cached && (isHistorical || Date.now() - cached.timestamp < FORECAST_CACHE_TTL)) {
+            const cached = await readTimedCache<any>(
+                cacheKey,
+                isHistorical ? Number.POSITIVE_INFINITY : FORECAST_CACHE_TTL
+            );
+            if (cached.hit) {
                 logger.trace('Forecast cache hit', { cacheKey });
-                return cached.data;
+                return cached.value;
             }
         } catch (e) {
             logger.warn('IndexedDB read error while reading forecast cache', e);
@@ -223,7 +246,7 @@ export function useEventWeather(events?: Ref<Event[]>) {
                     }
                 };
 
-                await set(cacheKey, { data, timestamp: Date.now() });
+                await writeTimedCache(cacheKey, data);
                 logger.info('Forecast fetched', { cacheKey, lat, lon });
                 return data;
             } catch (e) {
@@ -337,9 +360,13 @@ export function useEventWeather(events?: Ref<Event[]>) {
 
         try {
             logger.debug('Loading weather for events', { count: events.value.length });
-            for (const event of events.value) {
-                await processEventWeather(event);
-            }
+            await runWithConcurrency(events.value, WEATHER_CONCURRENCY, async (event) => {
+                try {
+                    await processEventWeather(event);
+                } catch (e) {
+                    logger.error('Event weather error', { eventId: event.id, error: e });
+                }
+            });
         } catch (e) {
             logger.error('Global weather error', e);
             weatherError.value = 'Failed to load weather data';

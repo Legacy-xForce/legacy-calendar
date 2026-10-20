@@ -1,7 +1,7 @@
 import { ref } from 'vue';
-import { get, set } from 'idb-keyval';
 import type { Event } from '../types/Event';
 import { createLogger } from '../services/logger';
+import { readTimedCache, writeTimedCache } from '../utils/idbCache';
 
 // Persistent Cache Keys (Prefixes)
 const GEO_PREFIX = 'weather_geo_';
@@ -16,7 +16,7 @@ let nextAvailableGeocodeTime = 0;
 const GEOCONTROL_DELAY = 1200;
 
 // Module-level state to share coordinates across components without prop drilling
-const coordsByEventId = ref<Record<number, { lat: number; lon: number } | null>>({});
+const coordsByEventId = ref<Record<number, { lat: number; lon: number; location: string } | null>>({});
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -72,22 +72,16 @@ export const geocodeLocation = async (
 
     const cacheKey = GEO_PREFIX + location;
 
-    // 1. Check persistent cache with TTL
+    // 1. Check persistent cache with TTL (legacy untimestamped entries still hit)
     try {
-        const cached = await get(cacheKey);
-        if (cached !== undefined && cached !== null) {
-            // Check if it has a timestamp (new format)
-            if (cached.timestamp && cached.data !== undefined) {
-                const isExpired = Date.now() - cached.timestamp > GEO_CACHE_TTL;
-                if (!isExpired) {
-                    logger.trace('Geocode cache hit', { location, cacheKey });
-                    return cached.data;
-                }
-            } else {
-                // Old format (just the result) - migration: treat as valid but wrap it next time
-                logger.trace('Geocode legacy cache hit', { location, cacheKey });
-                return cached;
-            }
+        const cached = await readTimedCache<{ lat: number; lon: number; timezone: string } | null>(
+            cacheKey,
+            GEO_CACHE_TTL,
+            { allowLegacy: true }
+        );
+        if (cached.hit) {
+            logger.trace('Geocode cache hit', { location, cacheKey });
+            return cached.value;
         }
     } catch (e) {
         logger.warn('IndexedDB read error while reading geocode cache', e);
@@ -115,7 +109,7 @@ export const geocodeLocation = async (
                 }
 
                 // Always cache with timestamp (even if it's null/not found)
-                await set(cacheKey, { data: result, timestamp: Date.now() });
+                await writeTimedCache(cacheKey, result);
                 logger.info('Geocode resolved', { location, cacheKey, found: Boolean(result) });
                 return result;
             } catch (e) {
@@ -135,15 +129,16 @@ export function useGeocode() {
     const getOrResolveCoords = async (event: Event) => {
         if (!event.location) return null;
 
-        // Check module-level cache first
-        if (coordsByEventId.value[event.id]) {
+        // Coordinates are only reusable while the event location is unchanged.
+        const cached = coordsByEventId.value[event.id];
+        if (cached?.location === event.location) {
             logger.trace('Using cached coordinates for event', { eventId: event.id });
-            return coordsByEventId.value[event.id];
+            return cached;
         }
 
         const geo = await geocodeLocation(event.location);
         if (geo) {
-            coordsByEventId.value[event.id] = { lat: geo.lat, lon: geo.lon };
+            coordsByEventId.value[event.id] = { lat: geo.lat, lon: geo.lon, location: event.location };
             logger.debug('Cached event coordinates', { eventId: event.id, lat: geo.lat, lon: geo.lon });
         }
         return geo;

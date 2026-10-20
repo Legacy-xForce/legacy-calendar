@@ -57,6 +57,13 @@ export class EventsService {
                               }))
                           }
                       }
+                    : {}),
+                ...(coHostIds.length > 0
+                    ? {
+                          coHosts: {
+                              create: coHostIds.map((userId) => ({ userId }))
+                          }
+                      }
                     : {})
             });
 
@@ -73,15 +80,20 @@ export class EventsService {
                 });
             }
 
-            let savedEvent = event;
-            if (coHostIds.length > 0) {
-                await this.applyCoHostDiff(event.id, [], coHostIds, { actorId: hostId, impersonatorId });
-                savedEvent = (await this.eventsRepo.findById(event.id)) ?? event;
+            if (event.coHosts.length > 0) {
+                await Promise.all(
+                    event.coHosts.map((coHost) =>
+                        this.auditLogService.recordCoHostAdded(event.id, coHost.user, {
+                            actorId: hostId,
+                            impersonatorId
+                        })
+                    )
+                );
             }
 
-            await this.auditLogService.recordEventCreated(savedEvent, { actorId: hostId, impersonatorId });
+            await this.auditLogService.recordEventCreated(event, { actorId: hostId, impersonatorId });
             this.logger.info('Event created', { eventId: event.id, hostId, participantCount: participantIds.length });
-            return mapEventToDto(savedEvent);
+            return mapEventToDto(event);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
                 this.logger.warn('Event create failed: referenced user not found', {
@@ -197,9 +209,6 @@ export class EventsService {
             }
         }
 
-        const updatedEvent = await this.eventsRepo.update(id, updateData);
-
-        let finalEvent = updatedEvent;
         let coHostsChanged = false;
         if (coHosts) {
             const existingCoHostIds = event.coHosts.map((coHost) => coHost.userId);
@@ -207,10 +216,14 @@ export class EventsService {
             const { toAdd, toRemove } = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
             if (toAdd.length > 0 || toRemove.length > 0) {
                 coHostsChanged = true;
-                await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId });
-                finalEvent = (await this.eventsRepo.findById(id)) ?? updatedEvent;
+                await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId }, existingCoHostIds);
             }
         }
+
+        // Applying the co-host diff first means the update response already
+        // contains the final co-host list, so no second event fetch is needed.
+        const updatedEvent = await this.eventsRepo.update(id, updateData);
+        const finalEvent = updatedEvent;
 
         await this.auditLogService.recordEventUpdated(id, event, finalEvent, { actorId: userId, impersonatorId });
 
@@ -230,33 +243,41 @@ export class EventsService {
                 });
 
                 // Participants added through PATCH are invited just like via the
-                // dedicated invite endpoint, so record the same audit entry.
-                for (const invitedUserId of toAdd) {
-                    const invitedUser = updatedEvent.participants.find(
-                        (participant) => participant.userId === invitedUserId
-                    )?.user;
-                    if (invitedUser) {
-                        await this.auditLogService.recordParticipantInvited(event.id, invitedUser, {
-                            actorId: userId,
-                            impersonatorId
-                        });
-                    }
-                }
+                // dedicated invite endpoint, so record the same audit entries.
+                await Promise.all(
+                    toAdd.flatMap((invitedUserId) => {
+                        const invitedUser = updatedEvent.participants.find(
+                            (participant) => participant.userId === invitedUserId
+                        )?.user;
+                        return invitedUser
+                            ? [
+                                  this.auditLogService.recordParticipantInvited(event.id, invitedUser, {
+                                      actorId: userId,
+                                      impersonatorId
+                                  })
+                              ]
+                            : [];
+                    })
+                );
             }
         }
 
         if (participantDiff?.toRemove?.length) {
-            for (const participantId of participantDiff.toRemove) {
-                const removedParticipant = event.participants.find(
-                    (participant) => participant.userId === participantId
-                );
-                if (removedParticipant) {
-                    await this.auditLogService.recordParticipantRemoved(id, removedParticipant, {
-                        actorId: userId,
-                        impersonatorId
-                    });
-                }
-            }
+            await Promise.all(
+                participantDiff.toRemove.flatMap((participantId) => {
+                    const removedParticipant = event.participants.find(
+                        (participant) => participant.userId === participantId
+                    );
+                    return removedParticipant
+                        ? [
+                              this.auditLogService.recordParticipantRemoved(id, removedParticipant, {
+                                  actorId: userId,
+                                  impersonatorId
+                              })
+                          ]
+                        : [];
+                })
+            );
         }
 
         // Only notify participants when something actually changed: a no-op patch
@@ -348,8 +369,7 @@ export class EventsService {
         }
 
         const result = await this.eventsRepo.join(userId, eventId, participateDto);
-        const joinedAtParticipant = await this.eventsRepo.findOne(eventId, userId);
-        const savedParticipant = joinedAtParticipant?.participants.find((participant) => participant.userId === userId);
+        const savedParticipant = result;
 
         if (!participant) {
             if (savedParticipant) {
@@ -471,56 +491,40 @@ export class EventsService {
         requestingUserId: number,
         impersonatorId: number | null = null
     ) {
-        this.logger.info('Assigning ride', {
+        return this.assignRides(eventId, [passengerId], driverId, direction, requestingUserId, impersonatorId);
+    }
+
+    /** Assign/unassign several passengers in a single request and transaction. */
+    async assignRides(
+        eventId: number,
+        passengerIdsInput: number[],
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND',
+        requestingUserId: number,
+        impersonatorId: number | null = null
+    ) {
+        const passengerIds = this.normalizeUserIds(passengerIdsInput);
+        this.logger.info('Assigning rides', {
             eventId,
-            passengerId,
+            passengerCount: passengerIds.length,
             driverId,
             requestingUserId
         });
+        if (passengerIds.length === 0) {
+            throw new BadRequestException('At least one passenger is required');
+        }
+
         const event = await this.findEventOrThrow(eventId, requestingUserId);
 
         this.validateEventNotEnded(event);
 
-        const isHost = this.canManageEvent(event, requestingUserId);
-        const passenger = this.getParticipant(event, passengerId);
-
-        if (!passenger) {
-            throw new NotFoundException(`Passenger with id ${passengerId} is not in this event`);
-        }
-
-        const passengerAssignment = this.getRideAssignment(event, passengerId, direction);
-        const isCurrentDriver = passengerAssignment?.driverId === requestingUserId;
-        const isAssigningToSelf = driverId === requestingUserId;
-        const isUnassigningFromSelf = driverId === null && isCurrentDriver;
-
-        if (!isHost && !isAssigningToSelf && !isUnassigningFromSelf) {
-            if (driverId !== null) {
-                this.logger.warn('Ride assignment forbidden', {
-                    eventId,
-                    passengerId,
-                    driverId,
-                    requestingUserId
-                });
-                throw new ForbiddenException(
-                    'Only the host or the driver of the vehicle can assign passengers to this car'
-                );
-            } else {
-                this.logger.warn('Ride unassignment forbidden', {
-                    eventId,
-                    passengerId,
-                    driverId,
-                    requestingUserId
-                });
-                throw new ForbiddenException('Only the host or the current driver can remove passengers from this car');
-            }
-        }
+        const isManager = this.canManageEvent(event, requestingUserId);
+        const driver = driverId === null ? null : this.getParticipant(event, driverId);
 
         if (driverId !== null) {
-            const driver = this.getParticipant(event, driverId);
             if (!driver) {
                 this.logger.warn('Ride assignment rejected: driver not in event', {
                     eventId,
-                    passengerId,
                     driverId
                 });
                 throw new NotFoundException(`Driver with id ${driverId} is not in this event`);
@@ -529,48 +533,95 @@ export class EventsService {
             if (driver.transportMode !== 'DRIVER') {
                 this.logger.warn('Ride assignment rejected: selected driver has no vehicle', {
                     eventId,
-                    passengerId,
                     driverId
                 });
                 throw new ForbiddenException('Selected driver does not have a vehicle for this event');
             }
         }
 
-        const previousAssignment = passengerAssignment
-            ? { passengerId: passengerAssignment.passengerId, driverId: passengerAssignment.driverId }
-            : null;
-        // Drivers who did not split their trips drive the same passengers both ways
-        const affectedDriverId = driverId ?? passengerAssignment?.driverId;
-        const affectedDriver =
-            affectedDriverId === undefined ? undefined : this.getParticipant(event, affectedDriverId);
-        const directions: ('OUTBOUND' | 'RETURN')[] =
-            affectedDriver && !hasSplitVehicleSeats(affectedDriver) ? ['OUTBOUND', 'RETURN'] : [direction];
-        await this.eventsRepo.assignRide(eventId, passengerId, driverId, directions, passengerAssignment?.driverId);
+        const assignments = passengerIds.map((passengerId) => {
+            const passenger = this.getParticipant(event, passengerId);
+            if (!passenger) {
+                throw new NotFoundException(`Passenger with id ${passengerId} is not in this event`);
+            }
+
+            const currentAssignment = this.getRideAssignment(event, passengerId, direction);
+            const isCurrentDriver = currentAssignment?.driverId === requestingUserId;
+            const isAssigningToSelf = driverId === requestingUserId;
+            const isUnassigningFromSelf = driverId === null && isCurrentDriver;
+
+            if (!isManager && !isAssigningToSelf && !isUnassigningFromSelf) {
+                this.logger.warn('Ride assignment forbidden', {
+                    eventId,
+                    passengerId,
+                    driverId,
+                    requestingUserId
+                });
+                throw new ForbiddenException(
+                    driverId !== null
+                        ? 'Only the host or the driver of the vehicle can assign passengers to this car'
+                        : 'Only the host or the current driver can remove passengers from this car'
+                );
+            }
+
+            // Drivers who did not split their trips drive the same passengers both ways.
+            const affectedDriverId = driverId ?? currentAssignment?.driverId;
+            const affectedDriver =
+                affectedDriverId === undefined ? undefined : this.getParticipant(event, affectedDriverId);
+            const directions: ('OUTBOUND' | 'RETURN')[] =
+                affectedDriver && !hasSplitVehicleSeats(affectedDriver) ? ['OUTBOUND', 'RETURN'] : [direction];
+
+            return {
+                passengerId,
+                driverId,
+                directions,
+                previousDriverId: currentAssignment?.driverId,
+                previousAssignment: currentAssignment
+                    ? { passengerId: currentAssignment.passengerId, driverId: currentAssignment.driverId }
+                    : null
+            };
+        });
+
+        await this.eventsRepo.assignRides(eventId, assignments);
 
         if (driverId !== null) {
-            await this.auditLogService.recordRideAssigned(
-                eventId,
-                previousAssignment,
-                { passengerId, driverId },
-                { actorId: requestingUserId, impersonatorId }
-            );
             const actorUser = await this.eventsRepo.getUserById(requestingUserId);
             const actorUsername = this.getActorUsername(actorUser?.username);
-            await this.notifyUserIds([passengerId], {
-                eventId,
-                type: NotificationCode.RIDE_ASSIGNED,
-                title: EVENT_NOTIFICATION_TITLES.rideAssigned,
-                body: this.truncateText(EVENT_NOTIFICATION_MESSAGES.rideAssigned(actorUsername, event.title), 200),
-                actorUsername
-            });
+
+            await Promise.all([
+                ...assignments.map(({ passengerId, previousAssignment }) =>
+                    this.auditLogService.recordRideAssigned(
+                        eventId,
+                        previousAssignment,
+                        { passengerId, driverId },
+                        { actorId: requestingUserId, impersonatorId }
+                    )
+                ),
+                this.notifyUserIds(passengerIds, {
+                    eventId,
+                    type: NotificationCode.RIDE_ASSIGNED,
+                    title: EVENT_NOTIFICATION_TITLES.rideAssigned,
+                    body: this.truncateText(EVENT_NOTIFICATION_MESSAGES.rideAssigned(actorUsername, event.title), 200),
+                    actorUsername
+                })
+            ]);
         } else {
-            await this.auditLogService.recordRideUnassigned(eventId, previousAssignment, {
-                actorId: requestingUserId,
-                impersonatorId
-            });
+            await Promise.all(
+                assignments.map(({ previousAssignment }) =>
+                    this.auditLogService.recordRideUnassigned(eventId, previousAssignment, {
+                        actorId: requestingUserId,
+                        impersonatorId
+                    })
+                )
+            );
         }
 
-        this.logger.info('Ride assignment updated', { eventId, passengerId, driverId, requestingUserId });
+        this.logger.info('Ride assignment updated', {
+            eventId,
+            passengerCount: passengerIds.length,
+            driverId,
+            requestingUserId
+        });
         return this.findOne(eventId, requestingUserId);
     }
 
@@ -620,29 +671,30 @@ export class EventsService {
         eventId: number,
         toAdd: number[],
         toRemove: number[],
-        actor: { actorId: number; impersonatorId: number | null }
+        actor: { actorId: number; impersonatorId: number | null },
+        currentIds?: number[]
     ) {
         if (toAdd.length > 0 || toRemove.length > 0) {
-            const currentIds = await this.eventsRepo.getCoHostIds(eventId);
+            const existingIds = currentIds ?? (await this.eventsRepo.getCoHostIds(eventId));
             await this.eventsRepo.setCoHosts(eventId, [
-                ...currentIds.filter((id) => !toRemove.includes(id)),
-                ...toAdd.filter((id) => !currentIds.includes(id))
+                ...existingIds.filter((id) => !toRemove.includes(id)),
+                ...toAdd.filter((id) => !existingIds.includes(id))
             ]);
         }
 
-        for (const coHostId of toAdd) {
-            const user = await this.eventsRepo.getUserById(coHostId);
-            if (user) {
-                await this.auditLogService.recordCoHostAdded(eventId, user, actor);
-            }
-        }
+        const [addedUsers, removedUsers] = await Promise.all([
+            Promise.all(toAdd.map((coHostId) => this.eventsRepo.getUserById(coHostId))),
+            Promise.all(toRemove.map((coHostId) => this.eventsRepo.getUserById(coHostId)))
+        ]);
 
-        for (const coHostId of toRemove) {
-            const user = await this.eventsRepo.getUserById(coHostId);
-            if (user) {
-                await this.auditLogService.recordCoHostRemoved(eventId, user, actor);
-            }
-        }
+        await Promise.all([
+            ...addedUsers.flatMap((user) =>
+                user ? [this.auditLogService.recordCoHostAdded(eventId, user, actor)] : []
+            ),
+            ...removedUsers.flatMap((user) =>
+                user ? [this.auditLogService.recordCoHostRemoved(eventId, user, actor)] : []
+            )
+        ]);
     }
 
     private buildCreateEventInput(

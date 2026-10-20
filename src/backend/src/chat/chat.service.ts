@@ -1,6 +1,6 @@
 import { Injectable, Inject, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ChatRepository, ChatMessageWithRelations, ReactionSummary, groupReactions } from './chat.repository.js';
-import { EventsRepository } from '../events/events.repository.js';
+import { EventsRepository, type EventChatAccess } from '../events/events.repository.js';
 import { isEventHost, isEventParticipant } from '../events/event-access.util.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { InviteStatus, ChatMediaType } from '../../prisma/generated/client.js';
@@ -43,12 +43,16 @@ export class ChatService {
 
     async isParticipant(eventId: number, userId: number): Promise<boolean> {
         this.logger.trace('Checking chat participation', { eventId, userId });
-        const event = await this.eventsRepo.findById(eventId);
+        const event = await this.eventsRepo.findChatAccessById(eventId);
         if (!event) {
             this.logger.debug('Chat participation check failed: event not found', { eventId, userId });
             return false;
         }
 
+        return this.canParticipate(event, userId);
+    }
+
+    private canParticipate(event: EventChatAccess, userId: number): boolean {
         return isEventHost(event, userId) || isEventParticipant(event, userId, { acceptedOnly: true });
     }
 
@@ -66,8 +70,8 @@ export class ChatService {
             hasText: Boolean(text?.trim()),
             hasMedia: Boolean(mediaUrl)
         });
-        const isParticipant = await this.isParticipant(eventId, userId);
-        if (!isParticipant) {
+        const event = await this.eventsRepo.findChatAccessById(eventId);
+        if (!event || !this.canParticipate(event, userId)) {
             this.logger.warn('Chat message rejected: user is not a participant', { eventId, userId });
             throw new ForbiddenException('Not a participant');
         }
@@ -80,7 +84,14 @@ export class ChatService {
             mediaType: mediaType ?? null
         });
 
-        await this.sendPushNotification(message, connectedUserIds);
+        // Push delivery must not hold up the socket acknowledgement.
+        void this.sendPushNotification(message, connectedUserIds, event).catch((error: unknown) => {
+            this.logger.warn('Chat push notification failed', {
+                messageId: message.id,
+                eventId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        });
         this.logger.info('Chat message sent', { eventId, messageId: message.id, userId });
         return this.toMessagePayload(message);
     }
@@ -245,7 +256,7 @@ export class ChatService {
             throw new NotFoundException('Message not found');
         }
 
-        const event = await this.eventsRepo.findById(message.eventId);
+        const event = await this.eventsRepo.findChatAccessById(message.eventId);
         if (!event) {
             throw new NotFoundException('Event not found');
         }
@@ -270,20 +281,16 @@ export class ChatService {
         return message;
     }
 
-    async sendPushNotification(message: ChatMessageWithRelations, connectedUserIds: Set<number>): Promise<void> {
+    async sendPushNotification(
+        message: ChatMessageWithRelations,
+        connectedUserIds: Set<number>,
+        event: EventChatAccess
+    ): Promise<void> {
         this.logger.debug('Preparing chat push notification', {
             messageId: message.id,
             eventId: message.eventId,
             connectedUserCount: connectedUserIds.size
         });
-        const event = await this.eventsRepo.findById(message.eventId);
-        if (!event) {
-            this.logger.warn('Skipping chat push notification: event not found', {
-                eventId: message.eventId,
-                messageId: message.id
-            });
-            return;
-        }
 
         const participantIds = [
             event.hostId,

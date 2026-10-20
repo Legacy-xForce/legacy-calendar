@@ -1,76 +1,34 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, Inject } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as jwksRsa from 'jwks-rsa';
-import jwt from 'jsonwebtoken';
-import { UsersService } from '../../users/users.service.js';
-import { resolveJwtSecret } from '../jwt-secret.util.js';
-import { resolveJwksUri } from '../../config/jwks.js';
+import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
+import { AuthIdentityService, type AuthIdentity, type AuthTokenPayload } from '../auth-identity.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(
-        @Inject(ConfigService) private configService: ConfigService,
-        @Inject(UsersService) private readonly usersService: UsersService
-    ) {
-        const jwksProvider = jwksRsa.passportJwtSecret({
-            cache: true,
-            rateLimit: true,
-            jwksRequestsPerMinute: 10,
-            jwksUri: resolveJwksUri(configService)
-        }) as (req: unknown, rawJwtToken: unknown, done: (err: unknown, secretOrKey?: string | Buffer) => void) => void;
-
-        const localSecret = resolveJwtSecret(configService);
-
+    constructor(@Inject(AuthIdentityService) private readonly identityService: AuthIdentityService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
             secretOrKeyProvider: (
-                req: unknown,
+                _req: unknown,
                 rawJwtToken: unknown,
                 done: (err: unknown, secretOrKey?: string | Buffer) => void
             ) => {
-                try {
-                    const decoded = jwt.decode(String(rawJwtToken), { complete: true });
-                    if (decoded && decoded.header && decoded.header.alg === 'HS256') {
-                        return done(null, localSecret);
-                    }
-                    return jwksProvider(req, rawJwtToken, done);
-                } catch (e) {
-                    return done(e);
-                }
+                this.identityService
+                    .getVerificationKey(String(rawJwtToken))
+                    .then((key) => done(null, key))
+                    .catch((error: unknown) => done(error));
             },
             algorithms: ['ES256', 'HS256']
         });
     }
 
-    async validate(payload: { sub: string; username: string; scope?: string }) {
-        // Passkey-issued JWTs set scope='calendar' and use the local numeric
-        // user id as sub. Look up directly by id to avoid a failed syncFromAuth
-        // that would return null (passkey users have no authId from the external
-        // auth service).
-        if (payload.scope === 'calendar') {
-            const numericId = parseInt(payload.sub, 10);
-            if (!isNaN(numericId)) {
-                const user = await this.usersService.findOne(numericId).catch(() => null);
-                return {
-                    userId: user?.id,
-                    username: user?.username ?? payload.username,
-                    isAdmin: user?.isAdmin ?? false
-                };
-            }
+    async validate(payload: AuthTokenPayload): Promise<AuthIdentity> {
+        const identity = await this.identityService.resolvePayload(payload);
+        if (!identity) {
+            throw new UnauthorizedException('Missing or invalid authentication token');
         }
 
-        const user = await this.usersService.syncFromAuth({
-            authId: payload.sub,
-            username: payload.username
-        });
-
-        return {
-            userId: user?.id,
-            username: user?.username ?? payload.username,
-            isAdmin: user?.isAdmin ?? false
-        };
+        return identity;
     }
 }
