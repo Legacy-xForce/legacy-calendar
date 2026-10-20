@@ -16,6 +16,7 @@ import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat
 import type { AuditLogEntry } from '../types/AuditLog';
 import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
 import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
+import type { ApiToken, CreateApiTokenDto, CreatedApiToken } from '../types/ApiToken';
 
 // --- API Class ---
 
@@ -346,6 +347,24 @@ class API {
 
     async deleteUserGroup(id: number): Promise<AxiosResponse<void>> {
         return this.client.delete(`/user-groups/${id}`);
+    }
+
+    // --- API tokens ---
+
+    async getApiTokens(): Promise<AxiosResponse<ApiToken[]>> {
+        return this.client.get('/api-tokens');
+    }
+
+    async createApiToken(dto: CreateApiTokenDto): Promise<AxiosResponse<CreatedApiToken>> {
+        return this.client.post('/api-tokens', dto);
+    }
+
+    async rotateApiToken(id: number): Promise<AxiosResponse<CreatedApiToken>> {
+        return this.client.post(`/api-tokens/${id}/rotate`);
+    }
+
+    async deleteApiToken(id: number): Promise<AxiosResponse<{ success: boolean }>> {
+        return this.client.delete(`/api-tokens/${id}`);
     }
 
     // --- Passkeys ---

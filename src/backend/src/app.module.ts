@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { UserGroupsModule } from './user-groups/user-groups.module.js';
+import { ApiTokensModule } from './api-tokens/api-tokens.module.js';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { createLoggerModuleParams } from './logging/pino.js';
@@ -37,7 +38,8 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
         NotificationsModule,
         UploadsModule,
         ChatModule,
-        UserGroupsModule
+        UserGroupsModule,
+        ApiTokensModule
     ],
     controllers: [AppController],
     providers: [

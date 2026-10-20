@@ -47,6 +47,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Test
+        run: bun test
+
   frontend:
     name: Frontend (typecheck + build + lint)
     runs-on: ubuntu-latest

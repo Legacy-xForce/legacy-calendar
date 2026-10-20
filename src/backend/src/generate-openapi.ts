@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { writeFile } from 'node:fs/promises';
+import { addApiTokenSecurity, createSwaggerConfig } from './config/swagger.js';
 
 async function generateOpenApi() {
     // Schema generation does not touch the database. These fallbacks only satisfy
@@ -20,13 +21,8 @@ async function generateOpenApi() {
     app.get(PrismaService).onModuleInit = async () => {};
     await app.init();
 
-    const config = new DocumentBuilder()
-        .setTitle('Legacy Calendar API')
-        .setDescription('The legacy calendar server API description')
-        .setVersion('1.0')
-        .addBearerAuth()
-        .build();
-    const document = SwaggerModule.createDocument(app, config);
+    const config = createSwaggerConfig();
+    const document = addApiTokenSecurity(SwaggerModule.createDocument(app, config));
     await writeFile('openapi.json', `${JSON.stringify(document, null, 2)}\n`, 'utf8');
     await app.close();
 }

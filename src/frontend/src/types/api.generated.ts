@@ -574,6 +574,67 @@ export interface paths {
         patch: operations["UserGroupsController_update"];
         trace?: never;
     };
+    "/api-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the API tokens of the authenticated user
+         * @description Requires a session token. API tokens cannot list or manage API tokens.
+         */
+        get: operations["ApiTokensController_findAll"];
+        put?: never;
+        /**
+         * Create an API token
+         * @description The full token is returned only in this response. Store it somewhere safe.
+         */
+        post: operations["ApiTokensController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-tokens/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate an API token
+         * @description Invalidates the old value immediately and returns the new token once.
+         */
+        post: operations["ApiTokensController_rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an API token */
+        delete: operations["ApiTokensController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1397,6 +1458,100 @@ export interface components {
              *     ]
              */
             memberIds?: string[];
+        };
+        ApiTokenResponseDto: {
+            /**
+             * @description Token id
+             * @example 7
+             */
+            id: number;
+            /**
+             * @description Human readable label
+             * @example Home Assistant
+             */
+            name: string;
+            /**
+             * @description Capability of the token
+             * @example read
+             * @enum {string}
+             */
+            scope: "read" | "write";
+            /**
+             * @description Non-secret hint that identifies the token in lists
+             * @example legacy-calendar-01a1…1289
+             */
+            tokenHint: string;
+            /**
+             * Format: date-time
+             * @description When the token was created
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last time the token authenticated a request
+             */
+            lastUsedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Last time the token was rotated
+             */
+            rotatedAt: string | null;
+        };
+        CreateApiTokenDto: {
+            /**
+             * @description Human readable label used to recognise the integration
+             * @example Home Assistant
+             */
+            name?: string;
+            /**
+             * @description read allows GET requests only, write allows every request the user can make
+             * @example read
+             * @enum {string}
+             */
+            scope: "read" | "write";
+        };
+        CreatedApiTokenResponseDto: {
+            /**
+             * @description Token id
+             * @example 7
+             */
+            id: number;
+            /**
+             * @description Human readable label
+             * @example Home Assistant
+             */
+            name: string;
+            /**
+             * @description Capability of the token
+             * @example read
+             * @enum {string}
+             */
+            scope: "read" | "write";
+            /**
+             * @description Non-secret hint that identifies the token in lists
+             * @example legacy-calendar-01a1…1289
+             */
+            tokenHint: string;
+            /**
+             * Format: date-time
+             * @description When the token was created
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last time the token authenticated a request
+             */
+            lastUsedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Last time the token was rotated
+             */
+            rotatedAt: string | null;
+            /**
+             * @description The full token. Only returned once, at creation or rotation time.
+             * @example legacy-calendar-01a15968-64aa-707d-8904-a6a408611289
+             */
+            token: string;
         };
     };
     responses: never;
@@ -2636,6 +2791,127 @@ export interface operations {
                 content?: never;
             };
             /** @description User group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApiTokensController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Return API token metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenResponseDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApiTokensController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApiTokenDto"];
+            };
+        };
+        responses: {
+            /** @description Token created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedApiTokenResponseDto"];
+                };
+            };
+            /** @description Invalid scope or token limit reached */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApiTokensController_rotate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token rotated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedApiTokenResponseDto"];
+                };
+            };
+            /** @description API token not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApiTokensController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API token not found */
             404: {
                 headers: {
                     [name: string]: unknown;

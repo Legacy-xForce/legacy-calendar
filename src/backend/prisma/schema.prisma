@@ -29,6 +29,28 @@ model User {
   auditLogEntriesAsImpersonator AuditLogEntry[]     @relation("AuditLogImpersonator")
   userGroups                    UserGroup[]
   passkeyCredentials            PasskeyCredential[]
+  apiTokens                     ApiToken[]
+}
+
+enum ApiTokenScope {
+  read
+  write
+}
+
+model ApiToken {
+  id         Int           @id @default(autoincrement())
+  userId     Int
+  name       String
+  scope      ApiTokenScope @default(read)
+  tokenHash  String        @unique
+  tokenHint  String
+  createdAt  DateTime      @default(now())
+  lastUsedAt DateTime?
+  rotatedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model GuestParticipant {

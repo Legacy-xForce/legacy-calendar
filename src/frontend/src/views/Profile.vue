@@ -24,6 +24,7 @@ import { isPasskeySupported } from '../services/webauthn';
 import { useUsersStore } from '../stores/users';
 import { useUserGroupsStore } from '../stores/userGroups';
 import type { UserGroup } from '../types/UserGroup';
+import type { ApiToken, ApiTokenScope } from '../types/ApiToken';
 import { formatIban, getItalianBankName, isValidIban, normalizeIban } from '../utils/iban';
 
 const sessionStore = useSessionStore();
@@ -186,6 +187,145 @@ const deleteGroup = (group: UserGroup) => {
     });
 };
 
+// ---------- API tokens: long-lived credentials for scripts and integrations ----------
+
+const API_TOKEN_LIMIT = 25;
+
+const apiTokens = ref<ApiToken[]>([]);
+const apiTokensLoading = ref(false);
+const tokenEditor = ref<{ name: string; scope: ApiTokenScope } | null>(null);
+const tokenSaving = ref(false);
+const newApiToken = ref<{ id: number; token: string; label: string } | null>(null);
+const tokenCopied = ref(false);
+
+const tokenScopeOptions: { value: ApiTokenScope; label: string; icon: string; hint: string }[] = [
+    { value: 'read', label: 'Read only', icon: 'pi pi-eye', hint: 'Only GET requests, never changes anything.' },
+    { value: 'write', label: 'Read & write', icon: 'pi pi-pencil', hint: 'Everything your account can do.' }
+];
+
+const tokenScopeHint = computed(
+    () => tokenScopeOptions.find((option) => option.value === tokenEditor.value?.scope)?.hint
+);
+const tokenLimitReached = computed(() => apiTokens.value.length >= API_TOKEN_LIMIT);
+const tokenScopeLabel = (scope: ApiTokenScope) => (scope === 'write' ? 'Read & write' : 'Read only');
+
+const loadApiTokens = async () => {
+    apiTokensLoading.value = true;
+    try {
+        apiTokens.value = (await api.getApiTokens()).data;
+    } catch (error) {
+        logger.warn('Failed to load API tokens', error);
+        toast.add({ severity: 'error', summary: "Couldn't load API tokens", life: 3500 });
+    } finally {
+        apiTokensLoading.value = false;
+    }
+};
+
+const startTokenEditor = () => {
+    newApiToken.value = null;
+    tokenCopied.value = false;
+    tokenEditor.value = { name: '', scope: 'read' };
+};
+
+const handleCreateToken = async () => {
+    const editor = tokenEditor.value;
+    if (!editor) return;
+
+    tokenSaving.value = true;
+    try {
+        const { token, ...metadata } = (
+            await api.createApiToken({
+                name: editor.name.trim() || undefined,
+                scope: editor.scope
+            })
+        ).data;
+        apiTokens.value = [metadata, ...apiTokens.value];
+        newApiToken.value = { id: metadata.id, token, label: metadata.name };
+        tokenEditor.value = null;
+        tokenCopied.value = false;
+        toast.add({ severity: 'success', summary: `"${metadata.name}" created`, life: 2500 });
+    } catch (error: any) {
+        toast.add({
+            severity: 'error',
+            summary: "Couldn't create the token",
+            detail: error.response?.data?.message || 'Please try again.',
+            life: 4000
+        });
+    } finally {
+        tokenSaving.value = false;
+    }
+};
+
+const copyApiToken = async () => {
+    if (!newApiToken.value) return;
+    try {
+        await navigator.clipboard.writeText(newApiToken.value.token);
+        tokenCopied.value = true;
+        window.setTimeout(() => (tokenCopied.value = false), 2000);
+    } catch {
+        toast.add({
+            severity: 'error',
+            summary: "Couldn't copy automatically",
+            detail: 'Select the token and copy it manually.',
+            life: 4000
+        });
+    }
+};
+
+const dismissNewToken = () => {
+    newApiToken.value = null;
+    tokenCopied.value = false;
+};
+
+const rotateApiToken = (token: ApiToken) => {
+    confirm.require({
+        header: `Rotate "${token.name}"?`,
+        message: 'The current value stops working immediately. Any integration using it will need the new token.',
+        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+        acceptProps: { label: 'Rotate', severity: 'danger' },
+        accept: async () => {
+            try {
+                const { token: plainToken, ...metadata } = (await api.rotateApiToken(token.id)).data;
+                apiTokens.value = apiTokens.value.map((item) => (item.id === token.id ? metadata : item));
+                newApiToken.value = { id: metadata.id, token: plainToken, label: metadata.name };
+                tokenCopied.value = false;
+                toast.add({ severity: 'success', summary: `"${metadata.name}" rotated`, life: 2500 });
+            } catch (error: any) {
+                toast.add({
+                    severity: 'error',
+                    summary: "Couldn't rotate the token",
+                    detail: error.response?.data?.message || 'Please try again.',
+                    life: 4000
+                });
+            }
+        }
+    });
+};
+
+const deleteApiToken = (token: ApiToken) => {
+    confirm.require({
+        header: `Delete "${token.name}"?`,
+        message: 'Any integration using this token will stop working immediately. This cannot be undone.',
+        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+        acceptProps: { label: 'Delete', severity: 'danger' },
+        accept: async () => {
+            try {
+                await api.deleteApiToken(token.id);
+                apiTokens.value = apiTokens.value.filter((item) => item.id !== token.id);
+                if (newApiToken.value?.id === token.id) dismissNewToken();
+                toast.add({ severity: 'success', summary: `"${token.name}" deleted`, life: 2500 });
+            } catch (error: any) {
+                toast.add({
+                    severity: 'error',
+                    summary: "Couldn't delete the token",
+                    detail: error.response?.data?.message || 'Please try again.',
+                    life: 4000
+                });
+            }
+        }
+    });
+};
+
 // ---------- Passkeys ----------
 
 const passkeySupported = isPasskeySupported();
@@ -282,6 +422,7 @@ onMounted(async () => {
     await Promise.all([
         usersStore.fetchUsers(),
         userGroupsStore.fetchGroups(),
+        loadApiTokens(),
         !currentUser.value ? sessionStore.load() : Promise.resolve()
     ]);
     if (passkeySupported) {
@@ -617,6 +758,175 @@ const handleClearCache = () => {
             >
                 No groups yet. Make one for the people you invite most.
             </p>
+        </section>
+
+        <section class="flex flex-col gap-2">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="eyebrow m-0">API tokens</h2>
+                    <p class="text-meta text-subtle m-0 mt-1">
+                        Long-lived credentials for scripts and integrations. They don't expire on their own.
+                    </p>
+                </div>
+                <Button
+                    v-if="!tokenEditor && !newApiToken"
+                    label="New"
+                    icon="pi pi-plus"
+                    size="small"
+                    severity="secondary"
+                    :disabled="tokenLimitReached"
+                    @click="startTokenEditor"
+                />
+            </div>
+
+            <div
+                v-if="newApiToken"
+                class="border-accent/40 bg-accent-soft animate-rise-in flex flex-col gap-3 rounded-2xl border p-4"
+            >
+                <div class="flex items-start gap-3">
+                    <span
+                        class="bg-accent-soft text-accent flex size-9 shrink-0 items-center justify-center rounded-xl"
+                    >
+                        <i class="pi pi-key text-sm"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-body text-fg m-0 font-medium">"{{ newApiToken.label }}" is ready</p>
+                        <p class="text-meta text-muted m-0">
+                            Copy it now. For security, the full token won't be shown again.
+                        </p>
+                    </div>
+                    <Button
+                        icon="pi pi-times"
+                        text
+                        rounded
+                        severity="secondary"
+                        aria-label="Dismiss the new token"
+                        @click="dismissNewToken"
+                    />
+                </div>
+                <div class="bg-canvas/60 border-line flex items-center gap-2 rounded-xl border p-2.5">
+                    <code class="text-meta text-fg min-w-0 flex-1 font-mono break-all">{{ newApiToken.token }}</code>
+                    <Button
+                        :icon="tokenCopied ? 'pi pi-check' : 'pi pi-copy'"
+                        :severity="tokenCopied ? 'success' : 'secondary'"
+                        text
+                        rounded
+                        :aria-label="tokenCopied ? 'Token copied' : 'Copy token'"
+                        @click="copyApiToken"
+                    />
+                </div>
+            </div>
+
+            <div
+                v-if="tokenEditor"
+                class="border-line bg-raised animate-rise-in flex flex-col gap-3 rounded-2xl border p-4"
+            >
+                <div class="flex flex-col gap-1.5">
+                    <label for="token-name" class="text-meta text-muted font-medium">Name</label>
+                    <InputText
+                        id="token-name"
+                        v-model="tokenEditor.name"
+                        placeholder="e.g. Home Assistant"
+                        maxlength="60"
+                        autofocus
+                        fluid
+                    />
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <span class="text-meta text-muted font-medium">Scope</span>
+                    <SelectButton
+                        v-model="tokenEditor.scope"
+                        :options="tokenScopeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        :allowEmpty="false"
+                        fluid
+                        aria-label="Token scope"
+                    >
+                        <template #option="slotProps">
+                            <span class="flex items-center gap-2">
+                                <i :class="slotProps.option.icon" class="text-xs"></i>
+                                <span class="text-meta font-medium">{{ slotProps.option.label }}</span>
+                            </span>
+                        </template>
+                    </SelectButton>
+                    <p class="text-meta text-muted m-0">{{ tokenScopeHint }}</p>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <Button label="Cancel" severity="secondary" text @click="tokenEditor = null" />
+                    <Button label="Create token" icon="pi pi-check" :loading="tokenSaving" @click="handleCreateToken" />
+                </div>
+            </div>
+
+            <p v-if="apiTokensLoading && !apiTokens.length" class="text-meta text-muted m-0">Loading tokens…</p>
+            <div
+                v-else-if="apiTokens.length"
+                class="border-line bg-raised divide-line divide-y overflow-hidden rounded-2xl border"
+            >
+                <div v-for="token in apiTokens" :key="token.id" class="flex items-center gap-3 px-4 py-3">
+                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
+                        <i :class="token.scope === 'write' ? 'pi pi-pencil' : 'pi pi-eye'" class="text-sm"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body text-fg flex items-center gap-2 truncate font-medium">
+                            {{ token.name }}
+                            <span
+                                class="rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                                :class="
+                                    token.scope === 'write' ? 'bg-accent-soft text-accent' : 'bg-surface-850 text-muted'
+                                "
+                            >
+                                {{ tokenScopeLabel(token.scope) }}
+                            </span>
+                        </span>
+                        <span class="text-meta text-subtle tabular block font-mono">{{ token.tokenHint }}</span>
+                        <span class="text-meta text-subtle block">
+                            Created {{ new Date(token.createdAt).toLocaleDateString() }} ·
+                            {{
+                                token.lastUsedAt
+                                    ? `last used ${new Date(token.lastUsedAt).toLocaleDateString()}`
+                                    : 'never used'
+                            }}
+                        </span>
+                    </span>
+                    <div class="flex shrink-0 items-center">
+                        <Button
+                            icon="pi pi-refresh"
+                            text
+                            rounded
+                            severity="secondary"
+                            :aria-label="`Rotate ${token.name}`"
+                            v-tooltip.top="'Rotate token'"
+                            @click="rotateApiToken(token)"
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            text
+                            rounded
+                            severity="danger"
+                            :aria-label="`Delete ${token.name}`"
+                            @click="deleteApiToken(token)"
+                        />
+                    </div>
+                </div>
+            </div>
+            <p
+                v-else-if="!tokenEditor"
+                class="text-meta text-muted border-line m-0 rounded-2xl border border-dashed px-4 py-4 text-center"
+            >
+                No API tokens yet. Create one for a script, dashboard or home automation.
+            </p>
+            <p v-if="tokenLimitReached" class="text-meta text-muted m-0">
+                You've reached the limit of {{ API_TOKEN_LIMIT }} tokens. Delete one to create another.
+            </p>
+            <router-link
+                :to="{ name: 'docs' }"
+                class="text-meta text-muted hover:text-fg border-line flex items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 no-underline transition-colors"
+            >
+                <i class="pi pi-book text-xs"></i>
+                <span class="flex-1">API documentation · every endpoint, header and scope</span>
+                <i class="pi pi-chevron-right text-[0.625rem]"></i>
+            </router-link>
         </section>
 
         <section v-if="notificationSettings" class="flex flex-col gap-4">

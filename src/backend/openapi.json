@@ -30,6 +30,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get user profile",
@@ -63,6 +66,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Change user password (proxied to auth service)",
@@ -93,6 +99,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Generate WebAuthn registration options for current user",
@@ -123,6 +132,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Verify WebAuthn registration and store credential",
@@ -193,6 +205,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "List registered passkeys for current user",
@@ -222,6 +237,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Delete a registered passkey",
@@ -258,6 +276,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Create a new user (Admin only)",
@@ -276,6 +297,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get all users",
@@ -311,6 +335,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get a user by ID",
@@ -354,6 +381,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Update a user (Admin only)",
@@ -387,6 +417,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Delete a user (Admin only)",
@@ -417,6 +450,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Update the authenticated user own payment coordinates (PayPal, IBAN, Revolut)",
@@ -457,6 +493,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Create a new event",
@@ -506,6 +545,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get events for a visible calendar range",
@@ -536,6 +578,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get upcoming events",
@@ -575,6 +620,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get an event by ID",
@@ -608,6 +656,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Delete an event",
@@ -655,6 +706,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Update an event",
@@ -694,6 +748,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Invite a user to an event",
@@ -739,6 +796,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Join an event",
@@ -772,6 +832,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Leave an event / Cancel participation",
@@ -815,6 +878,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Edit participation details",
@@ -854,6 +920,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Assign a ride to a passenger",
@@ -900,6 +969,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Assign several passengers to a ride in one request",
@@ -956,6 +1028,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Update payment status for a participant (host/co-host only)",
@@ -1004,6 +1079,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get the audit log for an event",
@@ -1034,6 +1112,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Subscribe device to notifications",
@@ -1064,6 +1145,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Unsubscribe device from notifications",
@@ -1094,6 +1178,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "List muted event chat notification preferences",
@@ -1126,6 +1213,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Mute chat notifications for an event",
@@ -1156,6 +1246,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Unmute chat notifications for an event",
@@ -1188,6 +1281,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Generate a magic-link invite for a guest without an account",
@@ -1364,6 +1460,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get all custom user groups for current user",
@@ -1392,6 +1491,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Create a new custom user group",
@@ -1424,6 +1526,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Get a user group by ID",
@@ -1464,6 +1569,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Update a user group",
@@ -1494,6 +1602,9 @@
         "security": [
           {
             "bearer": []
+          },
+          {
+            "api-token": []
           }
         ],
         "summary": "Delete a user group",
@@ -1501,11 +1612,159 @@
           "user-groups"
         ]
       }
+    },
+    "/api-tokens": {
+      "get": {
+        "description": "Requires a session token. API tokens cannot list or manage API tokens.",
+        "operationId": "ApiTokensController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return API token metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiTokenResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List the API tokens of the authenticated user",
+        "tags": [
+          "api-tokens"
+        ]
+      },
+      "post": {
+        "description": "The full token is returned only in this response. Store it somewhere safe.",
+        "operationId": "ApiTokensController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiTokenResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid scope or token limit reached"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an API token",
+        "tags": [
+          "api-tokens"
+        ]
+      }
+    },
+    "/api-tokens/{id}/rotate": {
+      "post": {
+        "description": "Invalidates the old value immediately and returns the new token once.",
+        "operationId": "ApiTokensController_rotate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token rotated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiTokenResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API token not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rotate an API token",
+        "tags": [
+          "api-tokens"
+        ]
+      }
+    },
+    "/api-tokens/{id}": {
+      "delete": {
+        "operationId": "ApiTokensController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token deleted"
+          },
+          "404": {
+            "description": "API token not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an API token",
+        "tags": [
+          "api-tokens"
+        ]
+      }
     }
   },
   "info": {
     "title": "Legacy Calendar API",
-    "description": "The legacy calendar server API description",
+    "description": "The Legacy Calendar server API.\n\nMost endpoints accept either a normal session token (`Authorization: Bearer <jwt>`) or a personal\nAPI token (`X-API-Token: legacy-calendar-…`). API tokens are created from the profile page and\ncarry a `read` or `write` scope. Read-only tokens may only perform `GET`/`HEAD`/`OPTIONS` requests\nand `POST /auth/profile`. Token management under `/api-tokens` always requires a session token.",
     "version": "1.0",
     "contact": {}
   },
@@ -1517,6 +1776,12 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "type": "http"
+      },
+      "api-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Token",
+        "description": "Personal API token generated from the profile page"
       }
     },
     "schemas": {
@@ -2616,6 +2881,145 @@
             }
           }
         }
+      },
+      "ApiTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7,
+            "description": "Token id"
+          },
+          "name": {
+            "type": "string",
+            "example": "Home Assistant",
+            "description": "Human readable label"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "example": "read",
+            "description": "Capability of the token"
+          },
+          "tokenHint": {
+            "type": "string",
+            "example": "legacy-calendar-01a1…1289",
+            "description": "Non-secret hint that identifies the token in lists"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the token was created"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Last time the token authenticated a request"
+          },
+          "rotatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Last time the token was rotated"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "tokenHint",
+          "createdAt",
+          "lastUsedAt",
+          "rotatedAt"
+        ]
+      },
+      "CreateApiTokenDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Home Assistant",
+            "description": "Human readable label used to recognise the integration",
+            "maxLength": 60
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "example": "read",
+            "description": "read allows GET requests only, write allows every request the user can make"
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "CreatedApiTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 7,
+            "description": "Token id"
+          },
+          "name": {
+            "type": "string",
+            "example": "Home Assistant",
+            "description": "Human readable label"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "example": "read",
+            "description": "Capability of the token"
+          },
+          "tokenHint": {
+            "type": "string",
+            "example": "legacy-calendar-01a1…1289",
+            "description": "Non-secret hint that identifies the token in lists"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the token was created"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Last time the token authenticated a request"
+          },
+          "rotatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Last time the token was rotated"
+          },
+          "token": {
+            "type": "string",
+            "example": "legacy-calendar-01a15968-64aa-707d-8904-a6a408611289",
+            "description": "The full token. Only returned once, at creation or rotation time."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "tokenHint",
+          "createdAt",
+          "lastUsedAt",
+          "rotatedAt",
+          "token"
+        ]
       }
     }
   }

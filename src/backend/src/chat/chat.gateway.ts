@@ -10,17 +10,19 @@ import {
 } from '@nestjs/websockets';
 import { Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { ChatMediaType } from '../../prisma/generated/client.js';
+import { ApiTokenScope, ChatMediaType } from '../../prisma/generated/client.js';
 import { ChatService } from './chat.service.js';
 import { HttpException } from '@nestjs/common';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuthIdentityService } from '../auth/auth-identity.service.js';
+import { ApiTokensService } from '../api-tokens/api-tokens.service.js';
 import { isOriginAllowed } from '../config/cors.js';
 
 type SocketUser = {
     userId: number;
     username: string;
     isAdmin: boolean;
+    tokenScope?: ApiTokenScope;
 };
 
 @WebSocketGateway({
@@ -38,7 +40,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
-        @Inject(AuthIdentityService) private readonly identityService: AuthIdentityService
+        @Inject(AuthIdentityService) private readonly identityService: AuthIdentityService,
+        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService
     ) {}
 
     afterInit(server: Server) {
@@ -102,7 +105,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { eventId: number; text?: string; mediaUrl?: string; mediaType?: ChatMediaType }
     ) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const eventId = this.parseEventId(data.eventId);
         if (eventId === null) {
             client.emit('error', { code: 400, message: 'Invalid eventId' });
@@ -156,7 +160,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { messageId: number; emoji: string }
     ) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const messageId = this.parseEventId(data.messageId);
         const emoji = typeof data.emoji === 'string' ? data.emoji.trim() : '';
 
@@ -194,7 +199,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('pinMessage')
     async handlePinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const messageId = this.parseEventId(messageIdInput);
         if (messageId === null) {
             client.emit('error', { code: 400, message: 'Invalid messageId' });
@@ -212,7 +218,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('unpinMessage')
     async handleUnpinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const messageId = this.parseEventId(messageIdInput);
         if (messageId === null) {
             client.emit('error', { code: 400, message: 'Invalid messageId' });
@@ -230,7 +237,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('deleteMessage')
     async handleDeleteMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const messageId = this.parseEventId(messageIdInput);
         if (messageId === null) {
             client.emit('error', { code: 400, message: 'Invalid messageId' });
@@ -251,7 +259,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { messageId: number; text: string }
     ) {
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         const messageId = this.parseEventId(data.messageId);
         const text = typeof data.text === 'string' ? data.text.trim() : '';
 
@@ -288,7 +297,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         }
 
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         client.to(`chat:${eventId}`).emit('userTyping', {
             userId: user.userId,
             username: user.username
@@ -302,7 +312,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         }
 
-        const user = this.requireSocketUser(client);
+        const user = this.requireWritableSocketUser(client);
+        if (!user) return;
         client.to(`chat:${eventId}`).emit('userStoppedTyping', {
             userId: user.userId,
             username: user.username
@@ -311,6 +322,32 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     private async authenticateSocket(socket: Socket, next: (err?: Error) => void) {
         try {
+            const apiToken = this.extractHandshakeApiToken(socket);
+            if (apiToken) {
+                const identity = await this.apiTokensService.authenticate(apiToken);
+                if (!identity) {
+                    next(this.buildHandshakeError(401, 'Unauthorized'));
+                    return;
+                }
+
+                const tokenUser: SocketUser = {
+                    userId: identity.userId,
+                    username: identity.username,
+                    isAdmin: identity.isAdmin,
+                    tokenScope: identity.scope
+                };
+
+                (socket.data as { user?: SocketUser }).user = tokenUser;
+                this.logger.debug('Socket authenticated with API token', {
+                    socketId: socket.id,
+                    userId: tokenUser.userId,
+                    username: tokenUser.username,
+                    scope: identity.scope
+                });
+                next();
+                return;
+            }
+
             const token = this.extractHandshakeToken(socket);
             if (!token) {
                 next(this.buildHandshakeError(401, 'Unauthorized'));
@@ -357,6 +394,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         return rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken.trim();
     }
 
+    private extractHandshakeApiToken(socket: Socket): string | null {
+        const auth = socket.handshake.auth as { apiToken?: string; token?: string } | undefined;
+        const headerToken = socket.handshake.headers['x-api-token'];
+        const candidates = [auth?.apiToken, Array.isArray(headerToken) ? headerToken[0] : headerToken, auth?.token];
+
+        for (const candidate of candidates) {
+            if (typeof candidate === 'string' && candidate.trim().startsWith('legacy-calendar-')) {
+                return candidate.trim();
+            }
+        }
+
+        return null;
+    }
+
     private buildHandshakeError(code: number, message: string): Error {
         const error = new Error(message);
         (error as Error & { data?: { code: number } }).data = { code };
@@ -396,6 +447,24 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const user = this.getSocketUser(client);
         if (!user) {
             throw new Error('Socket is not authenticated');
+        }
+
+        return user;
+    }
+
+    private requireWritableSocketUser(client: Socket): SocketUser | null {
+        const user = this.getSocketUser(client);
+        if (!user) {
+            client.emit('error', { code: 401, message: 'Unauthorized' });
+            return null;
+        }
+
+        if (user.tokenScope === ApiTokenScope.read) {
+            client.emit('error', {
+                code: 403,
+                message: 'This API token is read-only and cannot perform write operations'
+            });
+            return null;
         }
 
         return user;

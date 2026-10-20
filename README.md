@@ -148,6 +148,8 @@ Event detail views support richer coordination with map previews, location conte
 
 The backend uses JWT-based authentication, route guards, role checks, and impersonation headers for admin workflows. The frontend mirrors this with route metadata and navigation guards.
 
+Users can also create personal API tokens for long-lived programmatic access. Tokens use an `X-API-Token` header, carry either `read` or `write` scope, and are managed from the profile view. Only a SHA-256 hash is stored, and the plaintext value is shown once when the token is created or rotated.
+
 ## Getting Started
 
 This repository is organized as two separate applications under `src/`, so install and run them from the relevant subdirectory.
@@ -231,6 +233,7 @@ npm run dev
 - `npm run migrate` - run Prisma migrations in development
 - `npm run lint` - lint backend TypeScript
 - `npm run format` - format backend TypeScript
+- `npm test` - run the backend integration test suite against in-process PGlite
 
 ### Frontend
 
@@ -249,14 +252,45 @@ npm run dev
 
 ## API Documentation
 
+Interactive Swagger documentation is available at `http://localhost:3000/api`, and the frontend includes a human-readable API reference at `/docs`.
+
 The backend exposes Swagger documentation and tags for:
 
 - authentication
 - users
 - events
+- invites
 - notifications
+- user groups
+- API tokens
 
 That documentation is generated from the NestJS controllers and DTOs, so it stays close to the actual request and response shapes.
+
+### Authentication
+
+Session requests use the JWT returned by the login endpoints:
+
+```http
+Authorization: Bearer <session-token>
+```
+
+Programmatic clients can instead send a personal API token:
+
+```http
+X-API-Token: legacy-calendar-01a15968-64aa-707d-8904-a6a408611289
+```
+
+API tokens behave like a session token, except they do not rotate periodically. Each token has exactly one scope:
+
+- `read` - allows `GET`, `HEAD`, and `OPTIONS` requests, plus `POST /auth/profile`
+- `write` - allows every request the owning user is authorized to make
+
+`GET /api-tokens`, `POST /api-tokens`, `POST /api-tokens/:id/rotate`, and `DELETE /api-tokens/:id` require a real session token; API tokens are rejected there so a leaked token cannot mint or escalate credentials. Tokens are listed with metadata only, capped at 25 per user, and keep a `lastUsedAt` timestamp. Creating or rotating a token returns the plaintext value exactly once, so store it immediately.
+
+### Socket.IO
+
+The chat gateway accepts API tokens during the handshake through `auth.apiToken`, the `X-API-Token` header, or `auth.token` when the value starts with `legacy-calendar-`. Read-only tokens may join rooms and receive events but cannot send chat mutations.
+
 
 ## Notes On Notifications
 

@@ -2,12 +2,13 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import type { Express } from 'express';
 import { AppLogger } from './logging/app-logger.js';
 import { Logger as PinoNestLogger } from 'nestjs-pino';
 import { isOriginAllowed } from './config/cors.js';
+import { addApiTokenSecurity, createSwaggerConfig } from './config/swagger.js';
 
 async function bootstrap() {
     const logger = new AppLogger('Bootstrap');
@@ -21,7 +22,7 @@ async function bootstrap() {
         },
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
-        allowedHeaders: 'Content-Type, Accept, Authorization, X-Impersonate, X-Request-Id'
+        allowedHeaders: 'Content-Type, Accept, Authorization, X-Impersonate, X-Request-Id, X-API-Token'
     });
 
     // Response Compression with Gzip, Deflate and Brotli support
@@ -42,13 +43,8 @@ async function bootstrap() {
     // API docs are useful in development but should not be publicly exposed in production.
     const exposeSwagger = process.env.NODE_ENV !== 'production';
     if (exposeSwagger) {
-        const config = new DocumentBuilder()
-            .setTitle('Legacy Calendar API')
-            .setDescription('The legacy calendar server API description')
-            .setVersion('1.0')
-            .addBearerAuth()
-            .build();
-        const document = SwaggerModule.createDocument(app, config);
+        const config = createSwaggerConfig();
+        const document = addApiTokenSecurity(SwaggerModule.createDocument(app, config));
         SwaggerModule.setup('api', app, document);
     }
 
