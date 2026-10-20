@@ -3,10 +3,10 @@ import { computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import UserAvatar from '../../UserAvatar.vue';
 import BankLogo from '../../BankLogo.vue';
-import type { Event, EventFeature, EventPersonSummary } from '../../../types/Event';
-import { FEATURES } from '../../../constants/features';
+import PaymentLinkRow from './PaymentLinkRow.vue';
+import type { Event, EventPersonSummary } from '../../../types/Event';
+import { FEATURE_BY_ID } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
-import { formatDisplayUrl, toAbsoluteUrl } from '../../../utils/url';
 import { formatIban, getItalianBankName, normalizeIban } from '../../../utils/iban';
 import { injectEventView } from '../../../composables/useEventView';
 
@@ -45,14 +45,6 @@ const copyIban = (iban: string) => {
 const ibanLabel = (host: EventPersonSummary) =>
     [getItalianBankName(host.ibanNumber) ?? 'IBAN', host.ibanAccountHolder].filter(Boolean).join(' · ');
 
-const featureMap = computed(
-    () =>
-        Object.fromEntries(FEATURES.map((feature) => [feature.id, feature])) as Record<
-            EventFeature,
-            (typeof FEATURES)[0]
-        >
-);
-
 const myFeatures = computed(() => (currentUser.value ? getParticipantFeatures(currentUser.value.id) : []));
 const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
 </script>
@@ -79,11 +71,11 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                 <span
                     class="bg-surface-900 font-emoji flex size-9 shrink-0 items-center justify-center rounded-xl text-lg"
                 >
-                    {{ featureMap[featureId]?.icon }}
+                    {{ FEATURE_BY_ID[featureId]?.icon }}
                 </span>
                 <div class="min-w-0 flex-1">
                     <p class="text-body text-fg m-0 flex items-center gap-2 font-medium">
-                        {{ featureMap[featureId]?.label }}
+                        {{ FEATURE_BY_ID[featureId]?.label }}
                         <i
                             v-if="isGoing && myFeatures.includes(featureId)"
                             class="pi pi-check text-[0.625rem] text-emerald-300"
@@ -134,40 +126,13 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                     />
                     <span class="text-body text-fg font-medium">{{ host.username }}</span>
                 </div>
-                <a
-                    v-if="host.paypalLink"
-                    :href="toAbsoluteUrl(host.paypalLink)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3 no-underline transition-colors"
-                >
-                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <i class="pi pi-paypal text-sm"></i>
-                    </span>
-                    <span class="min-w-0 flex-1">
-                        <span class="text-body block font-medium">PayPal</span>
-                        <span class="text-meta text-muted block truncate">{{ formatDisplayUrl(host.paypalLink) }}</span>
-                    </span>
-                    <i class="pi pi-external-link text-subtle text-xs"></i>
-                </a>
-                <a
+                <PaymentLinkRow v-if="host.paypalLink" icon="pi pi-paypal" label="PayPal" :href="host.paypalLink" />
+                <PaymentLinkRow
                     v-if="host.revolutLink"
-                    :href="toAbsoluteUrl(host.revolutLink)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3 no-underline transition-colors"
-                >
-                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <i class="pi pi-money-bill text-sm"></i>
-                    </span>
-                    <span class="min-w-0 flex-1">
-                        <span class="text-body block font-medium">Revolut</span>
-                        <span class="text-meta text-muted block truncate">{{
-                            formatDisplayUrl(host.revolutLink)
-                        }}</span>
-                    </span>
-                    <i class="pi pi-external-link text-subtle text-xs"></i>
-                </a>
+                    icon="pi pi-money-bill"
+                    label="Revolut"
+                    :href="host.revolutLink"
+                />
                 <div v-if="host.ibanNumber" class="flex items-center gap-3.5 px-4 py-3">
                     <BankLogo
                         :iban="host.ibanNumber"

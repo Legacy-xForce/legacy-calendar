@@ -14,6 +14,7 @@ import { hasSplitVehicleSeats } from './vehicle-seats.util.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
 import { normalizeIdList } from '../common/id.util.js';
+import { attendanceId } from '../common/participant-id.util.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
 import { assertEventNotEnded } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
@@ -713,9 +714,7 @@ export class EventsService {
     }
 
     private getParticipant(event: EventWithRelations, userId: number) {
-        return event.participants.find(
-            (participant) => (participant.userId ?? -participant.guestParticipant!.id) === userId
-        );
+        return event.participants.find((participant) => attendanceId(participant) === userId);
     }
 
     private getRideAssignment(

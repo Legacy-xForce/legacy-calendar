@@ -6,6 +6,7 @@ import { EventsRepository, type EventWithRelations } from '../events/events.repo
 import { isEventManager, isEventParticipant } from '../events/event-access.util.js';
 import { UsersRepository, type UserRecord } from '../users/users.repository.js';
 import { buildProfilePictureUrl } from '../users/profile-picture.util.js';
+import { attendanceId, guestId, guestParticipantIdOf } from '../common/participant-id.util.js';
 
 export type AuditLogPayload = {
     before: Record<string, unknown>;
@@ -72,7 +73,7 @@ export class AuditLogService {
 
         const referencedUsers = await this.usersRepo.findManyByIds([...referencedUserIds]);
         const userMap = new Map(referencedUsers.map((user) => [user.id, user]));
-        const guestIds = [...referencedUserIds].filter((id) => id < 0).map((id) => -id);
+        const guestIds = [...referencedUserIds].filter((id) => id < 0).map(guestParticipantIdOf);
         const guestParticipants = await this.auditLogRepo.findGuestParticipantsByIds(guestIds);
         const guestMap = new Map<number, { id: number; displayName: string }>(
             guestParticipants.map((guest) => [guest.id, guest] as const)
@@ -287,7 +288,7 @@ export class AuditLogService {
                     profilePictureUrl: buildProfilePictureUrl(user.authId)
                 };
             } else if (id < 0) {
-                const guest = guestMap.get(-id);
+                const guest = guestMap.get(guestParticipantIdOf(id));
                 if (guest) {
                     resolvedUsers[id] = { id, username: guest.displayName, profilePictureUrl: null };
                 }
@@ -297,7 +298,7 @@ export class AuditLogService {
         return {
             id: entry.id,
             eventId: entry.eventId,
-            actorId: entry.actorId ?? -(entry.actorGuestParticipantId ?? 0),
+            actorId: entry.actorId ?? guestId(entry.actorGuestParticipantId ?? 0),
             actorUsername: entry.actor?.username ?? entry.actorName ?? 'Guest',
             actorProfilePictureUrl: entry.actor ? buildProfilePictureUrl(entry.actor.authId) : null,
             impersonatorId: entry.impersonatorId,
@@ -367,12 +368,8 @@ export class AuditLogService {
         hasPaid?: boolean;
     }): Record<string, unknown> {
         const snapshot: Record<string, unknown> = {
-            ...(participant.userId !== null
-                ? { userId: participant.userId }
-                : {
-                      userId: -(participant.guestParticipantId ?? 0),
-                      username: participant.guestParticipant?.displayName
-                  }),
+            userId: attendanceId(participant),
+            ...(participant.userId === null ? { username: participant.guestParticipant?.displayName } : {}),
             status: participant.status,
             joinedAt: participant.createdAt.toISOString()
         };

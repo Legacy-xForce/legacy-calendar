@@ -39,3 +39,9 @@ export const FEATURES: FeatureConfig[] = [
         color: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 ring-purple-500'
     }
 ];
+
+/** Lookup by feature id, for templates that render a feature from its id. */
+export const FEATURE_BY_ID = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature])) as Record<
+    EventFeature,
+    FeatureConfig
+>;

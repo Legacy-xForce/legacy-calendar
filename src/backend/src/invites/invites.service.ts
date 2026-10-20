@@ -12,6 +12,7 @@ import { AppLogger } from '../logging/app-logger.js';
 import { InvitesRepository, type GuestInviteWithRelations } from './invites.repository.js';
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
 import { generateGuestToken, hashGuestToken } from './guest-token.util.js';
+import { guestId } from '../common/participant-id.util.js';
 
 const FALLBACK_INVITE_LIFETIME_DAYS = 30;
 
@@ -41,7 +42,7 @@ export class InvitesService {
 
         await this.auditLogService.recordParticipantInvited(
             eventId,
-            { id: -guestParticipant.id, username: guestParticipant.displayName },
+            { id: guestId(guestParticipant.id), username: guestParticipant.displayName },
             {
                 actorId: hostUserId,
                 impersonatorId
@@ -52,7 +53,7 @@ export class InvitesService {
 
         return {
             token,
-            guestUserId: -guestParticipant.id,
+            guestUserId: guestId(guestParticipant.id),
             expiresAt
         };
     }
@@ -147,7 +148,7 @@ export class InvitesService {
 
         return {
             event: mapEventToDto(event),
-            guestUserId: -guestInvite.guestParticipantId,
+            guestUserId: guestId(guestInvite.guestParticipantId),
             isDeadlinePassed,
             canEdit: !isDeadlinePassed && !(event.endTime && new Date() > event.endTime)
         };

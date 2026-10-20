@@ -206,7 +206,7 @@ export function useEventChat(
         try {
             logger.debug('Loading pinned chat messages', { eventId: id });
             const response = await api.getPinnedChatMessages(id);
-            pinnedMessages.value = dedupeMessages(response.data.map(normalizeMessage)).sort(sortMessagesAsc);
+            pinnedMessages.value = applyMessages(pinnedMessages.value, response.data.map(normalizeMessage));
         } catch (error: any) {
             connectionError.value = error?.response?.data?.message || 'Failed to load pinned messages';
             logger.warn('Failed to load pinned messages', {
@@ -229,8 +229,7 @@ export function useEventChat(
         try {
             logger.debug('Loading more chat history', { eventId: id, cursor: nextCursor.value });
             const response = await api.getChatHistory(id, nextCursor.value, PAGE_SIZE);
-            const nextPage = response.data.messages.map(normalizeMessage).sort(sortMessagesAsc);
-            messages.value = dedupeMessages([...nextPage, ...messages.value]).sort(sortMessagesAsc);
+            messages.value = applyMessages(messages.value, response.data.messages.map(normalizeMessage));
             nextCursor.value = response.data.nextCursor;
             hasMore.value = response.data.nextCursor !== null;
         } finally {
@@ -315,19 +314,18 @@ export function useEventChat(
     };
 
     const applyHistory = (history: ChatHistoryResponse) => {
-        const normalized = history.messages.map(normalizeMessage).sort(sortMessagesAsc);
-        messages.value = dedupeMessages([...messages.value, ...normalized]).sort(sortMessagesAsc);
+        messages.value = applyMessages(messages.value, history.messages.map(normalizeMessage));
         nextCursor.value = history.nextCursor;
         hasMore.value = history.nextCursor !== null;
     };
 
     const upsertMessage = (message: ChatMessage) => {
-        messages.value = dedupeMessages([...messages.value, message]).sort(sortMessagesAsc);
+        messages.value = applyMessages(messages.value, message);
     };
 
     const upsertPinnedMessage = (message: ChatMessage) => {
         if (!message.isPinned) return;
-        pinnedMessages.value = dedupeMessages([...pinnedMessages.value, message]).sort(sortMessagesAsc);
+        pinnedMessages.value = applyMessages(pinnedMessages.value, message);
     };
 
     const updateMessage = (messageId: number, patch: Partial<ChatMessage>) => {
@@ -350,7 +348,7 @@ export function useEventChat(
 
         const existing = messages.value.find((message) => message.id === messageId);
         if (existing && !pinnedMessages.value.some((message) => message.id === messageId)) {
-            pinnedMessages.value = dedupeMessages([...pinnedMessages.value, existing]).sort(sortMessagesAsc);
+            pinnedMessages.value = applyMessages(pinnedMessages.value, existing);
         }
     };
 
@@ -439,4 +437,14 @@ function dedupeMessages(messages: ChatMessage[]) {
         byId.set(message.id, message);
     }
     return [...byId.values()];
+}
+
+/** Merge incoming messages into a list, replacing duplicates by id and sorting by time. */
+function applyMessages(
+    target: ChatMessage[],
+    incoming: ChatMessage | ChatMessage[],
+    options: { sort?: boolean } = {}
+): ChatMessage[] {
+    const merged = dedupeMessages([...target, ...(Array.isArray(incoming) ? incoming : [incoming])]);
+    return options.sort === false ? merged : merged.sort(sortMessagesAsc);
 }

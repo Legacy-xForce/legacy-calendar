@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import type { Event, EventFeature } from '../../../types/Event';
+import type { Event } from '../../../types/Event';
 import UserAvatar from '../../UserAvatar.vue';
-import { FEATURES } from '../../../constants/features';
+import { FEATURE_BY_ID } from '../../../constants/features';
 import { injectEventView } from '../../../composables/useEventView';
 import api from '../../../services/API';
 import { totalEventBudget } from '../../../utils/event';
@@ -59,14 +59,6 @@ const invited = computed(() => resolvedInvitees.value.filter((i) => i.status ===
 const declined = computed(() => resolvedInvitees.value.filter((i) => i.status === 'DECLINED').sort(byName));
 
 const hostIds = computed(() => new Set(allEventHosts.value.map((host) => host.id)));
-const featureIcon = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature.icon])) as Record<
-    EventFeature,
-    string
->;
-const featureLabel = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature.label])) as Record<
-    EventFeature,
-    string
->;
 
 const optedFeatures = (userId: number) =>
     getParticipantFeatures(userId).filter((feature) => availableFeatureIds.value.includes(feature));
@@ -110,9 +102,9 @@ const summary = computed(() => {
                             <span
                                 v-for="feature in optedFeatures(person.id)"
                                 :key="feature"
-                                :title="featureLabel[feature]"
-                                :aria-label="featureLabel[feature]"
-                                >{{ featureIcon[feature] }}</span
+                                :title="FEATURE_BY_ID[feature].label"
+                                :aria-label="FEATURE_BY_ID[feature].label"
+                                >{{ FEATURE_BY_ID[feature].icon }}</span
                             >
                         </span>
                         <span v-if="hasPaymentDue && amountDue(person) > 0">{{

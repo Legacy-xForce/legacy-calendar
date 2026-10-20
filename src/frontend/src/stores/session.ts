@@ -5,53 +5,16 @@ import api from '../services/API';
 import type { AuthLoginDto } from '../types/Auth';
 import type { User } from '../types/User';
 import { createLogger } from '../services/logger';
+import {
+    accountIssueFromError,
+    accountIssueFromToken,
+    assertAccountUsable,
+    redirectToAccountNotice
+} from '../utils/account';
 
 import { getPasskeyAssertion, createPasskeyCredential } from '../services/webauthn';
 
 const logger = createLogger('SessionStore');
-
-export function parseJwtPayload(token: string): any {
-    try {
-        const parts = token.split('.');
-        if (parts.length < 2) return null;
-        let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        base64 += '='.repeat((4 - (base64.length % 4)) % 4);
-        const json = decodeURIComponent(
-            window
-                .atob(base64)
-                .split('')
-                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-        );
-        return JSON.parse(json);
-    } catch {
-        return null;
-    }
-}
-
-export function hasCalendarScope(token: string): boolean {
-    const payload = parseJwtPayload(token);
-    if (!payload) return true;
-    if (payload.scope === undefined && payload.scopes === undefined) return true;
-
-    if (payload.scopes && typeof payload.scopes === 'object' && !Array.isArray(payload.scopes)) {
-        return payload.scopes.calendar === true || payload.scopes['*'] === true || payload.scopes.all === true;
-    }
-
-    const scopes: string[] = Array.isArray(payload.scopes)
-        ? payload.scopes
-        : typeof payload.scope === 'string'
-          ? payload.scope.split(' ').filter(Boolean)
-          : [];
-
-    if (scopes.length === 0) return false;
-    return scopes.includes('calendar') || scopes.includes('*') || scopes.includes('all');
-}
-
-export function isAccountDisabled(token: string): boolean {
-    const payload = parseJwtPayload(token);
-    return payload?.disabled === true || payload?.status === 'disabled' || payload?.accountStatus === 'disabled';
-}
 
 export const useSessionStore = defineStore('session', () => {
     const session = ref<Session>({} as Session);
@@ -65,6 +28,19 @@ export const useSessionStore = defineStore('session', () => {
         localStorage.setItem('token', session.value.token);
     }
 
+    /** Persist the tokens and load the profile that all logged-in flows need. */
+    async function establishSession(token: string, refreshToken?: string) {
+        const nextRefreshToken = refreshToken || token;
+        localStorage.setItem('token', token);
+        localStorage.setItem('refresh_token', nextRefreshToken);
+        session.value.token = token;
+        session.value.refreshToken = nextRefreshToken;
+
+        const profileResponse = await api.getProfile();
+        session.value.user = profileResponse.data;
+        return profileResponse.data;
+    }
+
     async function login(credentials: AuthLoginDto) {
         loading.value = true;
         error.value = null;
@@ -74,46 +50,20 @@ export const useSessionStore = defineStore('session', () => {
             const token = loginResponse.data.access_token;
             const refreshToken = loginResponse.data.refresh_token;
 
-            if (isAccountDisabled(token)) {
-                logger.warn('Login blocked: account disabled');
-                window.location.href = '/disabled';
+            if (!assertAccountUsable(token)) {
+                logger.warn('Login blocked: account not usable');
                 return false;
             }
 
-            if (!hasCalendarScope(token)) {
-                logger.warn('Token missing calendar scope');
-                window.location.href = '/insufficient-scope';
-                return false;
-            }
-
-            // Store tokens
-            localStorage.setItem('token', token);
-            localStorage.setItem('refresh_token', refreshToken);
-            session.value.token = token;
-            session.value.refreshToken = refreshToken;
-
-            // Fetch user profile
-            const profileResponse = await api.getProfile();
-            session.value.user = profileResponse.data;
-            logger.info('Login completed', {
-                userId: profileResponse.data.id,
-                username: profileResponse.data.username
-            });
+            const user = await establishSession(token, refreshToken);
+            logger.info('Login completed', { userId: user.id, username: user.username });
 
             return true;
         } catch (err: any) {
-            const errData = err.response?.data;
-            const errMsg = String(errData?.message || errData?.error || '').toLowerCase();
-
-            if (err.response?.status === 403 || errMsg.includes('disabled') || errData?.status === 'disabled') {
-                logger.warn('Login blocked: account disabled');
-                window.location.href = '/disabled';
-                return false;
-            }
-
-            if (errMsg.includes('scope') || errData?.error === 'insufficient_scope') {
-                logger.warn('Login blocked: insufficient scope');
-                window.location.href = '/insufficient-scope';
+            const issue = accountIssueFromError(err);
+            if (issue) {
+                logger.warn(`Login blocked: ${issue}`);
+                redirectToAccountNotice(issue);
                 return false;
             }
 
@@ -145,7 +95,7 @@ export const useSessionStore = defineStore('session', () => {
             session.value.token = token;
             // The router guard sends protected routes to /disabled. Navigating from here as well
             // would reload /disabled itself on every mount.
-            if (isAccountDisabled(token)) {
+            if (accountIssueFromToken(token)) {
                 return false;
             }
             const response = await api.getProfile();
@@ -220,30 +170,22 @@ export const useSessionStore = defineStore('session', () => {
             const token = verifyRes.data.access_token;
             const refreshToken = verifyRes.data.refresh_token || token;
 
-            if (isAccountDisabled(token)) {
-                window.location.href = '/disabled';
+            if (!assertAccountUsable(token)) {
+                logger.warn('Passkey login blocked: account not usable');
                 return false;
             }
 
-            if (!hasCalendarScope(token)) {
-                logger.warn('Token missing calendar scope');
-                window.location.href = '/insufficient-scope';
-                return false;
-            }
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('refresh_token', refreshToken);
-            session.value.token = token;
-            session.value.refreshToken = refreshToken;
-
-            const profileResponse = await api.getProfile();
-            session.value.user = profileResponse.data;
-            logger.info('Passkey login completed', {
-                userId: profileResponse.data.id,
-                username: profileResponse.data.username
-            });
+            const user = await establishSession(token, refreshToken);
+            logger.info('Passkey login completed', { userId: user.id, username: user.username });
             return true;
         } catch (err: any) {
+            const issue = accountIssueFromError(err);
+            if (issue) {
+                logger.warn(`Passkey login blocked: ${issue}`);
+                redirectToAccountNotice(issue);
+                return false;
+            }
+
             error.value = err.response?.data?.message || err.message || 'Passkey login failed';
             logger.warn('Passkey login failed', err);
             return false;

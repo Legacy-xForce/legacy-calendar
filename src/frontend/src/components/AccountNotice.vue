@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import UserAvatar from './UserAvatar.vue';
-import { parseJwtPayload, useSessionStore } from '../stores/session';
+import { parseJwtPayload } from '../utils/jwt';
+import { useSessionStore } from '../stores/session';
 
 defineProps<{
     icon: string;

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { accountIssueFromToken, accountIssueRoute } from '../utils/account';
 
 // Lazy load views
 const Calendar = () => import('../views/Calendar.vue');
@@ -81,31 +82,21 @@ router.beforeEach(async (to: any, from: any) => {
     router.previousRoute = from;
     const token = localStorage.getItem('token');
     const isAuthenticated = !!token;
+    const accountIssue = accountIssueFromToken(token);
 
     // Redirect to login if route requires auth and user is not authenticated
     if (to.meta.requiresAuth && !isAuthenticated) {
         return { name: 'login' };
     }
 
-    if (to.meta.requiresAuth && isAuthenticated && token) {
-        const { hasCalendarScope, isAccountDisabled } = await import('../stores/session');
-        if (isAccountDisabled(token)) {
-            return { name: 'disabled-account' };
-        }
-        if (!hasCalendarScope(token)) {
-            return { name: 'insufficient-scope' };
-        }
+    // Disabled accounts and tokens without the calendar scope go to their notice page,
+    // whether they are entering the app or trying to visit the login page again.
+    if ((to.meta.requiresAuth || to.meta.requiresGuest) && accountIssue) {
+        return { name: accountIssueRoute(accountIssue) };
     }
 
     // Redirect to calendar if user is already authenticated and tries to access login
     if (to.meta.requiresGuest && isAuthenticated) {
-        const { hasCalendarScope, isAccountDisabled } = await import('../stores/session');
-        if (token && isAccountDisabled(token)) {
-            return { name: 'disabled-account' };
-        }
-        if (token && !hasCalendarScope(token)) {
-            return { name: 'insufficient-scope' };
-        }
         return { name: 'calendar' };
     }
 

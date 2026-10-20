@@ -119,7 +119,8 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
         return `${chat.connected.value ? 'Connected' : 'Connecting'} · ${chat.messages.value.length} messages`;
     });
 
-    const sortedPinnedMessages = computed(() => [...chat.pinnedMessages.value].sort(sortByDateAsc));
+    // pinnedMessages is kept de-duplicated and sorted by useEventChat.
+    const sortedPinnedMessages = computed(() => chat.pinnedMessages.value);
 
     const timelineRows = computed(() => {
         const rows: Array<{ type: 'divider'; label: string } | { type: 'message'; message: ChatMessage }> = [];
@@ -517,8 +518,4 @@ export function injectEventChatDialogState() {
 function getDateLabel(value: string | Date) {
     const date = typeof value === 'string' ? parseISO(value) : value;
     return dayLabel(date, { long: true });
-}
-
-function sortByDateAsc<T extends { createdAt: string | Date }>(a: T, b: T) {
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }

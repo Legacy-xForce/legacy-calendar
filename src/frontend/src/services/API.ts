@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { createLogger } from './logger';
+import { accountIssueFromError, redirectToAccountNotice } from '../utils/account';
 
 export const baseURL = import.meta.env.VITE_API_URL;
 export const uploadsBaseURL = import.meta.env.VITE_UPLOADS_URL || baseURL;
@@ -105,21 +106,8 @@ class API {
                 }
 
                 if (error.response && error.response.status === 403) {
-                    const data = error.response.data;
-                    const msg = String(data?.message || data?.error || '').toLowerCase();
-                    if (msg.includes('disabled') || data?.status === 'disabled') {
-                        if (!window.location.pathname.startsWith('/disabled')) {
-                            window.location.href = '/disabled';
-                        }
-                    } else if (
-                        msg.includes('scope') ||
-                        msg.includes('permission') ||
-                        data?.error === 'insufficient_scope'
-                    ) {
-                        if (!window.location.pathname.startsWith('/insufficient-scope')) {
-                            window.location.href = '/insufficient-scope';
-                        }
-                    }
+                    const issue = accountIssueFromError(error);
+                    if (issue) redirectToAccountNotice(issue);
                 }
 
                 if (error.response && error.response.status === 401) {
