@@ -1,26 +1,18 @@
-export interface CreateEventDto {
-    title: string;
-    color?: string;
-    description?: string;
-    location?: string;
-    startTime: string;
-    endTime?: string;
-    participants?: number[];
-    coHosts?: number[];
+import type { components } from './api.generated';
+
+type ApiSchemas = components['schemas'];
+type ApiUser = ApiSchemas['UserDto'];
+type ApiParticipant = ApiSchemas['EventParticipantDto'];
+type ApiEvent = ApiSchemas['EventResponseDto'];
+type ApiCreateEvent = ApiSchemas['CreateEventDto'];
+
+// Generated from the backend's OpenAPI document (`bun run generate:api`).
+// A few nullable API fields are normalised to the optional shapes the UI uses.
+export type CreateEventDto = Omit<ApiCreateEvent, 'isOpen' | 'isPrivate'> & {
     isOpen: boolean;
     isPrivate: boolean;
-    hasFood?: boolean;
-    hasWeed?: boolean;
-    hasSleep?: boolean;
-    hasAlcohol?: boolean;
-    hasBeer?: boolean;
-    foodPrice?: number;
-    weedPrice?: number;
-    sleepPrice?: number;
-    alcoholPrice?: number;
-    beerPrice?: number;
-    participationDeadline?: string;
-}
+};
+export type ParticipateDto = ApiSchemas['ParticipateDto'];
 
 export const EVENT_FEATURES = ['FOOD', 'WEED', 'ALCOHOL', 'SLEEP', 'BEER'] as const;
 export type EventFeature = (typeof EVENT_FEATURES)[number];
@@ -42,72 +34,40 @@ export interface FeatureSelectionResult {
     };
 }
 
-export interface EventPersonSummary {
-    id: number;
-    username: string;
-    profilePictureUrl?: string | null;
-    // Only populated for event hosts/co-hosts, never for participants at large.
-    paypalLink?: string | null;
-    ibanNumber?: string | null;
-    ibanAccountHolder?: string | null;
-    revolutLink?: string | null;
-}
+export type EventPersonSummary = Pick<ApiUser, 'id' | 'username'> &
+    Partial<Pick<ApiUser, 'profilePictureUrl' | 'paypalLink' | 'ibanNumber' | 'ibanAccountHolder' | 'revolutLink'>>;
 
-export interface EventParticipant extends EventPersonSummary {
-    status: ParticipantStatus | string;
-    wantsFood?: boolean;
-    wantsWeed?: boolean;
-    wantsSleep?: boolean;
-    wantsAlcohol?: boolean;
-    wantsBeer?: boolean;
-    transportMode?: TransportMode;
-    vehicleSeats?: number;
-    vehicleSeatsOutbound?: number;
-    vehicleSeatsReturn?: number;
-    hasPaid?: boolean;
-    driverId?: number;
-    driver?: EventPersonSummary;
-    driverIdOutbound?: number;
-    driverOutbound?: EventPersonSummary;
-    driverIdReturn?: number;
-    driverReturn?: EventPersonSummary;
-}
+export type EventParticipant = EventPersonSummary &
+    Omit<ApiParticipant, keyof EventPersonSummary | 'driver' | 'driverReturn'> & {
+        driver?: EventPersonSummary;
+        driverReturn?: EventPersonSummary;
+    };
 
-export interface Event {
-    id: number;
-    title: string;
+export type Event = Omit<
+    ApiEvent,
+    | 'color'
+    | 'description'
+    | 'location'
+    | 'participationDeadline'
+    | 'foodPrice'
+    | 'weedPrice'
+    | 'sleepPrice'
+    | 'alcoholPrice'
+    | 'beerPrice'
+    | 'host'
+    | 'coHosts'
+    | 'participants'
+> & {
     color?: string;
     description?: string;
     location?: string;
-    startTime: string;
-    endTime?: string;
-    hostId?: number;
-    host?: EventPersonSummary;
-    coHosts?: EventPersonSummary[];
-    participants?: EventParticipant[];
-    isOpen: boolean;
-    isPrivate: boolean;
-    hasFood?: boolean;
-    hasWeed?: boolean;
-    hasSleep?: boolean;
-    hasAlcohol?: boolean;
-    hasBeer?: boolean;
+    participationDeadline?: string;
     foodPrice?: number;
     weedPrice?: number;
     sleepPrice?: number;
     alcoholPrice?: number;
     beerPrice?: number;
-    participationDeadline?: string;
-}
-
-export interface ParticipateDto {
-    wantsFood?: boolean;
-    wantsWeed?: boolean;
-    wantsSleep?: boolean;
-    wantsAlcohol?: boolean;
-    wantsBeer?: boolean;
-    transportMode?: TransportMode;
-    vehicleSeats?: number;
-    vehicleSeatsOutbound?: number;
-    vehicleSeatsReturn?: number;
-}
+    host?: EventPersonSummary;
+    coHosts?: EventPersonSummary[];
+    participants?: EventParticipant[];
+};

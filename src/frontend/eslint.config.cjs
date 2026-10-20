@@ -6,7 +6,7 @@ const prettierConfig = require("eslint-plugin-prettier/recommended");
 
 module.exports = tseslint.config(
     {
-        ignores: ["dist", "node_modules", "*.config.js", "*.config.cjs", ".agents"]
+        ignores: ["dist", "node_modules", "*.config.js", "*.config.cjs", ".agents", "src/types/api.generated.ts"]
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,

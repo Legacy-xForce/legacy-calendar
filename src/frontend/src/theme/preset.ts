@@ -1,5 +1,5 @@
 import { definePreset } from '@primeuix/themes';
-import Aura from '@primeuix/themes/aura';
+import Aura from '@primeuix/themes/aura-compat';
 
 /*
  * The palette lives in style.css (`--color-*` custom properties), so PrimeVue

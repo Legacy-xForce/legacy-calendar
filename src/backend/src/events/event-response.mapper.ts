@@ -58,8 +58,6 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             hasPaid: attendance.hasPaid,
             driverId: outboundAssignment?.driverId,
             driver: outboundAssignment ? mapPerson(outboundAssignment.driverId) : undefined,
-            driverIdOutbound: outboundAssignment?.driverId,
-            driverOutbound: outboundAssignment ? mapPerson(outboundAssignment.driverId) : undefined,
             driverIdReturn: returnAssignment?.driverId,
             driverReturn: returnAssignment ? mapPerson(returnAssignment.driverId) : undefined
         };
@@ -67,6 +65,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
 
     return {
         id: event.id,
+        hostId: event.hostId,
         title: event.title,
         color: event.color,
         description: event.description,

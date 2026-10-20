@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import MultiSelect from 'primevue/multiselect';
+import Select from 'primevue/select';
 import UserAvatar from './UserAvatar.vue';
 
 /**
@@ -21,23 +21,25 @@ const props = withDefaults(
 );
 
 const usersById = computed(() => new Map(props.options.map((user) => [user.id, user])));
+const remove = (id: number) => {
+    model.value = model.value.filter((selectedId) => selectedId !== id);
+};
 
 // Matches the avatar row height; only needed when the caller asks for virtualization.
 const virtualScrollerOptions = computed(() => (props.virtualScroll ? { itemSize: 44 } : undefined));
 </script>
 
 <template>
-    <MultiSelect
+    <Select
         v-model="model"
         :inputId="inputId"
         :options="options"
         optionLabel="username"
         optionValue="id"
         :placeholder="placeholder"
-        display="chip"
+        multiple
         :filter="filter"
         filterPlaceholder="Search"
-        :showToggleAll="false"
         :virtualScrollerOptions="virtualScrollerOptions"
         fluid
     >
@@ -51,15 +53,30 @@ const virtualScrollerOptions = computed(() => (props.virtualScroll ? { itemSize:
                 <span>{{ slotProps.option.username }}</span>
             </div>
         </template>
-        <template #chip="slotProps">
-            <span class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5">
-                <UserAvatar
-                    :profilePictureUrl="usersById.get(slotProps.value)?.profilePictureUrl"
-                    :username="usersById.get(slotProps.value)?.username"
-                    class="size-5! text-[0.5625rem]!"
-                />
-                {{ usersById.get(slotProps.value)?.username }}
-            </span>
+        <template #value="slotProps">
+            <div v-if="slotProps.value?.length" class="flex flex-wrap gap-1">
+                <span
+                    v-for="id in slotProps.value"
+                    :key="id"
+                    class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-1.5 pl-0.5"
+                >
+                    <UserAvatar
+                        :profilePictureUrl="usersById.get(id)?.profilePictureUrl"
+                        :username="usersById.get(id)?.username"
+                        class="size-5! text-[0.5625rem]!"
+                    />
+                    {{ usersById.get(id)?.username }}
+                    <button
+                        type="button"
+                        class="hover:bg-surface-700 flex size-4 items-center justify-center rounded-full"
+                        :aria-label="`Remove ${usersById.get(id)?.username ?? 'person'}`"
+                        @click.stop="remove(id)"
+                    >
+                        <i class="pi pi-times text-[0.5rem]" aria-hidden="true"></i>
+                    </button>
+                </span>
+            </div>
+            <span v-else class="text-muted">{{ placeholder }}</span>
         </template>
-    </MultiSelect>
+    </Select>
 </template>
