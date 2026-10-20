@@ -1,4 +1,11 @@
-import { Injectable, Inject, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+    Injectable,
+    Inject,
+    BadRequestException,
+    ConflictException,
+    UnauthorizedException,
+    NotFoundException
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from '../../users/users.service.js';
@@ -131,12 +138,22 @@ export class PasskeyService {
         const publicKey = dto.response.publicKey;
         const deviceName = dto.deviceName?.trim() || 'Biometric Passkey';
 
+        // Credential ids are not secret (login options list them by username),
+        // so registering an existing id must never move it to another account.
+        const existing = await this.prisma.passkeyCredential.findUnique({ where: { id: dto.id } });
+        if (existing && existing.userId !== userId) {
+            this.logger.warn('Passkey registration rejected: credential id belongs to another user', {
+                userId,
+                credentialId: dto.id
+            });
+            throw new ConflictException('Passkey is already registered to another account');
+        }
+
         const credential = await this.prisma.passkeyCredential.upsert({
             where: { id: dto.id },
             update: {
                 publicKey,
-                deviceName,
-                userId
+                deviceName
             },
             create: {
                 id: dto.id,

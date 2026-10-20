@@ -9,6 +9,7 @@ import {
     PasskeyLoginVerifyDto
 } from './dto/passkey.dto.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
+import { SessionAuthGuard } from '../guards/session-auth.guard.js';
 import { type RequestWithUser } from '../interfaces/request-with-user.interface.js';
 
 @ApiTags('passkey')
@@ -17,8 +18,10 @@ import { type RequestWithUser } from '../interfaces/request-with-user.interface.
 export class PasskeyController {
     constructor(@Inject(PasskeyService) private readonly passkeyService: PasskeyService) {}
 
+    // A passkey is a way to sign in, so an API token must not be able to add
+    // one: it would turn a revocable integration token into a full session.
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(SessionAuthGuard)
     @Post('register-options')
     @Throttle({ default: { limit: 20, ttl: 60_000 } })
     @ApiOperation({ summary: 'Generate WebAuthn registration options for current user' })
@@ -27,7 +30,7 @@ export class PasskeyController {
     }
 
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(SessionAuthGuard)
     @Post('register-verify')
     @Throttle({ default: { limit: 20, ttl: 60_000 } })
     @ApiOperation({ summary: 'Verify WebAuthn registration and store credential' })
@@ -58,7 +61,7 @@ export class PasskeyController {
     }
 
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(SessionAuthGuard)
     @Delete('credentials/:id')
     @ApiOperation({ summary: 'Delete a registered passkey' })
     deleteCredential(@Param('id') id: string, @Request() req: RequestWithUser) {

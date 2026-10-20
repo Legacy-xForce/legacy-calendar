@@ -4,11 +4,30 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { PGlite } from '@electric-sql/pglite';
 import { PrismaPGlite } from 'pglite-prisma-adapter';
 import jwt, { type SignOptions } from 'jsonwebtoken';
+import { generateKeyPairSync } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrismaClient as PrismaClientType } from '../prisma/generated/client.js';
 
 export const TEST_JWT_SECRET = 'test-only-jwt-secret-do-not-use-anywhere-else';
+export const TEST_AUTH_ISSUER = 'https://auth.test.invalid';
+
+// Stand-in for Legacy Auth's signing key; its public half is served as the
+// JWKS the app verifies ES256 tokens against.
+const authKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const AUTH_KEY_ID = 'test-auth-key';
+
+// One server for the whole run: ConfigModule keeps the env it first saw, so
+// every app in this process verifies against the first AUTH_JWKS_URI.
+const jwksServer = Bun.serve({
+    port: 0,
+    hostname: '127.0.0.1',
+    fetch: () =>
+        Response.json({
+            keys: [{ ...authKeys.publicKey.export({ format: 'jwk' }), kid: AUTH_KEY_ID, alg: 'ES256', use: 'sig' }]
+        })
+});
+jwksServer.unref();
 
 export type TestApp = {
     app: INestApplication;
@@ -53,6 +72,8 @@ export async function startTestApp(): Promise<TestApp> {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
     process.env.FRONTEND_URL = 'http://localhost:5173';
     process.env.AUTH_HOST = 'http://127.0.0.1:1';
+    process.env.AUTH_ISSUER = TEST_AUTH_ISSUER;
+    process.env.AUTH_JWKS_URI = new URL('/.well-known/jwks.json', jwksServer.url).toString();
     // ConfigModule only validates that the key exists; the adapter ignores it.
     process.env.DATABASE_URL = 'postgresql://pglite:test@127.0.0.1:5432/pglite';
 
@@ -156,7 +177,7 @@ export async function http<T = any>(
     };
 }
 
-/** Create a local user by presenting an externally-signed HS256 session JWT. */
+/** Create a local user by presenting a Legacy Auth access token. */
 export async function createUser(app: TestApp, label: string, options: { admin?: boolean } = {}): Promise<TestUser> {
     const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     const username = `${label}${suffix}`.slice(0, 30);
@@ -187,11 +208,30 @@ export async function createUser(app: TestApp, label: string, options: { admin?:
     };
 }
 
-export function signSessionToken(authId: string, username: string, expiresIn: SignOptions['expiresIn'] = '1h'): string {
-    return jwt.sign({ sub: authId, username }, TEST_JWT_SECRET, {
-        algorithm: 'HS256',
-        expiresIn
-    });
+/**
+ * An access token as Legacy Auth issues it for a user with the calendar scope.
+ * `claims` overrides or adds payload claims (e.g. another `aud` or `scopes`).
+ */
+export function signSessionToken(
+    authId: string,
+    username: string,
+    expiresIn: SignOptions['expiresIn'] = '1h',
+    claims: Record<string, unknown> = {}
+): string {
+    return jwt.sign(
+        {
+            sub: authId,
+            username,
+            role: 'user',
+            scopes: { calendar: true, tracker: false },
+            type: 'access',
+            iss: TEST_AUTH_ISSUER,
+            aud: ['calendar'],
+            ...claims
+        },
+        authKeys.privateKey,
+        { algorithm: 'ES256', keyid: AUTH_KEY_ID, expiresIn }
+    );
 }
 
 export async function createApiToken(
