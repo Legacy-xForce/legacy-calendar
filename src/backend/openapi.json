@@ -1,0 +1,2622 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/auth/profile": {
+      "post": {
+        "operationId": "AuthController_getProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return user profile"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user profile",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change user password (proxied to auth service)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/passkey/register-options": {
+      "post": {
+        "operationId": "PasskeyController_generateRegisterOptions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegisterOptionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate WebAuthn registration options for current user",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkey/register-verify": {
+      "post": {
+        "operationId": "PasskeyController_verifyRegister",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegisterVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verify WebAuthn registration and store credential",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkey/login-options": {
+      "post": {
+        "operationId": "PasskeyController_generateLoginOptions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginOptionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Generate WebAuthn login assertion options",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkey/login-verify": {
+      "post": {
+        "operationId": "PasskeyController_verifyLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Verify WebAuthn assertion and issue authentication token",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkey/credentials": {
+      "get": {
+        "operationId": "PasskeyController_listCredentials",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List registered passkeys for current user",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkey/credentials/{id}": {
+      "delete": {
+        "operationId": "PasskeyController_deleteCredential",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a registered passkey",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "UsersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "409": {
+            "description": "Username already taken"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new user (Admin only)",
+        "tags": [
+          "users"
+        ]
+      },
+      "get": {
+        "operationId": "UsersController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return all users"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all users",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UsersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return user"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a user by ID",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a user (Admin only)",
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a user (Admin only)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/payment-info": {
+      "patch": {
+        "operationId": "UsersController_updatePaymentInfo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment info updated"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update the authenticated user own payment coordinates (PayPal, IBAN, Revolut)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/events": {
+      "post": {
+        "operationId": "EventsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Event created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new event",
+        "tags": [
+          "events"
+        ]
+      },
+      "get": {
+        "operationId": "EventsController_findAll",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "description": "Start of the visible calendar range, inclusive",
+            "schema": {
+              "example": "2026-04-01T00:00:00.000Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "description": "End of the visible calendar range, inclusive",
+            "schema": {
+              "example": "2026-05-03T23:59:59.999Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return events in the requested calendar range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get events for a visible calendar range",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/upcoming": {
+      "get": {
+        "operationId": "EventsController_findUpcoming",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return upcoming events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get upcoming events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "operationId": "EventsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get an event by ID",
+        "tags": [
+          "events"
+        ]
+      },
+      "delete": {
+        "operationId": "EventsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event deleted"
+          },
+          "403": {
+            "description": "Forbidden - Only host can delete"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an event",
+        "tags": [
+          "events"
+        ]
+      },
+      "patch": {
+        "operationId": "EventsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Only host can update"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/invite": {
+      "post": {
+        "operationId": "EventsController_invite",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User invited"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Invite a user to an event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/join": {
+      "post": {
+        "operationId": "EventsController_join",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Joined event successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Join an event",
+        "tags": [
+          "events"
+        ]
+      },
+      "delete": {
+        "operationId": "EventsController_leave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Left event successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Event or participation not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Leave an event / Cancel participation",
+        "tags": [
+          "events"
+        ]
+      },
+      "patch": {
+        "operationId": "EventsController_editParticipation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Participation updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit participation details",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/assign-ride": {
+      "post": {
+        "operationId": "EventsController_assignRide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRideDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ride assigned successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign a ride to a passenger",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/rides": {
+      "patch": {
+        "operationId": "EventsController_assignRides",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRidesBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rides assigned successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign several passengers to a ride in one request",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/participants/{userId}/payment": {
+      "patch": {
+        "operationId": "EventsController_updatePaymentStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Event or participant not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update payment status for a participant (host/co-host only)",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/audit-log": {
+      "get": {
+        "operationId": "AuditLogController_getAuditLog",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return event audit log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the audit log for an event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/notifications/subscribe": {
+      "post": {
+        "operationId": "NotificationsController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscribed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Subscribe device to notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/unsubscribe": {
+      "post": {
+        "operationId": "NotificationsController_unsubscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Unsubscribed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unsubscribe device from notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/mute": {
+      "get": {
+        "operationId": "NotificationsController_listMutedEvents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Muted event IDs returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List muted event chat notification preferences",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/mute/{eventId}": {
+      "post": {
+        "operationId": "NotificationsController_mute",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mute already existed"
+          },
+          "201": {
+            "description": "Mute created"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mute chat notifications for an event",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationsController_unmute",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mute removed"
+          },
+          "404": {
+            "description": "Mute not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unmute chat notifications for an event",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/events/{id}/guest-invites": {
+      "post": {
+        "operationId": "EventGuestInvitesController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Guest invite created"
+          },
+          "403": {
+            "description": "Forbidden - Only the host can create guest invites"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate a magic-link invite for a guest without an account",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/guest-invites/{token}": {
+      "get": {
+        "operationId": "GuestInvitesController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return event and guest participation"
+          },
+          "404": {
+            "description": "Invite not found"
+          }
+        },
+        "summary": "Get event details and the current guest participation via a magic link",
+        "tags": [
+          "invites"
+        ]
+      },
+      "patch": {
+        "operationId": "GuestInvitesController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestParticipateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Participation updated"
+          },
+          "403": {
+            "description": "Forbidden - deadline passed or event ended"
+          }
+        },
+        "summary": "Set the guest username and/or update participation preferences",
+        "tags": [
+          "invites"
+        ]
+      },
+      "delete": {
+        "operationId": "GuestInvitesController_leave",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Left event successfully"
+          }
+        },
+        "summary": "Leave the event as a guest",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/uploads/{path}": {
+      "get": {
+        "operationId": "UploadsController_getUpload",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/chat/{eventId}/messages": {
+      "get": {
+        "operationId": "ChatController_getHistory",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/{eventId}/pinned": {
+      "get": {
+        "operationId": "ChatController_getPinned",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/chat/{eventId}/upload": {
+      "post": {
+        "operationId": "ChatController_uploadFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/user-groups": {
+      "get": {
+        "operationId": "UserGroupsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Return user groups"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all custom user groups for current user",
+        "tags": [
+          "user-groups"
+        ]
+      },
+      "post": {
+        "operationId": "UserGroupsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User group created successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new custom user group",
+        "tags": [
+          "user-groups"
+        ]
+      }
+    },
+    "/user-groups/{id}": {
+      "get": {
+        "operationId": "UserGroupsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return user group"
+          },
+          "404": {
+            "description": "User group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a user group by ID",
+        "tags": [
+          "user-groups"
+        ]
+      },
+      "patch": {
+        "operationId": "UserGroupsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User group updated successfully"
+          },
+          "404": {
+            "description": "User group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a user group",
+        "tags": [
+          "user-groups"
+        ]
+      },
+      "delete": {
+        "operationId": "UserGroupsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User group deleted successfully"
+          },
+          "404": {
+            "description": "User group not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a user group",
+        "tags": [
+          "user-groups"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Legacy Calendar API",
+    "description": "The legacy calendar server API description",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "example": "currentPassword123",
+            "description": "The current password of the user"
+          },
+          "newPassword": {
+            "type": "string",
+            "example": "newPassword123",
+            "description": "The new password for the user",
+            "minLength": 2
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
+      "PasskeyRegisterOptionsDto": {
+        "type": "object",
+        "properties": {
+          "deviceName": {
+            "type": "string",
+            "example": "My MacBook Touch ID",
+            "description": "Friendly name for the passkey"
+          }
+        }
+      },
+      "PasskeyRegisterVerifyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Credential ID"
+          },
+          "rawId": {
+            "type": "string",
+            "description": "Raw credential ID"
+          },
+          "response": {
+            "type": "object",
+            "description": "Registration response payload"
+          },
+          "deviceName": {
+            "type": "string",
+            "description": "Friendly name for the passkey"
+          }
+        },
+        "required": [
+          "id",
+          "rawId",
+          "response"
+        ]
+      },
+      "PasskeyLoginOptionsDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "alice",
+            "description": "Username if known, or empty for discoverable passkey"
+          }
+        }
+      },
+      "PasskeyLoginVerifyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Credential ID"
+          },
+          "rawId": {
+            "type": "string",
+            "description": "Raw credential ID"
+          },
+          "response": {
+            "type": "object",
+            "description": "Authentication response payload"
+          }
+        },
+        "required": [
+          "id",
+          "rawId",
+          "response"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "user123",
+            "description": "The username of the user (3-30 chars, alphanumeric)"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the user is an admin",
+            "default": false
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "UpdatePaymentInfoDto": {
+        "type": "object",
+        "properties": {
+          "paypalLink": {
+            "type": "string",
+            "example": "https://paypal.me/johndoe",
+            "description": "PayPal link for receiving payments (empty string clears it)"
+          },
+          "ibanNumber": {
+            "type": "string",
+            "example": "IT60X0542811101000000123456",
+            "description": "IBAN for bank transfers (empty string clears it)"
+          },
+          "ibanAccountHolder": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "Account holder name for bank transfers (empty string clears it)"
+          },
+          "revolutLink": {
+            "type": "string",
+            "example": "https://revolut.me/johndoe",
+            "description": "Revolut link/username for receiving payments (empty string clears it)"
+          }
+        }
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "user123",
+            "description": "The username of the user (3-30 chars, alphanumeric)"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the user is an admin",
+            "default": false
+          }
+        }
+      },
+      "CreateEventDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Team Standup",
+            "description": "Title of the event"
+          },
+          "color": {
+            "type": "string",
+            "example": "#ffffff",
+            "description": "Color of the event"
+          },
+          "description": {
+            "type": "string",
+            "example": "Weekly sync with the team",
+            "description": "Description"
+          },
+          "location": {
+            "type": "string",
+            "example": "Meeting Room A",
+            "description": "Location of the event"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2026-02-04T10:00:00Z",
+            "description": "Start time (ISO 8601). Must be today or within 1 year from now."
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2026-02-04T11:00:00Z",
+            "description": "End time (ISO 8601). Must be today or within 1 year from now."
+          },
+          "participants": {
+            "example": [
+              1,
+              2
+            ],
+            "description": "List of participant user IDs",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "coHosts": {
+            "example": [
+              3
+            ],
+            "description": "List of co-host user IDs (they can edit the event like the host)",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "participationDeadline": {
+            "type": "string",
+            "example": "2026-02-04T09:00:00Z",
+            "description": "Deadline for participation (ISO 8601)."
+          },
+          "isOpen": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event can be joined spontaneously"
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the event is private (visible only to invitees)"
+          },
+          "hasFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has food"
+          },
+          "hasWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has weed"
+          },
+          "hasSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has sleep"
+          },
+          "hasAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has alcohol"
+          },
+          "hasBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has beer"
+          },
+          "foodPrice": {
+            "type": "number",
+            "example": 10.5,
+            "description": "Food budget"
+          },
+          "weedPrice": {
+            "type": "number",
+            "example": 50,
+            "description": "Weed budget"
+          },
+          "sleepPrice": {
+            "type": "number",
+            "example": 20,
+            "description": "Sleep/Accommodation budget"
+          },
+          "alcoholPrice": {
+            "type": "number",
+            "example": 30,
+            "description": "Alcohol budget"
+          },
+          "beerPrice": {
+            "type": "number",
+            "example": 15,
+            "description": "Beer budget"
+          }
+        },
+        "required": [
+          "title",
+          "startTime"
+        ]
+      },
+      "EventHostDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "The user ID"
+          },
+          "username": {
+            "type": "string",
+            "example": "user123",
+            "description": "The username"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the user is an admin"
+          },
+          "profilePictureUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://auth.legacy-group.tech/auth/profile-picture/4a41d722-9bc3-407b-b3b1-e15d22b05463",
+            "description": "URL of the user profile picture, served by the auth microservice"
+          },
+          "isGuest": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether this is a temporary guest account created via a magic-link invite"
+          },
+          "paypalLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://paypal.me/johndoe",
+            "description": "PayPal link for receiving payments"
+          },
+          "ibanNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "IT60X0542811101000000123456",
+            "description": "IBAN for bank transfers"
+          },
+          "ibanAccountHolder": {
+            "type": "string",
+            "nullable": true,
+            "example": "John Doe",
+            "description": "Account holder name for bank transfers"
+          },
+          "revolutLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://revolut.me/johndoe",
+            "description": "Revolut link/username for receiving payments"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "isAdmin",
+          "profilePictureUrl",
+          "isGuest"
+        ]
+      },
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "The user ID"
+          },
+          "username": {
+            "type": "string",
+            "example": "user123",
+            "description": "The username"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the user is an admin"
+          },
+          "profilePictureUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://auth.legacy-group.tech/auth/profile-picture/4a41d722-9bc3-407b-b3b1-e15d22b05463",
+            "description": "URL of the user profile picture, served by the auth microservice"
+          },
+          "isGuest": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether this is a temporary guest account created via a magic-link invite"
+          },
+          "paypalLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://paypal.me/johndoe",
+            "description": "PayPal link for receiving payments"
+          },
+          "ibanNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "IT60X0542811101000000123456",
+            "description": "IBAN for bank transfers"
+          },
+          "ibanAccountHolder": {
+            "type": "string",
+            "nullable": true,
+            "example": "John Doe",
+            "description": "Account holder name for bank transfers"
+          },
+          "revolutLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://revolut.me/johndoe",
+            "description": "Revolut link/username for receiving payments"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "isAdmin",
+          "profilePictureUrl",
+          "isGuest"
+        ]
+      },
+      "EventParticipantDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "The user ID"
+          },
+          "username": {
+            "type": "string",
+            "example": "user123",
+            "description": "The username"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the user is an admin"
+          },
+          "profilePictureUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://auth.legacy-group.tech/auth/profile-picture/4a41d722-9bc3-407b-b3b1-e15d22b05463",
+            "description": "URL of the user profile picture, served by the auth microservice"
+          },
+          "isGuest": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether this is a temporary guest account created via a magic-link invite"
+          },
+          "paypalLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://paypal.me/johndoe",
+            "description": "PayPal link for receiving payments"
+          },
+          "ibanNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "IT60X0542811101000000123456",
+            "description": "IBAN for bank transfers"
+          },
+          "ibanAccountHolder": {
+            "type": "string",
+            "nullable": true,
+            "example": "John Doe",
+            "description": "Account holder name for bank transfers"
+          },
+          "revolutLink": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://revolut.me/johndoe",
+            "description": "Revolut link/username for receiving payments"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "DECLINED"
+            ],
+            "example": "PENDING",
+            "description": "Status of the invitation"
+          },
+          "wantsFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "User wants food"
+          },
+          "wantsWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "User wants weed"
+          },
+          "wantsSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "User wants sleep"
+          },
+          "wantsAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "User wants alcohol"
+          },
+          "wantsBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "User wants beer"
+          },
+          "transportMode": {
+            "type": "string",
+            "enum": [
+              "NEEDS_RIDE",
+              "SELF",
+              "DRIVER"
+            ],
+            "example": "NEEDS_RIDE",
+            "description": "Transport mode"
+          },
+          "vehicleSeats": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of available seats"
+          },
+          "vehicleSeatsOutbound": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of available outbound seats"
+          },
+          "vehicleSeatsReturn": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of available return seats"
+          },
+          "hasPaid": {
+            "type": "boolean",
+            "example": false,
+            "description": "Payment status tracked by host/co-host"
+          },
+          "driverId": {
+            "type": "number",
+            "example": 1,
+            "description": "Outbound driver ID"
+          },
+          "driverIdReturn": {
+            "type": "number",
+            "example": 1,
+            "description": "Return driver ID"
+          },
+          "driver": {
+            "description": "Outbound driver details",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserDto"
+              }
+            ]
+          },
+          "driverReturn": {
+            "description": "Return driver details",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "isAdmin",
+          "profilePictureUrl",
+          "isGuest",
+          "status",
+          "wantsFood",
+          "wantsWeed",
+          "wantsSleep",
+          "wantsAlcohol",
+          "wantsBeer",
+          "transportMode",
+          "vehicleSeats",
+          "vehicleSeatsOutbound",
+          "vehicleSeatsReturn",
+          "hasPaid"
+        ]
+      },
+      "EventResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "Event ID"
+          },
+          "hostId": {
+            "type": "number",
+            "example": 1,
+            "description": "Host user ID"
+          },
+          "title": {
+            "type": "string",
+            "example": "Team Standup",
+            "description": "Title of the event"
+          },
+          "color": {
+            "type": "string",
+            "example": "#ffffff",
+            "description": "Color of the event",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "example": "Weekly sync with the team",
+            "description": "Description",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "example": "Meeting Room A",
+            "description": "Location",
+            "nullable": true
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-04T10:00:00Z",
+            "description": "Start time"
+          },
+          "endTime": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-04T11:00:00Z",
+            "description": "End time"
+          },
+          "participationDeadline": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-02-04T09:00:00Z",
+            "description": "Deadline for participation",
+            "nullable": true
+          },
+          "host": {
+            "description": "Host of the event",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventHostDto"
+              }
+            ]
+          },
+          "coHosts": {
+            "description": "Co-hosts of the event (can edit it like the host)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventHostDto"
+            }
+          },
+          "participants": {
+            "description": "List of participants",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventParticipantDto"
+            }
+          },
+          "isOpen": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event is open for spontaneous joining"
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the event is private"
+          },
+          "hasFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "Event has food"
+          },
+          "hasWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Event has weed"
+          },
+          "hasSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "Event has sleep"
+          },
+          "hasAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "Event has alcohol"
+          },
+          "hasBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "Event has beer"
+          },
+          "foodPrice": {
+            "type": "number",
+            "example": 10.5,
+            "description": "Food budget",
+            "nullable": true
+          },
+          "weedPrice": {
+            "type": "number",
+            "example": 50,
+            "description": "Weed budget",
+            "nullable": true
+          },
+          "sleepPrice": {
+            "type": "number",
+            "example": 20,
+            "description": "Sleep/Accommodation budget",
+            "nullable": true
+          },
+          "alcoholPrice": {
+            "type": "number",
+            "example": 30,
+            "description": "Alcohol budget",
+            "nullable": true
+          },
+          "beerPrice": {
+            "type": "number",
+            "example": 15,
+            "description": "Beer budget",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "hostId",
+          "title",
+          "startTime",
+          "host",
+          "coHosts",
+          "participants",
+          "isOpen",
+          "isPrivate",
+          "hasFood",
+          "hasWeed",
+          "hasSleep",
+          "hasAlcohol",
+          "hasBeer"
+        ]
+      },
+      "UpdateEventDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Team Standup",
+            "description": "Title of the event"
+          },
+          "color": {
+            "type": "string",
+            "example": "#ffffff",
+            "description": "Color of the event"
+          },
+          "description": {
+            "type": "string",
+            "example": "Weekly sync with the team",
+            "description": "Description"
+          },
+          "location": {
+            "type": "string",
+            "example": "Meeting Room A",
+            "description": "Location of the event"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2026-02-04T10:00:00Z",
+            "description": "Start time (ISO 8601). Must be today or within 1 year from now."
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2026-02-04T11:00:00Z",
+            "description": "End time (ISO 8601). Must be today or within 1 year from now."
+          },
+          "participants": {
+            "example": [
+              1,
+              2
+            ],
+            "description": "List of participant user IDs",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "coHosts": {
+            "example": [
+              3
+            ],
+            "description": "List of co-host user IDs (they can edit the event like the host)",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "participationDeadline": {
+            "type": "string",
+            "example": "2026-02-04T09:00:00Z",
+            "description": "Deadline for participation (ISO 8601)."
+          },
+          "isOpen": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event can be joined spontaneously"
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether the event is private (visible only to invitees)"
+          },
+          "hasFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has food"
+          },
+          "hasWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has weed"
+          },
+          "hasSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has sleep"
+          },
+          "hasAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has alcohol"
+          },
+          "hasBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the event has beer"
+          },
+          "foodPrice": {
+            "type": "number",
+            "example": 10.5,
+            "description": "Food budget"
+          },
+          "weedPrice": {
+            "type": "number",
+            "example": 50,
+            "description": "Weed budget"
+          },
+          "sleepPrice": {
+            "type": "number",
+            "example": 20,
+            "description": "Sleep/Accommodation budget"
+          },
+          "alcoholPrice": {
+            "type": "number",
+            "example": 30,
+            "description": "Alcohol budget"
+          },
+          "beerPrice": {
+            "type": "number",
+            "example": 15,
+            "description": "Beer budget"
+          }
+        }
+      },
+      "InviteUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "johndoe",
+            "description": "Username of the user to invite"
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "ParticipateDto": {
+        "type": "object",
+        "properties": {
+          "wantsFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants food"
+          },
+          "wantsWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants weed"
+          },
+          "wantsSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants sleep"
+          },
+          "wantsAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants alcohol"
+          },
+          "wantsBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants beer"
+          },
+          "transportMode": {
+            "type": "string",
+            "enum": [
+              "NEEDS_RIDE",
+              "SELF",
+              "DRIVER"
+            ],
+            "example": "NEEDS_RIDE",
+            "description": "Transport mode: NEEDS_RIDE, SELF, or DRIVER"
+          },
+          "vehicleSeats": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of total seats (for DRIVER mode)"
+          },
+          "vehicleSeatsOutbound": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of outbound seats (for DRIVER mode)"
+          },
+          "vehicleSeatsReturn": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of return seats (for DRIVER mode)"
+          }
+        }
+      },
+      "AssignRideDto": {
+        "type": "object",
+        "properties": {
+          "passengerId": {
+            "type": "number",
+            "description": "Namespaced participant id: positive for registered users, negative for guest participants (-guestParticipantId)"
+          },
+          "driverId": {
+            "type": "number",
+            "nullable": true,
+            "description": "Driver to assign the passenger to, or null to remove the assignment"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "OUTBOUND",
+              "RETURN"
+            ],
+            "default": "OUTBOUND"
+          }
+        },
+        "required": [
+          "passengerId"
+        ]
+      },
+      "AssignRidesBatchDto": {
+        "type": "object",
+        "properties": {
+          "passengerIds": {
+            "description": "Namespaced participant ids: positive for registered users, negative for guest participants (-guestParticipantId)",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "driverId": {
+            "type": "number",
+            "nullable": true,
+            "description": "Driver to assign all passengers to, or null to remove their assignments"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "OUTBOUND",
+              "RETURN"
+            ],
+            "default": "OUTBOUND"
+          }
+        },
+        "required": [
+          "passengerIds"
+        ]
+      },
+      "UpdatePaymentStatusDto": {
+        "type": "object",
+        "properties": {
+          "hasPaid": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the participant has paid"
+          }
+        },
+        "required": [
+          "hasPaid"
+        ]
+      },
+      "SubscribeNotificationDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "fcm_token_here",
+            "description": "Firebase FCM Token"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "GuestParticipateDto": {
+        "type": "object",
+        "properties": {
+          "wantsFood": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants food"
+          },
+          "wantsWeed": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants weed"
+          },
+          "wantsSleep": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants sleep"
+          },
+          "wantsAlcohol": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants alcohol"
+          },
+          "wantsBeer": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the user wants beer"
+          },
+          "transportMode": {
+            "type": "string",
+            "enum": [
+              "NEEDS_RIDE",
+              "SELF",
+              "DRIVER"
+            ],
+            "example": "NEEDS_RIDE",
+            "description": "Transport mode: NEEDS_RIDE, SELF, or DRIVER"
+          },
+          "vehicleSeats": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of total seats (for DRIVER mode)"
+          },
+          "vehicleSeatsOutbound": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of outbound seats (for DRIVER mode)"
+          },
+          "vehicleSeatsReturn": {
+            "type": "number",
+            "example": 4,
+            "description": "Number of return seats (for DRIVER mode)"
+          },
+          "username": {
+            "type": "string",
+            "example": "jane_doe",
+            "description": "Display name chosen by the guest. Required on first submission."
+          }
+        }
+      },
+      "CreateUserGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Core Friends",
+            "description": "Name of the custom group"
+          },
+          "memberIds": {
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "description": "List of member user IDs in this group",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "memberIds"
+        ]
+      },
+      "UpdateUserGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Core Friends",
+            "description": "Name of the custom group"
+          },
+          "memberIds": {
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "description": "List of member user IDs in this group",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

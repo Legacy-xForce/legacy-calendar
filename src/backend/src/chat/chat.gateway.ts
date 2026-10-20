@@ -9,29 +9,18 @@ import {
     MessageBody
 } from '@nestjs/websockets';
 import { Inject } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as jsonwebtoken from 'jsonwebtoken';
-import * as jwksRsa from 'jwks-rsa';
 import { Server, Socket } from 'socket.io';
 import { ChatMediaType } from '../../prisma/generated/client.js';
 import { ChatService } from './chat.service.js';
 import { HttpException } from '@nestjs/common';
 import { AppLogger } from '../logging/app-logger.js';
-import { UsersService } from '../users/users.service.js';
-import { resolveJwtSecret } from '../auth/jwt-secret.util.js';
+import { AuthIdentityService } from '../auth/auth-identity.service.js';
 import { isOriginAllowed } from '../config/cors.js';
-import { resolveJwksUri } from '../config/jwks.js';
 
 type SocketUser = {
     userId: number;
     username: string;
     isAdmin: boolean;
-};
-
-type JwtPayload = {
-    sub: string;
-    username: string;
-    role?: 'admin' | 'user';
 };
 
 @WebSocketGateway({
@@ -46,19 +35,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     server!: Server;
 
     private readonly logger = new AppLogger(ChatGateway.name);
-    private readonly jwksClient: jwksRsa.JwksClient;
-    private readonly jwtSecret: string;
 
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
-        @Inject(ConfigService) private readonly configService: ConfigService,
-        @Inject(UsersService) private readonly usersService: UsersService
-    ) {
-        this.jwksClient = new jwksRsa.JwksClient({
-            jwksUri: resolveJwksUri(this.configService)
-        });
-        this.jwtSecret = resolveJwtSecret(configService);
-    }
+        @Inject(AuthIdentityService) private readonly identityService: AuthIdentityService
+    ) {}
 
     afterInit(server: Server) {
         server.use((socket, next) => {
@@ -336,28 +317,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return;
             }
 
-            const payload = await this.verifySocketToken(token);
-            if (!payload.username) {
-                next(this.buildHandshakeError(401, 'Unauthorized'));
-                return;
-            }
-
-            const isAdmin = payload.role === 'admin';
-            const localUser = await this.usersService.syncFromAuth({
-                authId: payload.sub,
-                username: payload.username,
-                isAdmin
-            });
-
-            if (!localUser) {
+            const identity = await this.identityService.resolveToken(token);
+            if (!identity) {
                 next(this.buildHandshakeError(401, 'Unauthorized'));
                 return;
             }
 
             const user: SocketUser = {
-                userId: localUser.id,
-                username: localUser.username,
-                isAdmin
+                userId: identity.userId,
+                username: identity.username,
+                isAdmin: identity.isAdmin
             };
 
             (socket.data as { user?: SocketUser }).user = user;
@@ -372,56 +341,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             this.logger.warn('Socket authentication failed', { socketId: socket.id, reason: message });
             next(this.buildHandshakeError(401, 'Unauthorized'));
         }
-    }
-
-    private async verifySocketToken(token: string): Promise<JwtPayload> {
-        const decoded = jsonwebtoken.decode(token, { complete: true }) as {
-            header?: { alg?: string; kid?: string };
-        } | null;
-        const algorithm = decoded?.header?.alg;
-
-        if (algorithm === 'HS256') {
-            const secret = this.jwtSecret;
-            return await new Promise<JwtPayload>((resolve, reject) => {
-                jsonwebtoken.verify(token, secret, { algorithms: ['HS256'] }, (err, payload) => {
-                    if (err) {
-                        reject(err);
-                    } else if (!payload || typeof payload === 'string') {
-                        reject(new Error('Invalid token payload'));
-                    } else {
-                        resolve(payload as JwtPayload);
-                    }
-                });
-            });
-        }
-
-        if (algorithm !== 'ES256') {
-            throw new Error('Unsupported token algorithm');
-        }
-
-        const kid = decoded?.header?.kid;
-        if (!kid) {
-            throw new Error('Missing token key id');
-        }
-
-        const signingKey = await this.jwksClient.getSigningKey(kid);
-        const publicKey = signingKey.getPublicKey();
-
-        return await new Promise<JwtPayload>((resolve, reject) => {
-            jsonwebtoken.verify(token, publicKey, { algorithms: ['ES256'] }, (err, payload) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                if (!payload || typeof payload === 'string') {
-                    reject(new Error('Invalid token payload'));
-                    return;
-                }
-
-                resolve(payload as JwtPayload);
-            });
-        });
     }
 
     private extractHandshakeToken(socket: Socket): string | null {

@@ -3,15 +3,15 @@ import { ref, computed, toRaw, onMounted, watch } from 'vue';
 import { clear } from 'idb-keyval';
 import { useSessionStore } from '../stores/session';
 import Button from 'primevue/button';
-import Password from 'primevue/password';
+import PasswordInput from '../components/PasswordInput.vue';
 import InputText from 'primevue/inputtext';
-import MultiSelect from 'primevue/multiselect';
 import ToggleSwitch from 'primevue/toggleswitch';
 import SelectButton from 'primevue/selectbutton';
 import { storeToRefs } from 'pinia';
 import { usePreferencesStore, type MobileCalendarLayout } from '../stores/preferences';
 import { THEMES } from '../theme/themes';
 import UserAvatar from '../components/UserAvatar.vue';
+import UserMultiSelect from '../components/UserMultiSelect.vue';
 import BankLogo from '../components/BankLogo.vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -138,7 +138,6 @@ const handlePaymentInfoSave = async () => {
 const groupEditor = ref<{ id: number | null; name: string; memberIds: number[] } | null>(null);
 const groupSaving = ref(false);
 const groupMemberOptions = computed(() => users.value.filter((user) => user.id !== currentUser.value?.id));
-const memberById = computed(() => new Map(users.value.map((user) => [user.id, user])));
 
 const startGroupEditor = (group?: UserGroup) => {
     groupEditor.value = { id: group?.id ?? null, name: group?.name ?? '', memberIds: [...(group?.memberIds ?? [])] };
@@ -559,42 +558,13 @@ const handleClearCache = () => {
                             >· {{ groupEditor.memberIds.length }}</span
                         >
                     </label>
-                    <MultiSelect
+                    <UserMultiSelect
                         inputId="group-members"
                         v-model="groupEditor.memberIds"
                         :options="groupMemberOptions"
-                        optionLabel="username"
-                        optionValue="id"
-                        display="chip"
-                        filter
-                        filterPlaceholder="Search"
                         placeholder="Choose friends"
-                        :showToggleAll="false"
-                        fluid
-                    >
-                        <template #option="slotProps">
-                            <div class="flex items-center gap-2.5">
-                                <UserAvatar
-                                    :profilePictureUrl="slotProps.option.profilePictureUrl"
-                                    :username="slotProps.option.username"
-                                    class="size-7! text-[0.6875rem]!"
-                                />
-                                <span>{{ slotProps.option.username }}</span>
-                            </div>
-                        </template>
-                        <template #chip="slotProps">
-                            <span
-                                class="bg-surface-800 text-meta text-fg flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5"
-                            >
-                                <UserAvatar
-                                    :profilePictureUrl="memberById.get(slotProps.value)?.profilePictureUrl"
-                                    :username="memberById.get(slotProps.value)?.username"
-                                    class="size-5! text-[0.5625rem]!"
-                                />
-                                {{ memberById.get(slotProps.value)?.username }}
-                            </span>
-                        </template>
-                    </MultiSelect>
+                        filter
+                    />
                 </div>
                 <div class="flex justify-end gap-2">
                     <Button label="Cancel" severity="secondary" text @click="groupEditor = null" />
@@ -704,37 +674,24 @@ const handleClearCache = () => {
                 >
                     <div class="flex flex-col gap-1.5">
                         <label for="current-password" class="text-meta text-muted font-medium">Current password</label>
-                        <Password
+                        <PasswordInput
                             inputId="current-password"
                             v-model="currentPassword"
-                            toggleMask
-                            :feedback="false"
-                            fluid
-                            :inputProps="{ autocomplete: 'current-password' }"
+                            autocomplete="current-password"
                         />
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label for="new-password" class="text-meta text-muted font-medium">New password</label>
-                        <Password
-                            inputId="new-password"
-                            v-model="newPassword"
-                            toggleMask
-                            :feedback="false"
-                            fluid
-                            :inputProps="{ autocomplete: 'new-password' }"
-                        />
+                        <PasswordInput inputId="new-password" v-model="newPassword" autocomplete="new-password" />
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label for="confirm-password" class="text-meta text-muted font-medium"
                             >Repeat new password</label
                         >
-                        <Password
+                        <PasswordInput
                             inputId="confirm-password"
                             v-model="confirmPassword"
-                            toggleMask
-                            :feedback="false"
-                            fluid
-                            :inputProps="{ autocomplete: 'new-password' }"
+                            autocomplete="new-password"
                         />
                     </div>
                     <small v-if="passwordSubmitted && passwordError" class="text-meta text-rose-300">

@@ -26,7 +26,8 @@ import {
     totalEventBudget,
     openNavigation,
     hasLocalChatAccess,
-    hasLocalAuditLogAccess
+    hasLocalAuditLogAccess,
+    isEventManager
 } from '../utils/event';
 
 // Shared state for drag highlighting (Choice A)
@@ -96,20 +97,21 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     const { users: allUsers } = storeToRefs(usersStore);
 
     const currentUser = options.currentUser ?? computed(() => sessionStore.currentUser);
+    const userById = computed(() => new Map(allUsers.value.map((user) => [user.id, user] as const)));
 
     const eventHost = computed(() => {
         const event = eventRef.value;
         if (!event) return null;
         if (event.host) return event.host;
-        if (event.hostId === undefined || event.hostId === null || allUsers.value.length === 0) return null;
-        return allUsers.value.find((user) => user.id === event.hostId) || null;
+        if (event.hostId === undefined || event.hostId === null) return null;
+        return userById.value.get(event.hostId) ?? null;
     });
 
     const resolvedInvitees = computed(() => {
         if (!eventRef.value?.participants?.length) return [];
 
         return eventRef.value.participants.map((participant) => {
-            const user = allUsers.value.find((u) => u.id === participant.id);
+            const user = userById.value.get(participant.id);
             return {
                 ...participant,
                 username: participant.username || user?.username || `User ${participant.id}`,
@@ -118,15 +120,17 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         });
     });
 
-    const isHost = computed(() => {
-        const user = currentUser.value;
-        if (!user || !eventRef.value) return false;
-        return (
-            eventRef.value.host?.id === user.id ||
-            eventRef.value.hostId === user.id ||
-            (eventRef.value.coHosts?.some((coHost) => coHost.id === user.id) ?? false)
-        );
-    });
+    const acceptedInvitees = computed(() =>
+        resolvedInvitees.value
+            .filter((participant) => participant.status === 'ACCEPTED')
+            .sort((a, b) => a.username.localeCompare(b.username))
+    );
+
+    const inviteeById = computed(
+        () => new Map(resolvedInvitees.value.map((participant) => [participant.id, participant]))
+    );
+
+    const isHost = computed(() => isEventManager(eventRef.value, currentUser.value?.id));
 
     const userParticipantStatus = computed(() => {
         if (!currentUser.value || !eventRef.value?.participants) return null;
@@ -168,53 +172,58 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         createFeatureRecord((feature) => featureSplitPrice(eventRef.value, resolvedInvitees.value, feature))
     );
 
-    const drivers = computed(() => {
-        if (!eventRef.value?.participants) return [];
-        return resolvedInvitees.value
-            .filter((participant) => participant.status === 'ACCEPTED' && participant.transportMode === 'DRIVER')
-            .sort((a, b) => a.username.localeCompare(b.username));
-    });
-
-    const needsRide = computed(() => {
-        if (!eventRef.value?.participants) return [];
-        return resolvedInvitees.value
-            .filter(
-                (participant) =>
-                    participant.status === 'ACCEPTED' &&
-                    participant.transportMode === 'NEEDS_RIDE' &&
-                    !participant.driverId
-            )
-            .sort((a, b) => a.username.localeCompare(b.username));
-    });
+    const drivers = computed(() =>
+        acceptedInvitees.value.filter((participant) => participant.transportMode === 'DRIVER')
+    );
+    const driverById = computed(() => new Map(drivers.value.map((driver) => [driver.id, driver] as const)));
 
     const hasSplitSeats = (driver: EventParticipant) =>
         (driver.vehicleSeatsOutbound || driver.vehicleSeats) !== (driver.vehicleSeatsReturn || driver.vehicleSeats);
 
     const getPassengerDriverId = (participant: EventParticipant, direction: RideDirection) => {
-        const outboundDriverId = participant.driverIdOutbound ?? participant.driverId;
+        const outboundDriverId = participant.driverId;
         if (direction === 'OUTBOUND') return outboundDriverId;
         if (participant.driverIdReturn) return participant.driverIdReturn;
         // Drivers who did not split their trips bring their outbound passengers back too
-        const outboundDriver = drivers.value.find((driver) => driver.id === outboundDriverId);
+        const outboundDriver = outboundDriverId === undefined ? undefined : driverById.value.get(outboundDriverId);
         return outboundDriver && !hasSplitSeats(outboundDriver) ? outboundDriverId : undefined;
     };
 
-    const getNeedsRide = (direction: RideDirection) =>
-        resolvedInvitees.value
-            .filter(
-                (participant) =>
-                    participant.status === 'ACCEPTED' &&
-                    participant.transportMode === 'NEEDS_RIDE' &&
-                    !getPassengerDriverId(participant, direction)
-            )
-            .sort((a, b) => a.username.localeCompare(b.username));
+    const assignedPassengersByDriver = computed(() => {
+        const byDirection: Record<RideDirection, Map<number, EventParticipant[]>> = {
+            OUTBOUND: new Map(),
+            RETURN: new Map()
+        };
 
-    const selfTransport = computed(() => {
-        if (!eventRef.value?.participants) return [];
-        return resolvedInvitees.value
-            .filter((participant) => participant.status === 'ACCEPTED' && participant.transportMode === 'SELF')
-            .sort((a, b) => a.username.localeCompare(b.username));
+        for (const participant of resolvedInvitees.value) {
+            for (const direction of ['OUTBOUND', 'RETURN'] as const) {
+                const driverId = getPassengerDriverId(participant, direction);
+                if (driverId === undefined) continue;
+
+                const passengers = byDirection[direction].get(driverId) ?? [];
+                passengers.push(participant);
+                byDirection[direction].set(driverId, passengers);
+            }
+        }
+
+        return byDirection;
     });
+
+    const needsRide = computed(() =>
+        acceptedInvitees.value.filter(
+            (participant) =>
+                participant.transportMode === 'NEEDS_RIDE' && !getPassengerDriverId(participant, 'OUTBOUND')
+        )
+    );
+
+    const getNeedsRide = (direction: RideDirection) =>
+        acceptedInvitees.value.filter(
+            (participant) => participant.transportMode === 'NEEDS_RIDE' && !getPassengerDriverId(participant, direction)
+        );
+
+    const selfTransport = computed(() =>
+        acceptedInvitees.value.filter((participant) => participant.transportMode === 'SELF')
+    );
 
     const eventTotalBudget = computed(() => totalEventBudget(eventRef.value));
 
@@ -250,9 +259,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     });
 
     const getAssignedPassengers = (driverId: number, direction: RideDirection = 'OUTBOUND') => {
-        return resolvedInvitees.value.filter(
-            (participant) => getPassengerDriverId(participant, direction) === driverId
-        );
+        return assignedPassengersByDriver.value[direction].get(driverId) ?? [];
     };
 
     const getAvailableSeats = (driver: EventParticipant | undefined, direction: RideDirection = 'OUTBOUND') => {
@@ -281,13 +288,13 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
     });
 
     const getParticipantFeatures = (userId: number): EventFeature[] => {
-        return participantFeatures(resolvedInvitees.value.find((participant) => participant.id === userId));
+        return participantFeatures(inviteeById.value.get(userId));
     };
 
     const resolvedCoHosts = computed(() =>
         (eventRef.value?.coHosts ?? []).map((coHost) => {
             if (coHost.username && coHost.profilePictureUrl !== undefined) return coHost;
-            const user = allUsers.value.find((u) => u.id === coHost.id);
+            const user = userById.value.get(coHost.id);
             return {
                 ...coHost,
                 username: coHost.username || user?.username || `User ${coHost.id}`,

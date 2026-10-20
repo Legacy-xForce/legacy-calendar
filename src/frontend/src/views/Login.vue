@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import InputText from 'primevue/inputtext';
-import Password from 'primevue/password';
+import PasswordInput from '../components/PasswordInput.vue';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import { router } from '../router/router';
@@ -89,15 +89,12 @@ const handlePasskeyLogin = async () => {
 
                 <div class="flex flex-col gap-1.5">
                     <label for="password" class="text-meta text-muted font-medium">Password</label>
-                    <Password
+                    <PasswordInput
                         inputId="password"
                         v-model="password"
-                        :feedback="false"
-                        toggleMask
                         :disabled="sessionStore.loading"
                         :invalid="!!errorMessage && !password"
-                        :inputProps="{ autocomplete: 'current-password' }"
-                        fluid
+                        autocomplete="current-password"
                     />
                 </div>
 

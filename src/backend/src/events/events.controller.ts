@@ -22,7 +22,7 @@ import { EventResponseDto } from './dto/event-response.dto.js';
 import { type RequestWithUser } from '../auth/interfaces/request-with-user.interface.js';
 import { FindEventsQueryDto } from './dto/find-events-query.dto.js';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto.js';
-import { AssignRideDto } from './dto/assign-ride.dto.js';
+import { AssignRideDto, AssignRidesBatchDto } from './dto/assign-ride.dto.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
 
 @ApiTags('events')
@@ -181,6 +181,26 @@ export class EventsController {
         return this.eventsService.assignRide(
             id,
             dto.passengerId,
+            dto.driverId ?? null,
+            dto.direction ?? 'OUTBOUND',
+            req.user.userId as number,
+            req.impersonatorUserId ?? null
+        );
+    }
+
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/rides')
+    @ApiOperation({ summary: 'Assign several passengers to a ride in one request' })
+    @ApiResponse({ status: 200, description: 'Rides assigned successfully', type: EventResponseDto })
+    assignRides(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() dto: AssignRidesBatchDto,
+        @Request() req: RequestWithUser
+    ) {
+        return this.eventsService.assignRides(
+            id,
+            dto.passengerIds,
             dto.driverId ?? null,
             dto.direction ?? 'OUTBOUND',
             req.user.userId as number,

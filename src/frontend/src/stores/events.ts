@@ -17,6 +17,7 @@ export const useEventsStore = defineStore('events', () => {
     const activeRange = ref<CalendarVisibleRange | null>(null);
     const rangeCache = ref<Record<string, Event[]>>({});
     const upcomingEvents = ref<Event[]>([]);
+    const upcomingLoaded = ref(false);
     const pendingRequests = ref(0);
 
     // --- Helpers ---
@@ -24,9 +25,67 @@ export const useEventsStore = defineStore('events', () => {
     async function mutateAndRefresh<T>(errorMessage: string, action: () => Promise<T>): Promise<boolean> {
         const result = await runEventsAction(errorMessage, action);
         if (result !== false) {
-            await refreshAllData();
+            await refreshVisibleData();
         }
         return result !== false;
+    }
+
+    /** Refresh only the view that has actually loaded data. */
+    async function refreshVisibleData() {
+        const requests: Promise<unknown>[] = [];
+
+        if (activeRange.value) {
+            requests.push(refreshActiveRange());
+        }
+        if (upcomingLoaded.value) {
+            requests.push(fetchUpcomingEvents());
+        }
+
+        await Promise.all(requests);
+    }
+
+    function isUpcoming(event: Event) {
+        const end = event.endTime
+            ? new Date(event.endTime)
+            : new Date(new Date(event.startTime).getTime() + 60 * 60 * 1000);
+        return end.getTime() >= Date.now();
+    }
+
+    function sortEvents(a: Event, b: Event) {
+        return a.startTime.localeCompare(b.startTime) || a.id - b.id;
+    }
+
+    function applyEvent(event: Event) {
+        if (activeRange.value) {
+            const start = new Date(event.startTime);
+            const inRange = start >= activeRange.value.start && start <= activeRange.value.end;
+            const withoutEvent = events.value.filter((item) => item.id !== event.id);
+            events.value = inRange ? [...withoutEvent, event].sort(sortEvents) : withoutEvent;
+        }
+
+        const monthKey = event.startTime.slice(0, 7);
+        const cached = rangeCache.value[monthKey];
+        for (const key of Object.keys(rangeCache.value)) {
+            rangeCache.value[key] = rangeCache.value[key].filter((item) => item.id !== event.id);
+        }
+        if (cached) {
+            rangeCache.value[monthKey] = [...rangeCache.value[monthKey], event].sort(sortEvents);
+        }
+
+        if (upcomingLoaded.value) {
+            const withoutEvent = upcomingEvents.value.filter((item) => item.id !== event.id);
+            upcomingEvents.value = isUpcoming(event)
+                ? [...withoutEvent, event].sort(sortEvents).slice(0, 10)
+                : withoutEvent;
+        }
+    }
+
+    function removeEvent(eventId: number) {
+        events.value = events.value.filter((item) => item.id !== eventId);
+        for (const key of Object.keys(rangeCache.value)) {
+            rangeCache.value[key] = rangeCache.value[key].filter((item) => item.id !== eventId);
+        }
+        upcomingEvents.value = upcomingEvents.value.filter((item) => item.id !== eventId);
     }
 
     async function runEventsAction<T>(
@@ -169,11 +228,6 @@ export const useEventsStore = defineStore('events', () => {
         return rangeCache.value[range.monthKey] !== undefined || areSameMonthRange(activeRange.value, range);
     }
 
-    async function refreshAllData() {
-        logger.debug('Refreshing all event data');
-        return Promise.all([refreshActiveRange(), fetchUpcomingEvents()]);
-    }
-
     // --- Actions ---
 
     async function fetchCalendarEvents(
@@ -201,6 +255,10 @@ export const useEventsStore = defineStore('events', () => {
 
         logger.debug('Refreshing active calendar range', { rangeKey: activeRange.value.monthKey });
         return fetchCalendarEvents(activeRange.value, { refresh: true, applyToVisible: true });
+    }
+
+    function clearActiveRange() {
+        activeRange.value = null;
     }
 
     async function prefetchCalendarEvents(range: CalendarVisibleRange) {
@@ -251,6 +309,7 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     async function fetchUpcomingEvents() {
+        upcomingLoaded.value = true;
         return runEventsAction('Failed to fetch upcoming events', async () => {
             logger.debug('Fetching upcoming events');
             const response = await api.findUpcomingEvents();
@@ -262,17 +321,29 @@ export const useEventsStore = defineStore('events', () => {
 
     async function createEvent(dto: CreateEventDto) {
         logger.info('Creating event', { title: dto.title });
-        return mutateAndRefresh('Failed to create event', () => api.createEvent(dto));
+        const result = await runEventsAction('Failed to create event', () => api.createEvent(dto));
+        if (result === false) return false;
+
+        applyEvent(result.data);
+        return true;
     }
 
     async function updateEvent(id: number, dto: Partial<CreateEventDto>) {
         logger.info('Updating event', { eventId: id });
-        return mutateAndRefresh('Failed to update event', () => api.updateEvent(id, dto));
+        const result = await runEventsAction('Failed to update event', () => api.updateEvent(id, dto));
+        if (result === false) return false;
+
+        applyEvent(result.data);
+        return true;
     }
 
     async function deleteEvent(id: number) {
         logger.warn('Deleting event', { eventId: id });
-        return mutateAndRefresh('Failed to delete event', () => api.deleteEvent(id));
+        const result = await runEventsAction('Failed to delete event', () => api.deleteEvent(id));
+        if (result === false) return false;
+
+        removeEvent(id);
+        return true;
     }
 
     async function joinEvent(id: number, dto?: ParticipateDto) {
@@ -292,9 +363,13 @@ export const useEventsStore = defineStore('events', () => {
         direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
     ) {
         logger.info('Assigning ride', { eventId, passengerId, driverId, direction });
-        return mutateAndRefresh('Failed to assign ride', () =>
+        const result = await runEventsAction('Failed to assign ride', () =>
             api.assignRide(eventId, passengerId, driverId, direction)
         );
+        if (result === false) return false;
+
+        applyEvent(result.data);
+        return true;
     }
 
     async function assignRidesBatch(
@@ -304,9 +379,13 @@ export const useEventsStore = defineStore('events', () => {
         direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
     ) {
         logger.info('Assigning rides batch', { eventId, passengerCount: passengerIds.length, driverId, direction });
-        return mutateAndRefresh('Failed to assign rides', () =>
-            Promise.all(passengerIds.map((id) => api.assignRide(eventId, id, driverId, direction)))
+        const result = await runEventsAction('Failed to assign rides', () =>
+            api.assignRides(eventId, passengerIds, driverId, direction)
         );
+        if (result === false) return false;
+
+        applyEvent(result.data);
+        return true;
     }
 
     return {
@@ -318,6 +397,7 @@ export const useEventsStore = defineStore('events', () => {
         activeRange,
         fetchCalendarEvents,
         refreshActiveRange,
+        clearActiveRange,
         prefetchCalendarEvents,
         fetchUpcomingEvents,
         fetchEventById,

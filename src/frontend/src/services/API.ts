@@ -218,7 +218,7 @@ class API {
         return this.client.delete(`/events/${id}`);
     }
 
-    async updateEvent(id: number, dto: Partial<CreateEventDto>): Promise<AxiosResponse<void>> {
+    async updateEvent(id: number, dto: Partial<CreateEventDto>): Promise<AxiosResponse<Event>> {
         return this.client.patch(`/events/${id}`, dto);
     }
 
@@ -257,8 +257,17 @@ class API {
         passengerId: number,
         driverId: number | null,
         direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
-    ): Promise<AxiosResponse<void>> {
+    ): Promise<AxiosResponse<Event>> {
         return this.client.post(`/events/${eventId}/assign-ride`, { passengerId, driverId, direction });
+    }
+
+    async assignRides(
+        eventId: number,
+        passengerIds: number[],
+        driverId: number | null,
+        direction: 'OUTBOUND' | 'RETURN' = 'OUTBOUND'
+    ): Promise<AxiosResponse<Event>> {
+        return this.client.patch(`/events/${eventId}/rides`, { passengerIds, driverId, direction });
     }
 
     async getEventAuditLog(eventId: number): Promise<AxiosResponse<AuditLogEntry[]>> {

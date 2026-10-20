@@ -42,20 +42,14 @@ export class EventParticipantDto extends UserDto {
     @ApiProperty({ type: Boolean, example: false, description: 'Payment status tracked by host/co-host' })
     hasPaid?: boolean;
 
-    @ApiProperty({ type: Number, example: 1, description: 'Driver ID', required: false })
-    driverId?: number;
-
     @ApiProperty({ type: Number, example: 1, description: 'Outbound driver ID', required: false })
-    driverIdOutbound?: number;
+    driverId?: number;
 
     @ApiProperty({ type: Number, example: 1, description: 'Return driver ID', required: false })
     driverIdReturn?: number;
 
-    @ApiProperty({ type: () => UserDto, description: 'Driver details', required: false })
-    driver?: UserDto;
-
     @ApiProperty({ type: () => UserDto, description: 'Outbound driver details', required: false })
-    driverOutbound?: UserDto;
+    driver?: UserDto;
 
     @ApiProperty({ type: () => UserDto, description: 'Return driver details', required: false })
     driverReturn?: UserDto;
@@ -64,6 +58,9 @@ export class EventParticipantDto extends UserDto {
 export class EventResponseDto {
     @ApiProperty({ type: Number, example: 1, description: 'Event ID' })
     id!: number;
+
+    @ApiProperty({ type: Number, example: 1, description: 'Host user ID' })
+    hostId!: number;
 
     @ApiProperty({ type: String, example: 'Team Standup', description: 'Title of the event' })
     title!: string;
