@@ -7,10 +7,7 @@
  */
 
 /** Namespaced id for an attendance row. */
-export function attendanceId(attendance: {
-    userId: number | null;
-    guestParticipantId?: number | null;
-}): number {
+export function attendanceId(attendance: { userId: number | null; guestParticipantId?: number | null }): number {
     if (attendance.userId !== null) return attendance.userId;
     return guestId(attendance.guestParticipantId ?? 0);
 }
