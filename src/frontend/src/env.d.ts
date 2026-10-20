@@ -8,6 +8,7 @@ interface ImportMetaEnv {
     readonly VITE_GOOGLE_MAPS_EMBED_API_KEY?: string;
     readonly VITE_BRANDFETCH_CLIENT_ID?: string;
     readonly VITE_BANK_LOGO_URL?: string;
+    readonly VITE_PRIMEUI_LICENSE?: string;
 }
 
 interface ImportMeta {

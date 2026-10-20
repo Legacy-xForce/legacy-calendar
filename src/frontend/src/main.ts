@@ -34,6 +34,8 @@ createApp(App)
     .use(router)
     .use(createPinia())
     .use(PrimeVue, {
+        // PrimeUI license key (community tier, dev).
+        license: import.meta.env.VITE_PRIMEUI_LICENSE,
         ripple: false,
         theme: {
             preset: AppPreset,
