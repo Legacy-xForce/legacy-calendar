@@ -153,8 +153,9 @@ class API {
     // --- Auth ---
 
     async login(dto: AuthLoginDto): Promise<AxiosResponse<AuthTokens>> {
-        // Authenticate against the external auth microservice and return its tokens
-        return axios.post(`${authBaseURL}/auth/login`, dto);
+        // Authenticate against the external auth microservice and return its tokens.
+        // Naming the app keeps the token's `aud` to the calendar, so it cannot be replayed elsewhere.
+        return axios.post(`${authBaseURL}/auth/login`, { ...dto, audience: 'calendar' });
     }
 
     async getProfile(): Promise<AxiosResponse<User>> {
