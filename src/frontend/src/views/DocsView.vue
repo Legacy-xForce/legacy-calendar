@@ -193,10 +193,11 @@ const endpointScope = (endpoint: ApiDocEndpoint) => endpoint.scope;
                 <div class="bg-surface-900 rounded-xl p-4">
                     <p class="text-body text-fg m-0 flex items-center gap-2 font-medium">
                         <i class="pi pi-user text-accent text-sm"></i>
-                        Session token
+                        Legacy Auth access token
                     </p>
                     <p class="text-meta text-muted m-0 mt-1">
-                        The JWT returned by the Legacy auth service or passkey login.
+                        An access token Legacy Auth issued for the calendar (audience <code>calendar</code>), e.g. to
+                        another Legacy app calling on a user's behalf.
                     </p>
                     <code class="text-meta text-fg mt-3 block font-mono break-all">
                         Authorization: Bearer &lt;access_token&gt;

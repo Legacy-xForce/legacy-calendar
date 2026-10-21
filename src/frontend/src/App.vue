@@ -8,7 +8,6 @@ import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useSessionStore } from './stores/session';
 import { onMessageListener, requestNotificationPermission } from './services/firebase';
-import { useToast } from 'primevue/usetoast';
 import { notificationStorage } from './services/notificationStorage';
 import { createLogger } from './services/logger';
 import { isKnownNotificationCode, resolveNotificationRoute, shouldSuppressNotification } from './utils/notifications';
@@ -17,7 +16,6 @@ import { useSheetGestures } from './composables/useSheetGestures';
 useSheetGestures();
 
 const route = useRoute();
-const toast = useToast();
 const sessionStore = useSessionStore();
 const logger = createLogger('App');
 // Wait for the first route to resolve so standalone pages don't flash the app chrome
@@ -58,27 +56,11 @@ const pushForegroundNotification = (title: string, body: string, type?: string, 
 };
 
 onMounted(async () => {
-    // Check for session expired flag
-    if (localStorage.getItem('session_expired') === 'true') {
-        localStorage.removeItem('session_expired');
-        toast.add({
-            severity: 'warn',
-            summary: 'Signed out',
-            detail: 'Your session ran out. Sign in again to pick up where you left off.',
-            life: 5000
-        });
-    }
-
     const loaded = await sessionStore.load();
 
     if (loaded) {
         // Register for notifications if logged in
         requestNotificationPermission();
-
-        // If we loaded a session and we are on the login page, redirect to calendar
-        if (route.name === 'login') {
-            router.push('/calendar');
-        }
     }
 
     // Set up foreground notification listener

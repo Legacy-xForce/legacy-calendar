@@ -2,6 +2,7 @@ import { ExecutionContext, ForbiddenException, Inject, Injectable } from '@nestj
 import { ApiTokensService } from '../../api-tokens/api-tokens.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { type RequestWithUser } from '../interfaces/request-with-user.interface.js';
+import { SessionService } from '../session/session.service.js';
 
 /**
  * Guard for endpoints that must be driven by a real login session. Token
@@ -10,8 +11,11 @@ import { type RequestWithUser } from '../interfaces/request-with-user.interface.
  */
 @Injectable()
 export class SessionAuthGuard extends JwtAuthGuard {
-    constructor(@Inject(ApiTokensService) apiTokensService: ApiTokensService) {
-        super(apiTokensService);
+    constructor(
+        @Inject(ApiTokensService) apiTokensService: ApiTokensService,
+        @Inject(SessionService) sessionService: SessionService
+    ) {
+        super(apiTokensService, sessionService);
     }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {

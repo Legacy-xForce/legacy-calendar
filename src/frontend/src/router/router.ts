@@ -1,9 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-import { accountIssueFromToken, accountIssueRoute } from '../utils/account';
+import { redirectToLogin } from '../services/auth';
 
 // Lazy load views
 const Calendar = () => import('../views/Calendar.vue');
-const Login = () => import('../views/Login.vue');
 const AdminView = () => import('../views/AdminView.vue');
 const Profile = () => import('../views/Profile.vue');
 const Upcoming = () => import('../views/Upcoming.vue');
@@ -16,7 +15,6 @@ const DocsView = () => import('../views/DocsView.vue');
 declare module 'vue-router' {
     interface RouteMeta {
         requiresAuth?: boolean;
-        requiresGuest?: boolean;
         requiresAdmin?: boolean;
         /** Standalone page without the app header and tab bar */
         bare?: boolean;
@@ -24,7 +22,8 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-    { path: '/', name: 'login', component: Login, meta: { requiresGuest: true, bare: true } },
+    // There is no sign-in page: signing in happens at Legacy Auth (see services/auth.ts).
+    { path: '/', name: 'home', redirect: { name: 'calendar' } },
     { path: '/disabled', name: 'disabled-account', component: DisabledAccountView, meta: { bare: true } },
     {
         path: '/insufficient-scope',
@@ -82,39 +81,25 @@ router.previousRoute = null;
 // Navigation guards
 router.beforeEach(async (to: any, from: any) => {
     router.previousRoute = from;
-    const token = localStorage.getItem('token');
-    const isAuthenticated = !!token;
-    const accountIssue = accountIssueFromToken(token);
 
-    // Redirect to login if route requires auth and user is not authenticated
-    if (to.meta.requiresAuth && !isAuthenticated) {
-        return { name: 'login' };
+    if (!to.meta.requiresAuth && !to.meta.requiresAdmin) {
+        return;
     }
 
-    // Disabled accounts and tokens without the calendar scope go to their notice page,
-    // whether they are entering the app or trying to visit the login page again.
-    if ((to.meta.requiresAuth || to.meta.requiresGuest) && accountIssue) {
-        return { name: accountIssueRoute(accountIssue) };
+    const { useSessionStore } = await import('../stores/session');
+    const sessionStore = useSessionStore();
+
+    if (!(await sessionStore.load())) {
+        if (sessionStore.error) {
+            // The API is unreachable; signing in again would not help.
+            return { name: 'forbidden' };
+        }
+        // No session: sign in at Legacy Auth and come back here.
+        return redirectToLogin(to.fullPath) ? false : { name: 'forbidden' };
     }
 
-    // Redirect to calendar if user is already authenticated and tries to access login
-    if (to.meta.requiresGuest && isAuthenticated) {
+    if (to.meta.requiresAdmin && !sessionStore.currentUser?.isAdmin) {
         return { name: 'calendar' };
-    }
-
-    // Redirect to calendar if route requires admin and user is not an admin
-    if (to.meta.requiresAdmin) {
-        const { useSessionStore } = await import('../stores/session');
-        const sessionStore = useSessionStore();
-
-        // Ensure session is loaded before checking admin status
-        if (!sessionStore.currentUser) {
-            await sessionStore.load();
-        }
-
-        if (!sessionStore.currentUser?.isAdmin) {
-            return { name: 'calendar' };
-        }
     }
 
     return;

@@ -1,15 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import jwt from 'jsonwebtoken';
-import {
-    createApiToken,
-    createUser,
-    http,
-    signSessionToken,
-    startTestApp,
-    TEST_JWT_SECRET,
-    type TestApp,
-    type TestUser
-} from './helpers.js';
+import { createUser, http, signSessionToken, startTestApp, type TestApp } from './helpers.js';
 
 function freshIdentity(label: string): { authId: string; username: string } {
     const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -68,85 +59,40 @@ describe('Legacy Auth token checks', () => {
         expect(await profileStatus(token)).toBe(401);
     });
 
-    test('rejects an HS256 token that is not a calendar passkey token', async () => {
-        // Same shape as a Legacy Auth refresh token, which is also HS256.
-        const { authId, username } = freshIdentity('hs');
-        const token = jwt.sign({ sub: authId, username, type: 'refresh' }, TEST_JWT_SECRET, { algorithm: 'HS256' });
+    test('accepts a token from the OpenID Provider that only carries the scope string', async () => {
+        const { authId, username } = freshIdentity('oidc');
+        const token = signSessionToken(authId, username, '1h', {
+            aud: 'calendar',
+            scope: 'calendar.read calendar.write',
+            scopes: undefined
+        });
+        expect(await profileStatus(token)).toBe(201);
+    });
+
+    test('rejects a scope string without calendar.read', async () => {
+        const { authId, username } = freshIdentity('trscope');
+        const token = signSessionToken(authId, username, '1h', { scope: 'tracker.read', scopes: undefined });
         expect(await profileStatus(token)).toBe(401);
     });
 
-    test('accepts a calendar passkey token', async () => {
+    test('rejects HS256 tokens, including the retired calendar passkey tokens', async () => {
         const user = await createUser(app, 'pk');
-        const token = jwt.sign(
-            { sub: String(user.id), username: user.username, role: 'user', scope: 'calendar' },
-            TEST_JWT_SECRET,
-            { algorithm: 'HS256', expiresIn: '1h' }
-        );
-        const response = await http<{ id: number }>(app, 'POST', '/auth/profile', { bearer: token });
-        expect(response.status).toBe(201);
-        expect(response.body.id).toBe(user.id);
-    });
-});
-
-describe('Passkey registration', () => {
-    let app: TestApp;
-    let alice: TestUser;
-    let bob: TestUser;
-
-    beforeAll(async () => {
-        app = await startTestApp();
-        alice = await createUser(app, 'alice');
-        bob = await createUser(app, 'bob');
-    }, 120_000);
-
-    afterAll(async () => {
-        await app.close();
+        const secret = 'any-secret-the-server-might-once-have-used';
+        const passkeyToken = jwt.sign({ sub: String(user.id), username: user.username, scope: 'calendar' }, secret, {
+            algorithm: 'HS256',
+            expiresIn: '1h'
+        });
+        expect(await profileStatus(passkeyToken)).toBe(401);
+        const refreshShaped = jwt.sign({ sub: user.authId, username: user.username, type: 'refresh' }, secret, {
+            algorithm: 'HS256'
+        });
+        expect(await profileStatus(refreshShaped)).toBe(401);
     });
 
-    async function register(user: TestUser, credentialId: string) {
-        const options = await http<{ challenge: string }>(app, 'POST', '/auth/passkey/register-options', {
-            bearer: user.token,
-            body: {}
-        });
-        expect(options.status).toBe(201);
-        const clientDataJSON = Buffer.from(
-            JSON.stringify({ type: 'webauthn.create', challenge: options.body.challenge })
-        ).toString('base64url');
-        return http(app, 'POST', '/auth/passkey/register-verify', {
-            bearer: user.token,
-            body: {
-                id: credentialId,
-                rawId: credentialId,
-                type: 'public-key',
-                response: { clientDataJSON, publicKey: `key-of-${user.username}` }
-            }
-        });
-    }
-
-    test('an existing credential id cannot be moved to another account', async () => {
-        const credentialId = `cred-${Date.now().toString(36)}`;
-        expect((await register(alice, credentialId)).status).toBe(201);
-
-        const takeover = await register(bob, credentialId);
-        expect(takeover.status).toBe(409);
-
-        const stored = await app.prisma.passkeyCredential.findUnique({ where: { id: credentialId } });
-        expect(stored?.userId).toBe(alice.id);
-        expect(stored?.publicKey).toBe(`key-of-${alice.username}`);
-    });
-
-    test('API tokens cannot register or delete passkeys', async () => {
-        const writeToken = await createApiToken(app, alice, 'write');
-
-        const options = await http(app, 'POST', '/auth/passkey/register-options', {
-            apiToken: writeToken.token,
-            body: {}
-        });
-        expect(options.status).toBe(403);
-
-        const removal = await http(app, 'DELETE', '/auth/passkey/credentials/anything', {
-            apiToken: writeToken.token
-        });
-        expect(removal.status).toBe(403);
+    test('the calendar passkey endpoints are gone', async () => {
+        const user = await createUser(app, 'gone');
+        expect((await http(app, 'POST', '/auth/passkey/login-options', { body: {} })).status).toBe(404);
+        expect((await http(app, 'GET', '/auth/passkey/credentials', { bearer: user.token })).status).toBe(404);
+        expect((await http(app, 'POST', '/auth/change-password', { bearer: user.token, body: {} })).status).toBe(404);
     });
 });

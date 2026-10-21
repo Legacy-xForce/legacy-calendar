@@ -1,6 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { createLogger } from './logger';
-import { accountIssueFromError, redirectToAccountNotice } from '../utils/account';
 
 export const baseURL = import.meta.env.VITE_API_URL;
 export const uploadsBaseURL = import.meta.env.VITE_UPLOADS_URL || baseURL;
@@ -9,7 +8,6 @@ export const socketPath = '/socket.io';
 export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
 import type { CreateUserDto, PaymentInfo, UpdatePaymentInfoDto, UpdateUserDto, User } from '../types/User';
-import type { AuthLoginDto, AuthTokens, ChangePasswordDto } from '../types/Auth';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
 import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat';
@@ -18,17 +16,25 @@ import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDt
 import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
 import type { ApiToken, CreateApiTokenDto, CreatedApiToken } from '../types/ApiToken';
 
+declare module 'axios' {
+    interface AxiosRequestConfig {
+        /** Let the caller handle a 401 instead of sending the browser to sign in. */
+        skipAuthRedirect?: boolean;
+    }
+}
+
 // --- API Class ---
 
 const logger = createLogger('API');
 
 class API {
     private client: AxiosInstance;
-    private refreshPromise: Promise<string> | null = null;
 
     constructor() {
+        // The browser session is an HttpOnly cookie set by the backend; requests carry it, never a token.
         this.client = axios.create({
             baseURL: baseURL,
+            withCredentials: true,
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -36,11 +42,6 @@ class API {
 
         this.client.interceptors.request.use(
             (config) => {
-                const token = localStorage.getItem('token');
-                if (token && config.headers) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-
                 const impersonateUserId = localStorage.getItem('impersonate_user_id');
                 if (impersonateUserId) {
                     if (!config.headers) {
@@ -52,7 +53,6 @@ class API {
                 logger.debug('Sending request', {
                     method: config.method?.toUpperCase() ?? 'GET',
                     url: config.baseURL ? `${config.baseURL}${config.url ?? ''}` : config.url,
-                    hasToken: Boolean(token),
                     impersonating: Boolean(impersonateUserId)
                 });
 
@@ -81,89 +81,26 @@ class API {
                     message: error?.response?.data?.message ?? error.message
                 });
 
-                const originalRequest = error.config;
-                const refreshToken = localStorage.getItem('refresh_token');
-
-                if (
-                    error.response &&
-                    error.response.status === 401 &&
-                    refreshToken &&
-                    originalRequest &&
-                    !originalRequest._retry
-                ) {
-                    originalRequest._retry = true;
-                    try {
-                        const newToken = await this.refreshAccessToken(refreshToken);
-                        originalRequest.headers = originalRequest.headers || {};
-                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                        return this.client.request(originalRequest);
-                    } catch (refreshError) {
-                        logger.warn('Token refresh failed, clearing session', {
-                            message: (refreshError as any)?.response?.data?.message ?? (refreshError as any)?.message
-                        });
-                        this.clearSession();
-                        return Promise.reject(error);
-                    }
-                }
-
-                if (error.response && error.response.status === 403) {
-                    const issue = accountIssueFromError(error);
-                    if (issue) redirectToAccountNotice(issue);
-                }
-
-                if (error.response && error.response.status === 401) {
-                    // Session is invalid or expired, and no refresh was possible
-                    this.clearSession();
+                if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
+                    // The session ended (signed out elsewhere, expired, or access removed): sign in again.
+                    const { redirectToLogin } = await import('./auth');
+                    redirectToLogin();
                 }
                 return Promise.reject(error);
             }
         );
     }
 
-    private clearSession() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
-        localStorage.setItem('session_expired', 'true');
-
-        // Force redirect to login if not already there
-        if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
-            window.location.href = '/';
-        }
-    }
-
-    private async refreshAccessToken(refreshToken: string): Promise<string> {
-        if (!this.refreshPromise) {
-            this.refreshPromise = axios
-                .post<AuthTokens>(`${authBaseURL}/auth/refresh`, { refresh_token: refreshToken })
-                .then((res) => {
-                    localStorage.setItem('token', res.data.access_token);
-                    if (res.data.refresh_token) {
-                        localStorage.setItem('refresh_token', res.data.refresh_token);
-                    }
-                    logger.info('Access token refreshed');
-                    return res.data.access_token;
-                })
-                .finally(() => {
-                    this.refreshPromise = null;
-                });
-        }
-        return this.refreshPromise;
-    }
-
     // --- Auth ---
 
-    async login(dto: AuthLoginDto): Promise<AxiosResponse<AuthTokens>> {
-        // Authenticate against the external auth microservice and return its tokens
-        return axios.post(`${authBaseURL}/auth/login`, dto);
-    }
-
-    async getProfile(): Promise<AxiosResponse<User>> {
+    async getProfile(options: { skipAuthRedirect?: boolean } = {}): Promise<AxiosResponse<User>> {
         // Note: Spec defines this as POST /auth/profile
-        return this.client.post('/auth/profile');
+        return this.client.post('/auth/profile', undefined, options);
     }
 
-    async changePassword(dto: ChangePasswordDto): Promise<AxiosResponse<void>> {
-        return this.client.post('/auth/change-password', dto);
+    /** Ends the session here; the response says where to send the browser to sign out of Legacy Auth too. */
+    async logout(): Promise<AxiosResponse<{ redirect: string }>> {
+        return this.client.post('/auth/logout', undefined, { skipAuthRedirect: true });
     }
 
     // --- Users ---
@@ -365,32 +302,6 @@ class API {
 
     async deleteApiToken(id: number): Promise<AxiosResponse<{ success: boolean }>> {
         return this.client.delete(`/api-tokens/${id}`);
-    }
-
-    // --- Passkeys ---
-
-    async getPasskeyRegisterOptions(): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/register-options', {});
-    }
-
-    async verifyPasskeyRegister(dto: any): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/register-verify', dto);
-    }
-
-    async getPasskeyLoginOptions(username?: string): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/login-options', { username });
-    }
-
-    async verifyPasskeyLogin(dto: any): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/login-verify', dto);
-    }
-
-    async getPasskeys(): Promise<AxiosResponse<{ id: string; deviceName: string; createdAt: string }[]>> {
-        return this.client.get('/auth/passkey/credentials');
-    }
-
-    async deletePasskey(id: string): Promise<AxiosResponse<void>> {
-        return this.client.delete(`/auth/passkey/credentials/${encodeURIComponent(id)}`);
     }
 }
 

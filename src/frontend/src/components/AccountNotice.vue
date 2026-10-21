@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import UserAvatar from './UserAvatar.vue';
-import { parseJwtPayload } from '../utils/jwt';
 import { useSessionStore } from '../stores/session';
 
 defineProps<{
@@ -12,10 +11,8 @@ defineProps<{
 
 const sessionStore = useSessionStore();
 
-// A disabled account never loads its profile, so fall back to the name inside the stored token
-const username = computed<string | undefined>(
-    () => sessionStore.currentUser?.username ?? parseJwtPayload(localStorage.getItem('token') ?? '')?.username
-);
+// Only known when a session exists; an account turned away at sign-in has none.
+const username = computed<string | undefined>(() => sessionStore.currentUser?.username);
 const profilePictureUrl = computed(() => sessionStore.currentUser?.profilePictureUrl);
 
 const toneClass = {

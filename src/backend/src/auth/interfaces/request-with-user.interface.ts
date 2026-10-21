@@ -13,6 +13,8 @@ export interface RequestWithUser extends Request {
     impersonatorUserId?: number | null;
     /** How the current request was authenticated. */
     authMethod?: AuthMethod;
+    /** Set when the request authenticated with the browser session cookie. */
+    sessionId?: string;
     /** Set when the request authenticated with X-API-Token. */
     apiTokenId?: number;
     apiTokenScope?: ApiTokenScope;

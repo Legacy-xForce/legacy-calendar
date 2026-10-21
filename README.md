@@ -22,7 +22,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 - NestJS 11
 - Prisma 7 with PostgreSQL
 - Socket.IO for event chat and live updates
-- Passport JWT and local auth strategies
+- OpenID Connect sign-in through Legacy Auth (`openid-client`), Passport JWT for Bearer tokens
 - Swagger for API documentation
 - Firebase Admin for push notifications
 - Multer-based file uploads
@@ -71,7 +71,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 
 ### User and Admin Features
 
-- User profile with password change and avatar upload
+- User profile with avatar upload (password and passkeys are managed in Legacy Auth)
 - Local notification preference toggles
 - Cache clearing for locally stored weather and geolocation data
 - Admin user management
@@ -81,7 +81,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 
 The backend is organized by domain and keeps controllers, services, and repositories separated.
 
-- `auth` handles login, JWT issuance, password changes, and auth guards
+- `auth` handles signing in through Legacy Auth (OpenID Connect, with server-side browser sessions), token verification, and auth guards
 - `users` handles user CRUD and profile picture management
 - `events` handles calendar events, participation, invitations, and ride assignments
 - `chat` handles message history, media uploads, reactions, pinning, editing, and Socket.IO realtime delivery
@@ -171,11 +171,19 @@ npm install
 Create a `.env` file in `src/backend` using the example below:
 
 ```bash
-DATABASE_URL=postgresql://user:password@host/database
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRES_IN=30d
+DATABASE_URL=postgresql://user:password@localhost:5432/legacy_calendar_dev
+AUTH_HOST=http://localhost:4000
+AUTH_ISSUER=http://localhost:4000
+FRONTEND_URL=http://localhost:5173
+OIDC_CLIENT_ID=calendar-dev
+OIDC_CLIENT_SECRET=<secret of your local client>
+OIDC_REDIRECT_URI=http://localhost:5173/api/auth/callback
+OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:5173/
+SESSION_ENCRYPTION_KEY=<openssl rand -base64 32>
 LOG_LEVEL=trace
 ```
+
+Signing in needs an OpenID Provider. Run [Legacy Auth](https://github.com/Legacy-xForce/legacy-auth) locally against a throwaway Postgres (`JWT_ISSUER=http://localhost:4000`), never the production one, and register a client through its admin API: `POST /admin/oidc/clients` with `redirect_uris: ["http://localhost:5173/api/auth/callback"]`, `post_logout_redirect_uris: ["http://localhost:5173/"]`, `backchannel_logout_uri: "http://localhost:3000/auth/backchannel-logout"` and `allowed_scopes: ["openid","profile","calendar.read","calendar.write","offline_access"]`. Its response holds the client secret. See `src/backend/.env.example` for every variable.
 
 Then run Prisma and start the API:
 
@@ -268,10 +276,12 @@ That documentation is generated from the NestJS controllers and DTOs, so it stay
 
 ### Authentication
 
-Session requests use the JWT returned by the login endpoints:
+The web app has no login page: `/auth/login` sends the browser to Legacy Auth (Authorization Code + PKCE), and `/auth/callback` opens a server-side session held in an `HttpOnly` cookie (`__Host-calendar_session`). Tokens never reach the browser; the backend stores them encrypted and refreshes them. Cookie-authenticated writes must come from an allowed origin. `POST /auth/logout` ends the session and returns Legacy Auth's logout URL, and Legacy Auth's back-channel logout (`POST /auth/backchannel-logout`) ends it when the user signs out of any Legacy app. Passwords and passkeys are managed in Legacy Auth.
+
+Other Legacy apps and scripts can call the API with an access token Legacy Auth issued for the calendar (`aud` `calendar`, with the calendar scope):
 
 ```http
-Authorization: Bearer <session-token>
+Authorization: Bearer <access-token>
 ```
 
 Programmatic clients can instead send a personal API token:
@@ -280,12 +290,12 @@ Programmatic clients can instead send a personal API token:
 X-API-Token: legacy-calendar-01a15968-64aa-707d-8904-a6a408611289
 ```
 
-API tokens behave like a session token, except they do not rotate periodically. Each token has exactly one scope:
+API tokens behave like a session, except they do not rotate periodically. Each token has exactly one scope:
 
 - `read` - allows `GET`, `HEAD`, and `OPTIONS` requests, plus `POST /auth/profile`
 - `write` - allows every request the owning user is authorized to make
 
-`GET /api-tokens`, `POST /api-tokens`, `POST /api-tokens/:id/rotate`, and `DELETE /api-tokens/:id` require a real session token; API tokens are rejected there so a leaked token cannot mint or escalate credentials. Tokens are listed with metadata only, capped at 25 per user, and keep a `lastUsedAt` timestamp. Creating or rotating a token returns the plaintext value exactly once, so store it immediately.
+`GET /api-tokens`, `POST /api-tokens`, `POST /api-tokens/:id/rotate`, and `DELETE /api-tokens/:id` require a session or a Legacy Auth access token; API tokens are rejected there so a leaked token cannot mint or escalate credentials. Tokens are listed with metadata only, capped at 25 per user, and keep a `lastUsedAt` timestamp. Creating or rotating a token returns the plaintext value exactly once, so store it immediately.
 
 ### Socket.IO
 

@@ -10,7 +10,8 @@ async function generateOpenApi() {
     // They must be set before AppModule is imported, because ConfigModule.forRoot
     // validates at module-evaluation time.
     process.env.DATABASE_URL ??= 'postgresql://openapi:openapi@127.0.0.1:5432/openapi';
-    process.env.JWT_SECRET ??= 'openapi-generation-secret-not-used-at-runtime';
+    process.env.OIDC_CLIENT_SECRET ??= 'openapi-generation-secret-not-used-at-runtime';
+    process.env.SESSION_ENCRYPTION_KEY ??= Buffer.alloc(32).toString('base64');
 
     const { AppModule } = await import('./app.module.js');
     const { PrismaService } = await import('./prisma/prisma.service.js');

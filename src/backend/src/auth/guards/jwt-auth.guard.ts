@@ -1,18 +1,32 @@
 import { ExecutionContext, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTokenScope } from '../../../prisma/generated/client.js';
+import type { Response } from 'express';
 import { ApiTokensService } from '../../api-tokens/api-tokens.service.js';
 import { type RequestWithUser } from '../interfaces/request-with-user.interface.js';
+import { SessionService } from '../session/session.service.js';
+import {
+    clearSessionCookie,
+    isSafeMethod,
+    isSameOriginRequest,
+    readCookie,
+    sessionCookieName
+} from '../session/session-cookies.js';
 
 /**
- * Authenticates either a normal session (Authorization: Bearer …) or a
- * long-lived personal token (X-API-Token: legacy-calendar-…). Every guarded
- * controller keeps working without changes, and read-only tokens are rejected
- * centrally before a write operation reaches the handler.
+ * Authenticates a long-lived personal token (X-API-Token: legacy-calendar-…),
+ * an explicit Legacy Auth access token (Authorization: Bearer …, used by other
+ * apps and scripts), or the browser's session cookie. Every guarded controller
+ * keeps working without changes, read-only tokens are rejected centrally before
+ * a write operation reaches the handler, and cookie-authenticated writes must
+ * come from this site (CSRF).
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-    constructor(@Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService) {
+    constructor(
+        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService,
+        @Inject(SessionService) private readonly sessionService: SessionService
+    ) {
         super();
     }
 
@@ -43,6 +57,24 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         }
 
         request.authMethod = 'session';
+
+        const sessionCookie = request.headers.authorization ? null : readCookie(request, sessionCookieName());
+        if (sessionCookie) {
+            if (!isSafeMethod(request.method) && !isSameOriginRequest(request)) {
+                throw new ForbiddenException('Cross-site request refused');
+            }
+
+            const session = await this.sessionService.authenticate(sessionCookie);
+            if (!session) {
+                clearSessionCookie(context.switchToHttp().getResponse<Response>());
+                throw new UnauthorizedException('Session expired');
+            }
+
+            request.user = { ...session.identity, id: session.identity.userId };
+            request.sessionId = session.sessionId;
+            return true;
+        }
+
         return (await super.canActivate(context)) as boolean;
     }
 

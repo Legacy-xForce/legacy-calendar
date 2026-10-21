@@ -5,13 +5,12 @@
  * defaults at request time.
  */
 
-const REQUIRED_KEYS = ['DATABASE_URL', 'JWT_SECRET'] as const;
+import { parseSessionEncryptionKey } from './oidc.js';
 
-/**
- * Well-known placeholder values that must never be accepted as a real secret.
- * Shared with the runtime resolver so validation and boot rules cannot drift.
- */
-export const FORBIDDEN_JWT_SECRETS = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
+const REQUIRED_KEYS = ['DATABASE_URL', 'OIDC_CLIENT_SECRET', 'SESSION_ENCRYPTION_KEY'] as const;
+
+/** Well-known placeholder values that must never be accepted as a real secret. */
+export const FORBIDDEN_SECRETS = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
 
 export function validateEnvironment(config: Record<string, unknown>): Record<string, unknown> {
     const errors: string[] = [];
@@ -23,9 +22,18 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
         }
     }
 
-    const jwtSecret = typeof config.JWT_SECRET === 'string' ? config.JWT_SECRET.trim() : '';
-    if (jwtSecret && FORBIDDEN_JWT_SECRETS.has(jwtSecret)) {
-        errors.push('JWT_SECRET must be a unique random value, not a well-known placeholder');
+    const clientSecret = typeof config.OIDC_CLIENT_SECRET === 'string' ? config.OIDC_CLIENT_SECRET.trim() : '';
+    if (clientSecret && FORBIDDEN_SECRETS.has(clientSecret)) {
+        errors.push('OIDC_CLIENT_SECRET must be the secret Legacy Auth issued for this client, not a placeholder');
+    }
+
+    const encryptionKey = typeof config.SESSION_ENCRYPTION_KEY === 'string' ? config.SESSION_ENCRYPTION_KEY.trim() : '';
+    if (encryptionKey) {
+        try {
+            parseSessionEncryptionKey(encryptionKey);
+        } catch (error) {
+            errors.push((error as Error).message);
+        }
     }
 
     if (errors.length > 0) {

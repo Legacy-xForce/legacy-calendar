@@ -59,18 +59,18 @@ export function useEventChat(
 
     const connect = async () => {
         const id = eventId.value;
-        const token = localStorage.getItem('token');
-        if (!id || !token || !isEnabled.value) {
+        if (!id || !sessionStore.isAuthenticated || !isEnabled.value) {
             logger.trace('Skipping chat connection', {
                 eventId: id,
-                hasToken: Boolean(token),
+                signedIn: sessionStore.isAuthenticated,
                 enabled: isEnabled.value
             });
             return;
         }
 
+        // Authenticated by the session cookie, which the handshake carries like any same-site request.
         socket = io(socketBaseURL, {
-            auth: { token },
+            withCredentials: true,
             transports: ['websocket'],
             autoConnect: false,
             reconnection: true,
@@ -239,8 +239,7 @@ export function useEventChat(
 
     const sendMessage = async (text: string, media?: { file: File; text?: string }) => {
         const id = eventId.value;
-        const token = localStorage.getItem('token');
-        if (!id || !token || !socket) {
+        if (!id || !socket) {
             throw new Error('Chat is not connected');
         }
 

@@ -1,26 +1,28 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import jwt from 'jsonwebtoken';
+import jwt, { type VerifyOptions } from 'jsonwebtoken';
 import * as jwksRsa from 'jwks-rsa';
 import { UsersService } from '../users/users.service.js';
-import { resolveJwtSecret } from './jwt-secret.util.js';
 import { resolveAuthIssuer, resolveJwksUri } from '../config/jwks.js';
 
 export type AuthTokenPayload = {
     sub: string;
     username?: string;
     role?: 'admin' | 'user';
-    // Set only by this server's passkey login.
+    // RFC 9068 scope string of tokens from the OpenID Provider ("calendar.read calendar.write").
     scope?: string;
     // Legacy Auth access token claims.
     type?: string;
     iss?: string;
     aud?: string | string[];
+    sid?: string;
     scopes?: { calendar?: boolean; tracker?: boolean };
 };
 
 // The `aud` (and `scopes` key) Legacy Auth uses for this app.
 const CALENDAR_AUDIENCE = 'calendar';
+// The OpenID Provider's scope for reading the calendar; every calendar grant includes it.
+const CALENDAR_READ_SCOPE = 'calendar.read';
 
 /** The `alg` from a token's header, without verifying anything. */
 export function tokenAlgorithm(rawToken: string | null | undefined): string | undefined {
@@ -40,16 +42,14 @@ export type AuthIdentity = {
 };
 
 /**
- * Single identity resolution path for HTTP and Socket.IO. It owns token
- * verification (HS256 local tokens / ES256 external JWKS tokens) and the local
- * account lookup. HS256 tokens are accepted only as this server's own passkey
- * tokens (`scope: 'calendar'`); ES256 tokens only when Legacy Auth issued them
- * for the calendar (see grantsCalendar).
+ * Single identity resolution path for HTTP, Socket.IO and browser sessions. It
+ * owns token verification (ES256 against Legacy Auth's JWKS) and the local
+ * account lookup. A token is accepted only when Legacy Auth issued it for the
+ * calendar (see grantsCalendar).
  */
 @Injectable()
 export class AuthIdentityService {
     private readonly jwksClient: jwksRsa.JwksClient;
-    private readonly jwtSecret: string;
     private readonly authIssuer: string;
 
     constructor(
@@ -62,7 +62,6 @@ export class AuthIdentityService {
             jwksRequestsPerMinute: 10,
             jwksUri: resolveJwksUri(this.configService)
         });
-        this.jwtSecret = resolveJwtSecret(this.configService);
         this.authIssuer = resolveAuthIssuer(this.configService);
     }
 
@@ -73,40 +72,11 @@ export class AuthIdentityService {
 
     /**
      * Maps a verified token's payload to a local account. `algorithm` is the
-     * one the signature was verified with; it decides which kind of token this
-     * is, so claims from one kind can never be read as the other.
+     * one the signature was verified with; only Legacy Auth's ES256 is accepted.
      */
     async resolvePayload(payload: AuthTokenPayload, algorithm: string | undefined): Promise<AuthIdentity | null> {
         const username = typeof payload.username === 'string' ? payload.username.trim() : '';
-        if (!username) {
-            return null;
-        }
-
-        // Passkey tokens use the local numeric user id as `sub` and never carry
-        // an external authId, so they must be resolved by id instead of synced.
-        if (algorithm === 'HS256') {
-            if (payload.scope !== 'calendar') {
-                return null;
-            }
-
-            const userId = Number(payload.sub);
-            if (!Number.isInteger(userId) || userId <= 0) {
-                return null;
-            }
-
-            const user = await this.usersService.findOne(userId).catch(() => null);
-            if (!user) {
-                return null;
-            }
-
-            return {
-                userId: user.id,
-                username: user.username,
-                isAdmin: user.isAdmin
-            };
-        }
-
-        if (algorithm !== 'ES256' || !this.grantsCalendar(payload)) {
+        if (!username || algorithm !== 'ES256' || !this.grantsCalendar(payload)) {
             return null;
         }
 
@@ -129,15 +99,18 @@ export class AuthIdentityService {
      * Legacy Auth signs one key for every app, so a valid signature only proves
      * the user signed in somewhere. The token must also come from the expected
      * issuer, name the calendar in `aud`, and carry the calendar scope that
-     * admins toggle in the Legacy Auth console.
+     * admins toggle in the Legacy Auth console: the legacy `scopes.calendar`
+     * flag, or `calendar.read` in the OpenID Provider's `scope` string (the flag
+     * is only kept there for the transition).
      */
     private grantsCalendar(payload: AuthTokenPayload): boolean {
         const audiences = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
+        const scopes = typeof payload.scope === 'string' ? payload.scope.split(' ') : [];
         return (
             payload.type === 'access' &&
             payload.iss === this.authIssuer &&
             audiences.includes(CALENDAR_AUDIENCE) &&
-            payload.scopes?.calendar === true
+            (payload.scopes?.calendar === true || scopes.includes(CALENDAR_READ_SCOPE))
         );
     }
 
@@ -150,10 +123,6 @@ export class AuthIdentityService {
             header?: { alg?: string; kid?: string };
         } | null;
         const algorithm = decoded?.header?.alg;
-
-        if (algorithm === 'HS256') {
-            return this.jwtSecret;
-        }
 
         if (algorithm !== 'ES256') {
             throw new Error('Unsupported token algorithm');
@@ -168,19 +137,21 @@ export class AuthIdentityService {
         return signingKey.getPublicKey();
     }
 
-    private async verifyToken(token: string): Promise<{ payload: AuthTokenPayload; algorithm: string }> {
-        const algorithm = tokenAlgorithm(token);
-
-        if (algorithm !== 'HS256' && algorithm !== 'ES256') {
-            throw new Error('Unsupported token algorithm');
-        }
-
+    /**
+     * Verifies any JWT Legacy Auth signed (access, ID or logout token) and
+     * returns its payload; `options` adds the claim checks the caller needs.
+     */
+    async verifySignedByAuth(token: string, options: VerifyOptions = {}): Promise<jwt.JwtPayload> {
         const key = await this.getVerificationKey(token);
-        const payload = jwt.verify(token, key, { algorithms: [algorithm] });
+        const payload = jwt.verify(token, key, { ...options, algorithms: ['ES256'] });
         if (!payload || typeof payload === 'string') {
             throw new Error('Invalid token payload');
         }
+        return payload;
+    }
 
-        return { payload: payload as AuthTokenPayload, algorithm };
+    private async verifyToken(token: string): Promise<{ payload: AuthTokenPayload; algorithm: string }> {
+        const payload = await this.verifySignedByAuth(token);
+        return { payload: payload as AuthTokenPayload, algorithm: 'ES256' };
     }
 }

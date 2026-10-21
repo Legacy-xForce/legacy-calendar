@@ -4,6 +4,8 @@ import {
     createApiToken,
     createUser,
     http,
+    mockOp,
+    signInWithBrowser,
     signSessionToken,
     startTestApp,
     type TestApp,
@@ -299,5 +301,82 @@ describe('Socket.IO API token authentication', () => {
         const message = await messageEvent;
         expect(message.authorId).toBe(host.id);
         expect(message.text).toBe('sent with a session');
+    }, 20_000);
+});
+
+describe('Socket.IO session cookie authentication', () => {
+    let app: TestApp;
+    const sockets: Socket[] = [];
+
+    beforeAll(async () => {
+        app = await startTestApp();
+    }, 120_000);
+
+    afterAll(async () => {
+        for (const socket of sockets) {
+            socket.close();
+        }
+        await app.close();
+    });
+
+    async function signedIn(label: string) {
+        const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        const user = { authId: `auth-${label}${suffix}`, username: `${label}${suffix}`.slice(0, 30) };
+        const { session } = await signInWithBrowser(app, user);
+        const created = await http<{ id: number }>(app, 'POST', '/events', {
+            session,
+            body: { title: 'Cookie socket event', startTime: futureDate(24).toISOString() }
+        });
+        if (created.status !== 201) {
+            throw new Error(`Could not create event: ${JSON.stringify(created.body)}`);
+        }
+        return { user, session, eventId: created.body.id };
+    }
+
+    const cookieHeaders = (session: string, origin = 'http://localhost:5173') => ({
+        cookie: `calendar_session=${session}`,
+        origin
+    });
+
+    test('accepts the session cookie from an allowed origin and lets the user chat', async () => {
+        const { session, eventId } = await signedIn('cookiesock');
+        const socket = await connect(app, undefined, cookieHeaders(session));
+        sockets.push(socket);
+        socket.emit('joinRoom', { eventId });
+        await sleep(150);
+
+        const messageEvent = nextEvent<ChatMessage>(socket, 'newMessage');
+        socket.emit('sendMessage', { eventId, text: 'sent with a cookie' });
+        expect((await messageEvent).text).toBe('sent with a cookie');
+    }, 20_000);
+
+    test('rejects the session cookie from another origin', async () => {
+        const { session } = await signedIn('cookieorigin');
+        const result = await tryConnect(app, undefined, cookieHeaders(session, 'https://evil.example'));
+        result.socket.close();
+        expect(result.error?.data?.code).toBe(401);
+    }, 20_000);
+
+    test('rejects an unknown session cookie', async () => {
+        const result = await tryConnect(app, undefined, cookieHeaders('not-a-session'));
+        result.socket.close();
+        expect(result.error?.data?.code).toBe(401);
+    }, 20_000);
+
+    test('a back-channel logout disconnects the socket of that session', async () => {
+        const { user, session } = await signedIn('cookiebcl');
+        const socket = await connect(app, undefined, cookieHeaders(session));
+        sockets.push(socket);
+        const disconnected = nextEvent<string>(socket, 'disconnect');
+
+        const response = await fetch(new URL('/auth/backchannel-logout', app.baseUrl), {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                logout_token: mockOp.signLogoutToken({ sid: mockOp.sidOf(user.authId), sub: user.authId })
+            })
+        });
+        expect(response.status).toBe(204);
+        expect(await disconnected).toBe('io server disconnect');
     }, 20_000);
 });

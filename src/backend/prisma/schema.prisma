@@ -28,8 +28,8 @@ model User {
   auditLogEntriesAsActor        AuditLogEntry[]     @relation("AuditLogActor")
   auditLogEntriesAsImpersonator AuditLogEntry[]     @relation("AuditLogImpersonator")
   userGroups                    UserGroup[]
-  passkeyCredentials            PasskeyCredential[]
   apiTokens                     ApiToken[]
+  sessions                      Session[]
 }
 
 enum ApiTokenScope {
@@ -284,15 +284,40 @@ model UserGroup {
   @@index([userId])
 }
 
-model PasskeyCredential {
-  id         String   @id
-  userId     Int
-  publicKey  String
-  counter    BigInt   @default(0)
-  deviceName String?
-  createdAt  DateTime @default(now())
+/// A browser signed in through Legacy Auth (OIDC). The browser only holds a
+/// random cookie value; its hash is the id. The tokens are the BFF's own,
+/// encrypted at rest, and never reach the browser.
+model Session {
+  id              String   @id
+  userId          Int
+  /// Legacy Auth `sub` the tokens belong to.
+  authSub         String
+  /// OP session id (`sid`), the key back-channel logout sends.
+  sid             String?
+  accessToken     String
+  refreshToken    String
+  idToken         String
+  accessExpiresAt DateTime
+  /// Absolute lifetime; idle expiry is computed from lastSeenAt.
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([sid])
+  @@index([authSub])
   @@index([userId])
+}
+
+/// An authorization request in flight, bound to the browser that started it by
+/// a short-lived cookie whose hash is the id.
+model OidcLoginAttempt {
+  id           String   @id
+  state        String
+  nonce        String
+  codeVerifier String
+  returnTo     String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 }

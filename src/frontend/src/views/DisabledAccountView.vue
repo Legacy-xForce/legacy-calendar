@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
-import { useRouter } from 'vue-router';
-import { useSessionStore } from '../stores/session';
 import AccountNotice from '../components/AccountNotice.vue';
-
-const router = useRouter();
-const sessionStore = useSessionStore();
-
-const handleLogout = async () => {
-    await sessionStore.logout();
-    router.push('/');
-};
+import { signInWithAnotherAccount } from '../utils/account';
 </script>
 
 <template>
@@ -22,7 +13,7 @@ const handleLogout = async () => {
                 icon="pi pi-sign-out"
                 severity="secondary"
                 class="w-full"
-                @click="handleLogout"
+                @click="signInWithAnotherAccount"
             />
         </template>
     </AccountNotice>

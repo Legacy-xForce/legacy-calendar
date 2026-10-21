@@ -17,6 +17,8 @@ import { AppLogger } from '../logging/app-logger.js';
 import { AuthIdentityService } from '../auth/auth-identity.service.js';
 import { ApiTokensService } from '../api-tokens/api-tokens.service.js';
 import { isOriginAllowed } from '../config/cors.js';
+import { SessionService } from '../auth/session/session.service.js';
+import { parseCookies, sessionCookieName } from '../auth/session/session-cookies.js';
 
 type SocketUser = {
     userId: number;
@@ -41,16 +43,32 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
         @Inject(AuthIdentityService) private readonly identityService: AuthIdentityService,
-        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService
+        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService,
+        @Inject(SessionService) private readonly sessionService: SessionService
     ) {}
 
     afterInit(server: Server) {
         server.use((socket, next) => {
             void this.authenticateSocket(socket, next);
         });
+        // A socket opened with a session cookie lives in that session's room, so
+        // signing out (here or at Legacy Auth) also closes the socket.
+        this.sessionService.onRevoked((sessionIds) => {
+            for (const id of sessionIds) {
+                server.in(this.sessionRoom(id)).disconnectSockets(true);
+            }
+        });
     }
 
     handleConnection(client: Socket) {
+        const sessionId = (client.data as { sessionId?: string }).sessionId;
+        if (sessionId) {
+            void client.join(this.sessionRoom(sessionId));
+        }
+        this.logConnection(client);
+    }
+
+    private logConnection(client: Socket) {
         const user = this.getSocketUser(client);
         if (user) {
             this.logger.info('Client connected', { socketId: client.id, userId: user.userId, username: user.username });
@@ -350,7 +368,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
             const token = this.extractHandshakeToken(socket);
             if (!token) {
-                next(this.buildHandshakeError(401, 'Unauthorized'));
+                await this.authenticateSessionSocket(socket, next);
                 return;
             }
 
@@ -378,6 +396,39 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             this.logger.warn('Socket authentication failed', { socketId: socket.id, reason: message });
             next(this.buildHandshakeError(401, 'Unauthorized'));
         }
+    }
+
+    /**
+     * The browser app connects with its session cookie. A WebSocket handshake
+     * is not covered by CORS, so the origin is checked here explicitly
+     * (cross-site WebSocket hijacking).
+     */
+    private async authenticateSessionSocket(socket: Socket, next: (err?: Error) => void) {
+        const cookie = parseCookies(socket.handshake.headers.cookie)[sessionCookieName()];
+        if (!cookie || !isOriginAllowed(socket.handshake.headers.origin)) {
+            next(this.buildHandshakeError(401, 'Unauthorized'));
+            return;
+        }
+
+        const session = await this.sessionService.authenticate(cookie);
+        if (!session) {
+            next(this.buildHandshakeError(401, 'Unauthorized'));
+            return;
+        }
+
+        const data = socket.data as { user?: SocketUser; sessionId?: string };
+        data.user = { ...session.identity };
+        data.sessionId = session.sessionId;
+        this.logger.debug('Socket authenticated with session', {
+            socketId: socket.id,
+            userId: session.identity.userId,
+            username: session.identity.username
+        });
+        next();
+    }
+
+    private sessionRoom(sessionId: string) {
+        return `session:${sessionId}`;
     }
 
     private extractHandshakeToken(socket: Socket): string | null {
