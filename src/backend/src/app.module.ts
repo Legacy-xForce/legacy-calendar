@@ -27,7 +27,7 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
         ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
         // Global (see @Global on ThrottlerModule). No default request cap is
         // enforced globally; specific controllers opt in with @UseGuards +
-        // @Throttle so brute-force-prone endpoints (passkey login, invites) are
+        // @Throttle so brute-force-prone endpoints (invites) are
         // limited without throttling the whole API behind a shared proxy IP.
         ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
         PrismaModule,

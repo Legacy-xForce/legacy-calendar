@@ -341,12 +341,6 @@ describe('API tokens', () => {
                 body: { token: 'should-not-be-stored' }
             });
             expect(subscribe.status).toBe(403);
-
-            const changePassword = await http(app, 'POST', '/auth/change-password', {
-                apiToken: token.token,
-                body: { currentPassword: 'a', newPassword: 'b' }
-            });
-            expect(changePassword.status).toBe(403);
         });
 
         test('write tokens may perform every request the user can make', async () => {

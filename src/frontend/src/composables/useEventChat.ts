@@ -59,7 +59,7 @@ export function useEventChat(
 
     const connect = async () => {
         const id = eventId.value;
-        const token = localStorage.getItem('token');
+        const token = await useSessionStore().getAccessToken();
         if (!id || !token || !isEnabled.value) {
             logger.trace('Skipping chat connection', {
                 eventId: id,
@@ -70,7 +70,12 @@ export function useEventChat(
         }
 
         socket = io(socketBaseURL, {
-            auth: { token },
+            // A function, so every reconnect presents a fresh access token.
+            auth: (callback) => {
+                void useSessionStore()
+                    .getAccessToken()
+                    .then((fresh) => callback({ token: fresh }));
+            },
             transports: ['websocket'],
             autoConnect: false,
             reconnection: true,
@@ -239,7 +244,7 @@ export function useEventChat(
 
     const sendMessage = async (text: string, media?: { file: File; text?: string }) => {
         const id = eventId.value;
-        const token = localStorage.getItem('token');
+        const token = await useSessionStore().getAccessToken();
         if (!id || !token || !socket) {
             throw new Error('Chat is not connected');
         }

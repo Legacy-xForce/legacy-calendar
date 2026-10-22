@@ -3,7 +3,6 @@ import { ref, computed, toRaw, onMounted, watch } from 'vue';
 import { clear } from 'idb-keyval';
 import { useSessionStore } from '../stores/session';
 import Button from 'primevue/button';
-import PasswordInput from '../components/PasswordInput.vue';
 import InputText from 'primevue/inputtext';
 import ToggleSwitch from 'primevue/toggleswitch';
 import SelectButton from 'primevue/selectbutton';
@@ -17,10 +16,9 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { notificationStorage } from '../services/notificationStorage';
 import { NotificationCode, type NotificationSettings } from '../types/Notification';
-import { router } from '../router/router';
 import { createLogger } from '../services/logger';
 import api from '../services/API';
-import { isPasskeySupported } from '../services/webauthn';
+import { accountSettingsURL } from '../services/oidc';
 import { useUsersStore } from '../stores/users';
 import { useUserGroupsStore } from '../stores/userGroups';
 import type { UserGroup } from '../types/UserGroup';
@@ -326,53 +324,6 @@ const deleteApiToken = (token: ApiToken) => {
     });
 };
 
-// ---------- Passkeys ----------
-
-const passkeySupported = isPasskeySupported();
-const passkeys = ref<{ id: string; deviceName: string; createdAt: string }[]>([]);
-const showPasskeys = ref(false);
-const passkeyLoading = ref(false);
-const newPasskeyName = ref<string | null>(null);
-
-const guessDeviceName = () => {
-    const agent = navigator.userAgent;
-    if (/iPhone/i.test(agent)) return 'iPhone';
-    if (/iPad/i.test(agent)) return 'iPad';
-    if (/Android/i.test(agent)) return 'Android phone';
-    if (/Mac/i.test(agent)) return 'Mac';
-    if (/Windows/i.test(agent)) return 'Windows PC';
-    return 'This device';
-};
-
-const handleRegisterPasskey = async () => {
-    passkeyLoading.value = true;
-    try {
-        await sessionStore.registerPasskey(newPasskeyName.value?.trim() || undefined);
-        passkeys.value = (await api.getPasskeys()).data;
-        newPasskeyName.value = null;
-        toast.add({
-            severity: 'success',
-            summary: 'Passkey added',
-            detail: 'This device can now sign you in.',
-            life: 3000
-        });
-    } catch (error: any) {
-        toast.add({ severity: 'error', summary: "Couldn't add the passkey", detail: error.message, life: 4000 });
-    } finally {
-        passkeyLoading.value = false;
-    }
-};
-
-const handleDeletePasskey = async (id: string) => {
-    try {
-        await api.deletePasskey(id);
-        passkeys.value = passkeys.value.filter((passkey) => passkey.id !== id);
-        toast.add({ severity: 'success', summary: 'Passkey removed', life: 2500 });
-    } catch (error: any) {
-        toast.add({ severity: 'error', summary: "Couldn't remove the passkey", detail: error.message, life: 3500 });
-    }
-};
-
 const notificationGroups: { title: string; items: { code: NotificationCode; label: string; hint?: string }[] }[] = [
     {
         title: 'Events',
@@ -395,25 +346,8 @@ const notificationGroups: { title: string; items: { code: NotificationCode; labe
     }
 ];
 
-const handleLogout = async () => {
-    await sessionStore.logout();
-    router.push({ name: 'login' });
-};
-
-// Password change
-const showPasswordForm = ref(false);
-const currentPassword = ref('');
-const newPassword = ref('');
-const confirmPassword = ref('');
-const passwordLoading = ref(false);
-const passwordSubmitted = ref(false);
-
-const passwordError = computed(() => {
-    if (!currentPassword.value) return 'Enter your current password.';
-    if (!newPassword.value) return 'Choose a new password.';
-    if (newPassword.value !== confirmPassword.value) return "The new passwords don't match.";
-    return null;
-});
+// Leaves the app: signing out ends the Legacy Auth session too.
+const handleLogout = () => sessionStore.logout();
 
 const notificationSettings = ref<NotificationSettings | null>(null);
 
@@ -425,13 +359,6 @@ onMounted(async () => {
         loadApiTokens(),
         !currentUser.value ? sessionStore.load() : Promise.resolve()
     ]);
-    if (passkeySupported) {
-        try {
-            passkeys.value = (await api.getPasskeys()).data;
-        } catch (error) {
-            logger.warn('Failed to load passkeys', error);
-        }
-    }
 });
 
 const handleToggleSetting = async () => {
@@ -441,31 +368,6 @@ const handleToggleSetting = async () => {
     } catch (error) {
         logger.error('Failed to save notification settings', error);
         toast.add({ severity: 'error', summary: "Couldn't save notification settings", life: 3000 });
-    }
-};
-
-const handlePasswordChange = async () => {
-    passwordSubmitted.value = true;
-    if (passwordError.value) return;
-
-    passwordLoading.value = true;
-    try {
-        await sessionStore.changePassword(currentPassword.value, newPassword.value);
-        toast.add({ severity: 'success', summary: 'Password updated', life: 3000 });
-        currentPassword.value = '';
-        newPassword.value = '';
-        confirmPassword.value = '';
-        passwordSubmitted.value = false;
-        showPasswordForm.value = false;
-    } catch {
-        toast.add({
-            severity: 'error',
-            summary: "Couldn't update password",
-            detail: 'Check your current password and try again.',
-            life: 4000
-        });
-    } finally {
-        passwordLoading.value = false;
     }
 };
 
@@ -960,124 +862,19 @@ const handleClearCache = () => {
         <section class="flex flex-col gap-2">
             <h2 class="eyebrow m-0">Account</h2>
             <div class="border-line bg-raised divide-line divide-y overflow-hidden rounded-2xl border">
-                <button
-                    type="button"
-                    class="hover:bg-surface-950 flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors"
-                    :aria-expanded="showPasswordForm"
-                    @click="showPasswordForm = !showPasswordForm"
+                <a
+                    :href="accountSettingsURL"
+                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3.5 no-underline transition-colors"
                 >
                     <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
                         <i class="pi pi-key text-sm"></i>
                     </span>
-                    <span class="text-body text-fg flex-1 font-medium">Change password</span>
-                    <i
-                        class="pi pi-chevron-down text-subtle text-xs transition-transform duration-200"
-                        :class="{ 'rotate-180': showPasswordForm }"
-                    ></i>
-                </button>
-
-                <form
-                    v-if="showPasswordForm"
-                    class="animate-rise-in flex flex-col gap-3 px-4 pt-2 pb-4"
-                    novalidate
-                    @submit.prevent="handlePasswordChange"
-                >
-                    <div class="flex flex-col gap-1.5">
-                        <label for="current-password" class="text-meta text-muted font-medium">Current password</label>
-                        <PasswordInput
-                            inputId="current-password"
-                            v-model="currentPassword"
-                            autocomplete="current-password"
-                        />
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <label for="new-password" class="text-meta text-muted font-medium">New password</label>
-                        <PasswordInput inputId="new-password" v-model="newPassword" autocomplete="new-password" />
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <label for="confirm-password" class="text-meta text-muted font-medium"
-                            >Repeat new password</label
-                        >
-                        <PasswordInput
-                            inputId="confirm-password"
-                            v-model="confirmPassword"
-                            autocomplete="new-password"
-                        />
-                    </div>
-                    <small v-if="passwordSubmitted && passwordError" class="text-meta text-rose-300">
-                        {{ passwordError }}
-                    </small>
-                    <Button type="submit" label="Update password" :loading="passwordLoading" class="mt-1" />
-                </form>
-
-                <template v-if="passkeySupported">
-                    <button
-                        type="button"
-                        class="hover:bg-surface-950 flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors"
-                        :aria-expanded="showPasskeys"
-                        @click="showPasskeys = !showPasskeys"
-                    >
-                        <span
-                            class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl"
-                        >
-                            <i class="pi pi-lock text-sm"></i>
-                        </span>
-                        <span class="min-w-0 flex-1">
-                            <span class="text-body text-fg block font-medium">Passkeys</span>
-                            <span class="text-meta text-muted block">
-                                {{
-                                    passkeys.length
-                                        ? `${passkeys.length} ${passkeys.length === 1 ? 'device' : 'devices'}`
-                                        : 'Sign in with Face ID, fingerprint or your device PIN'
-                                }}
-                            </span>
-                        </span>
-                        <i
-                            class="pi pi-chevron-down text-subtle text-xs transition-transform duration-200"
-                            :class="{ 'rotate-180': showPasskeys }"
-                        ></i>
-                    </button>
-                    <div v-if="showPasskeys" class="animate-rise-in flex flex-col gap-2 px-4 pt-1 pb-4">
-                        <div
-                            v-for="passkey in passkeys"
-                            :key="passkey.id"
-                            class="bg-surface-900 flex items-center gap-3 rounded-xl py-1.5 pr-1.5 pl-3"
-                        >
-                            <span class="min-w-0 flex-1">
-                                <span class="text-body text-fg block truncate">{{ passkey.deviceName }}</span>
-                                <span class="text-meta text-subtle block">
-                                    Added {{ new Date(passkey.createdAt).toLocaleDateString() }}
-                                </span>
-                            </span>
-                            <Button
-                                icon="pi pi-trash"
-                                severity="danger"
-                                text
-                                rounded
-                                :aria-label="`Remove ${passkey.deviceName}`"
-                                @click="handleDeletePasskey(passkey.id)"
-                            />
-                        </div>
-                        <div v-if="newPasskeyName !== null" class="flex items-center gap-2">
-                            <InputText
-                                v-model="newPasskeyName"
-                                aria-label="Passkey name"
-                                autofocus
-                                fluid
-                                @keydown.enter.prevent="handleRegisterPasskey"
-                            />
-                            <Button label="Add" :loading="passkeyLoading" @click="handleRegisterPasskey" />
-                        </div>
-                        <Button
-                            v-else
-                            label="Add this device"
-                            icon="pi pi-plus"
-                            severity="secondary"
-                            class="self-start"
-                            @click="newPasskeyName = guessDeviceName()"
-                        />
-                    </div>
-                </template>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body block font-medium">Password and passkeys</span>
+                        <span class="text-meta text-muted block">Managed in Legacy accounts</span>
+                    </span>
+                    <i class="pi pi-external-link text-subtle text-xs"></i>
+                </a>
 
                 <router-link
                     v-if="isAdmin"

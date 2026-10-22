@@ -1,15 +1,15 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { createLogger } from './logger';
 import { accountIssueFromError, redirectToAccountNotice } from '../utils/account';
+import { router } from '../router/router';
+import { useSessionStore } from '../stores/session';
 
 export const baseURL = import.meta.env.VITE_API_URL;
 export const uploadsBaseURL = import.meta.env.VITE_UPLOADS_URL || baseURL;
 export const socketBaseURL = import.meta.env.VITE_WS_URL || baseURL;
 export const socketPath = '/socket.io';
-export const authBaseURL = import.meta.env.VITE_AUTH_URL || 'https://auth.legacy-group.tech';
 
 import type { CreateUserDto, PaymentInfo, UpdatePaymentInfoDto, UpdateUserDto, User } from '../types/User';
-import type { AuthLoginDto, AuthTokens, ChangePasswordDto } from '../types/Auth';
 import type { CalendarVisibleRange } from '../types/Calendar';
 import type { CreateEventDto, Event, ParticipateDto } from '../types/Event';
 import type { ChatHistoryResponse, ChatMediaUploadResponse } from '../types/Chat';
@@ -24,7 +24,6 @@ const logger = createLogger('API');
 
 class API {
     private client: AxiosInstance;
-    private refreshPromise: Promise<string> | null = null;
 
     constructor() {
         this.client = axios.create({
@@ -35,8 +34,9 @@ class API {
         });
 
         this.client.interceptors.request.use(
-            (config) => {
-                const token = localStorage.getItem('token');
+            async (config) => {
+                // Refreshes first when the access token is about to lapse.
+                const token = await useSessionStore().getAccessToken();
                 if (token && config.headers) {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
@@ -82,28 +82,27 @@ class API {
                 });
 
                 const originalRequest = error.config;
-                const refreshToken = localStorage.getItem('refresh_token');
 
-                if (
-                    error.response &&
-                    error.response.status === 401 &&
-                    refreshToken &&
-                    originalRequest &&
-                    !originalRequest._retry
-                ) {
+                if (error.response && error.response.status === 401 && originalRequest && !originalRequest._retry) {
+                    // The token was refused although it looked fresh (revoked, or the clock is off):
+                    // try one refresh, then give up on the session.
                     originalRequest._retry = true;
+                    const session = useSessionStore();
                     try {
-                        const newToken = await this.refreshAccessToken(refreshToken);
-                        originalRequest.headers = originalRequest.headers || {};
-                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                        return this.client.request(originalRequest);
+                        await session.refresh();
+                        const newToken = await session.getAccessToken();
+                        if (newToken) {
+                            originalRequest.headers = originalRequest.headers || {};
+                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                            return this.client.request(originalRequest);
+                        }
                     } catch (refreshError) {
-                        logger.warn('Token refresh failed, clearing session', {
-                            message: (refreshError as any)?.response?.data?.message ?? (refreshError as any)?.message
+                        logger.warn('Token refresh failed, ending the session', {
+                            message: (refreshError as any)?.message
                         });
-                        this.clearSession();
-                        return Promise.reject(error);
                     }
+                    this.endSession();
+                    return Promise.reject(error);
                 }
 
                 if (error.response && error.response.status === 403) {
@@ -111,59 +110,24 @@ class API {
                     if (issue) redirectToAccountNotice(issue);
                 }
 
-                if (error.response && error.response.status === 401) {
-                    // Session is invalid or expired, and no refresh was possible
-                    this.clearSession();
-                }
                 return Promise.reject(error);
             }
         );
     }
 
-    private clearSession() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
-        localStorage.setItem('session_expired', 'true');
-
-        // Force redirect to login if not already there
-        if (!window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
-            window.location.href = '/';
+    /** The server no longer accepts this session: show the sign-in page with the reason. */
+    private endSession() {
+        useSessionStore().expire();
+        if (router.currentRoute.value.name !== 'login') {
+            void router.push({ name: 'login' });
         }
-    }
-
-    private async refreshAccessToken(refreshToken: string): Promise<string> {
-        if (!this.refreshPromise) {
-            this.refreshPromise = axios
-                .post<AuthTokens>(`${authBaseURL}/auth/refresh`, { refresh_token: refreshToken })
-                .then((res) => {
-                    localStorage.setItem('token', res.data.access_token);
-                    if (res.data.refresh_token) {
-                        localStorage.setItem('refresh_token', res.data.refresh_token);
-                    }
-                    logger.info('Access token refreshed');
-                    return res.data.access_token;
-                })
-                .finally(() => {
-                    this.refreshPromise = null;
-                });
-        }
-        return this.refreshPromise;
     }
 
     // --- Auth ---
 
-    async login(dto: AuthLoginDto): Promise<AxiosResponse<AuthTokens>> {
-        // Authenticate against the external auth microservice and return its tokens
-        return axios.post(`${authBaseURL}/auth/login`, dto);
-    }
-
     async getProfile(): Promise<AxiosResponse<User>> {
         // Note: Spec defines this as POST /auth/profile
         return this.client.post('/auth/profile');
-    }
-
-    async changePassword(dto: ChangePasswordDto): Promise<AxiosResponse<void>> {
-        return this.client.post('/auth/change-password', dto);
     }
 
     // --- Users ---
@@ -365,32 +329,6 @@ class API {
 
     async deleteApiToken(id: number): Promise<AxiosResponse<{ success: boolean }>> {
         return this.client.delete(`/api-tokens/${id}`);
-    }
-
-    // --- Passkeys ---
-
-    async getPasskeyRegisterOptions(): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/register-options', {});
-    }
-
-    async verifyPasskeyRegister(dto: any): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/register-verify', dto);
-    }
-
-    async getPasskeyLoginOptions(username?: string): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/login-options', { username });
-    }
-
-    async verifyPasskeyLogin(dto: any): Promise<AxiosResponse<any>> {
-        return this.client.post('/auth/passkey/login-verify', dto);
-    }
-
-    async getPasskeys(): Promise<AxiosResponse<{ id: string; deviceName: string; createdAt: string }[]>> {
-        return this.client.get('/auth/passkey/credentials');
-    }
-
-    async deletePasskey(id: string): Promise<AxiosResponse<void>> {
-        return this.client.delete(`/auth/passkey/credentials/${encodeURIComponent(id)}`);
     }
 }
 

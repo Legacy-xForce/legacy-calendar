@@ -143,7 +143,7 @@ export const API_DOC_GROUPS: ApiDocGroup[] = [
         id: 'auth',
         title: 'Authentication & profile',
         summary:
-            'Profile lookup, password changes and WebAuthn passkeys. Login itself happens in the Legacy auth service.',
+            'Profile lookup. Signing in, passwords and passkeys are handled by Legacy Auth; this API accepts its access tokens and personal API tokens.',
         icon: 'pi pi-user',
         endpoints: [
             {
@@ -166,90 +166,6 @@ export const API_DOC_GROUPS: ApiDocGroup[] = [
                     ibanNumber: null,
                     ibanAccountHolder: null,
                     revolutLink: null
-                })
-            },
-            {
-                id: 'change-password',
-                method: 'POST',
-                path: '/auth/change-password',
-                title: 'Change the account password',
-                description: 'Proxies the password change to the Legacy auth service.',
-                auth: 'authenticated',
-                scope: 'write',
-                body: json({ currentPassword: 'current-password', newPassword: 'new-password' }),
-                notes: ['Limited to 10 requests per minute per client.']
-            },
-            {
-                id: 'passkey-register-options',
-                method: 'POST',
-                path: '/auth/passkey/register-options',
-                title: 'Start passkey registration',
-                description: 'Returns WebAuthn creation options for the current account.',
-                auth: 'authenticated',
-                scope: 'write',
-                body: json({ deviceName: 'MacBook Touch ID' })
-            },
-            {
-                id: 'passkey-register-verify',
-                method: 'POST',
-                path: '/auth/passkey/register-verify',
-                title: 'Finish passkey registration',
-                description: 'Verifies the WebAuthn attestation and stores the credential.',
-                auth: 'authenticated',
-                scope: 'write',
-                body: json({
-                    id: 'credential-id',
-                    rawId: 'credential-id',
-                    response: { clientDataJSON: '…', publicKey: '…', transports: ['internal'] },
-                    deviceName: 'MacBook Touch ID'
-                })
-            },
-            {
-                id: 'passkey-list',
-                method: 'GET',
-                path: '/auth/passkey/credentials',
-                title: 'List passkeys',
-                description: 'Lists the passkeys registered on the current account.',
-                auth: 'authenticated',
-                scope: 'read',
-                response: json([
-                    { id: 'credential-id', deviceName: 'MacBook Touch ID', createdAt: '2026-10-20T12:00:00.000Z' }
-                ])
-            },
-            {
-                id: 'passkey-delete',
-                method: 'DELETE',
-                path: '/auth/passkey/credentials/{id}',
-                title: 'Delete a passkey',
-                description: 'Removes one of the current account passkeys.',
-                auth: 'authenticated',
-                scope: 'write',
-                params: [
-                    { name: 'id', in: 'path', type: 'string', required: true, description: 'WebAuthn credential id.' }
-                ]
-            },
-            {
-                id: 'passkey-login-options',
-                method: 'POST',
-                path: '/auth/passkey/login-options',
-                title: 'Start passkey login',
-                description:
-                    'Public endpoint that returns WebAuthn assertion options. Username is optional for discoverable passkeys.',
-                auth: 'public',
-                body: json({ username: 'alice' })
-            },
-            {
-                id: 'passkey-login-verify',
-                method: 'POST',
-                path: '/auth/passkey/login-verify',
-                title: 'Finish passkey login',
-                description:
-                    'Public endpoint that verifies the assertion and returns an access token and refresh token.',
-                auth: 'public',
-                body: json({
-                    id: 'credential-id',
-                    rawId: 'credential-id',
-                    response: { clientDataJSON: '…', authenticatorData: '…', signature: '…', userHandle: '…' }
                 })
             }
         ]
