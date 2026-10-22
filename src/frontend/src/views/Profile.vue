@@ -867,11 +867,13 @@ const handleClearCache = () => {
                     class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3.5 no-underline transition-colors"
                 >
                     <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <i class="pi pi-key text-sm"></i>
+                        <i class="pi pi-user-edit text-sm"></i>
                     </span>
                     <span class="min-w-0 flex-1">
-                        <span class="text-body block font-medium">Password and passkeys</span>
-                        <span class="text-meta text-muted block">Managed in Legacy accounts</span>
+                        <span class="text-body block font-medium">Manage profile</span>
+                        <span class="text-meta text-muted block"
+                            >Name, picture, password and passkeys in Legacy Auth</span
+                        >
                     </span>
                     <i class="pi pi-external-link text-subtle text-xs"></i>
                 </a>

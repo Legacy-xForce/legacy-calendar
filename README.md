@@ -71,7 +71,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 
 ### User and Admin Features
 
-- User profile with password change and avatar upload
+- User profile with a "Manage profile" link to Legacy Auth (name, picture, password and passkeys)
 - Local notification preference toggles
 - Cache clearing for locally stored weather and geolocation data
 - Admin user management

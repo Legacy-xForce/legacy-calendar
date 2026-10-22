@@ -204,5 +204,5 @@ export async function signOutUrl(idToken: string | null): Promise<string> {
     return url.toString();
 }
 
-/** Password and passkeys are managed at Legacy Auth, not in the calendar. */
+/** The profile (name, picture, password, passkeys) is managed at Legacy Auth, not in the calendar. */
 export const accountSettingsURL = `${authBaseURL}/settings`;
