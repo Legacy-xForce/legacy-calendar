@@ -172,8 +172,6 @@ Create a `.env` file in `src/backend` using the example below:
 
 ```bash
 DATABASE_URL=postgresql://user:password@host/database
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRES_IN=30d
 LOG_LEVEL=trace
 ```
 
