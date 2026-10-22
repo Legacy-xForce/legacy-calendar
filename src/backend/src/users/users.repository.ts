@@ -53,8 +53,19 @@ export class UsersRepository {
         });
     }
 
-    findOneByUsername(username: string): Promise<UserModel | null> {
-        return this.prisma.user.findUnique({ where: { username } });
+    async findOneByUsername(username: string): Promise<UserModel | null> {
+        // Match the exact spelling first. If OIDC has since lowercased the
+        // username, fall back to a case-insensitive match so an older,
+        // mixed-case local account is linked instead of duplicated.
+        const exact = await this.prisma.user.findUnique({ where: { username } });
+        if (exact) {
+            return exact;
+        }
+
+        return this.prisma.user.findFirst({
+            where: { username: { equals: username, mode: 'insensitive' } },
+            orderBy: { id: 'asc' }
+        });
     }
 
     findOneByAuthId(authId: string): Promise<UserRecord | null> {

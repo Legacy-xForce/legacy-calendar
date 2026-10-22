@@ -29,6 +29,29 @@ describe('Legacy Auth token checks', () => {
         expect(await profileStatus(signSessionToken(authId, username))).toBe(201);
     });
 
+    test('links a legacy mixed-case account instead of creating a duplicate', async () => {
+        const { authId, username } = freshIdentity('legacy');
+        const localUsername = `${username[0].toUpperCase()}${username.slice(1)}`;
+        const local = await app.prisma.user.create({
+            data: { username: localUsername }
+        });
+
+        const response = await http<{ id: number; username: string }>(app, 'POST', '/auth/profile', {
+            bearer: signSessionToken(authId, username)
+        });
+
+        expect(response.status).toBe(201);
+        expect(response.body).toMatchObject({ id: local.id, username: localUsername });
+
+        const linked = await app.prisma.user.findUnique({ where: { id: local.id } });
+        expect(linked?.authId).toBe(authId);
+        expect(
+            await app.prisma.user.count({
+                where: { username: { equals: username, mode: 'insensitive' } }
+            })
+        ).toBe(1);
+    });
+
     test('rejects an account without the calendar scope', async () => {
         const { authId, username } = freshIdentity('noscope');
         const token = signSessionToken(authId, username, '1h', { scopes: { calendar: false, tracker: true } });
