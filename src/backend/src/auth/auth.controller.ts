@@ -1,12 +1,10 @@
-import { Body, Controller, Post, Request, UseGuards, Inject, HttpException, HttpStatus } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Controller, Post, Request, UseGuards, Inject } from '@nestjs/common';
 import { UsersService } from '../users/users.service.js';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { type RequestWithUser } from './interfaces/request-with-user.interface.js';
-import { getAuthHost } from '../config/auth-host.js';
 
+// Signing in is the OpenID Provider's job (Legacy Auth); passwords and passkeys are managed there.
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -20,51 +18,5 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getProfile(@Request() req: RequestWithUser) {
         return this.usersService.findOne(req.user.userId!);
-    }
-
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, ThrottlerGuard)
-    @Post('change-password')
-    @Throttle({ default: { limit: 10, ttl: 60_000 } })
-    @ApiOperation({ summary: 'Change user password (proxied to auth service)' })
-    @ApiBody({ type: ChangePasswordDto })
-    @ApiResponse({ status: 200, description: 'Password changed successfully' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    async changePassword(@Request() req: RequestWithUser, @Body() changePasswordDto: ChangePasswordDto) {
-        const authHeader = (req.headers?.authorization as string) || '';
-        const authHost = getAuthHost();
-
-        try {
-            const res = await fetch(`${authHost}/auth/change-password`, {
-                method: 'POST',
-                headers: {
-                    'content-type': 'application/json',
-                    ...(authHeader ? { Authorization: authHeader } : {})
-                },
-                body: JSON.stringify({
-                    current_password: changePasswordDto.currentPassword,
-                    new_password: changePasswordDto.newPassword
-                })
-            });
-
-            let data: Record<string, unknown> | null = null;
-            try {
-                data = (await res.json()) as Record<string, unknown>;
-            } catch {
-                data = null;
-            }
-
-            if (!res.ok) {
-                const msg = typeof data?.message === 'string' ? data.message : 'Auth service error';
-                // forward the upstream body when available so clients receive the same JSON
-                throw new HttpException(data ?? { message: msg }, res.status || HttpStatus.BAD_GATEWAY);
-            }
-
-            // return upstream JSON body as-is
-            return data;
-        } catch (err: unknown) {
-            if (err instanceof HttpException) throw err;
-            throw new HttpException('Unable to contact auth service', HttpStatus.SERVICE_UNAVAILABLE);
-        }
     }
 }

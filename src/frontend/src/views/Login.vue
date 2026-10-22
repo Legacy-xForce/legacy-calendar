@@ -1,60 +1,32 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import InputText from 'primevue/inputtext';
-import PasswordInput from '../components/PasswordInput.vue';
+import { useRoute } from 'vue-router';
 import Button from 'primevue/button';
-import { useToast } from 'primevue/usetoast';
-import { router } from '../router/router';
 import { useSessionStore } from '../stores/session';
 import AppLogo from '../components/AppLogo.vue';
-import { requestNotificationPermission } from '../services/firebase';
-import { isPasskeySupported } from '../services/webauthn';
+import { AuthError } from '../services/oidc';
 
-const passkeySupported = isPasskeySupported();
-
-const toast = useToast();
+const route = useRoute();
 const sessionStore = useSessionStore();
 
-const username = ref('');
-const password = ref('');
+const starting = ref(false);
 const errorMessage = ref<string | null>(null);
 
-const handleLogin = async () => {
+// Only paths inside the app: the value comes from the address bar.
+function returnTo(): string {
+    const next = route.query.next;
+    return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/calendar';
+}
+
+const handleSignIn = async () => {
     errorMessage.value = null;
-    if (!username.value || !password.value) {
-        errorMessage.value = 'Enter your username and password.';
-        return;
-    }
-
-    const success = await sessionStore.login({
-        username: username.value,
-        password: password.value
-    });
-
-    if (success) {
-        toast.add({
-            severity: 'success',
-            summary: `Welcome back, ${sessionStore.currentUser?.username}`,
-            life: 2000
-        });
-
-        router.push('/calendar');
-
-        await requestNotificationPermission();
-    } else if (sessionStore.error) {
-        // No error means login redirected (disabled account or missing access), so there is nothing to show
-        errorMessage.value = sessionStore.error;
-    }
-};
-
-const handlePasskeyLogin = async () => {
-    errorMessage.value = null;
-    const success = await sessionStore.loginWithPasskey(username.value || undefined);
-    if (success) {
-        router.push('/calendar');
-        await requestNotificationPermission();
-    } else if (sessionStore.error) {
-        errorMessage.value = sessionStore.error;
+    starting.value = true;
+    try {
+        // Leaves the page for Legacy Auth, which owns the password and passkey form.
+        await sessionStore.signIn(returnTo());
+    } catch (error) {
+        starting.value = false;
+        errorMessage.value = error instanceof AuthError ? error.message : 'Sign-in failed. Please try again.';
     }
 };
 </script>
@@ -72,65 +44,24 @@ const handlePasskeyLogin = async () => {
                 </div>
             </div>
 
-            <form class="flex flex-col gap-4" novalidate @submit.prevent="handleLogin">
-                <div class="flex flex-col gap-1.5">
-                    <label for="username" class="text-meta text-muted font-medium">Username</label>
-                    <InputText
-                        id="username"
-                        v-model="username"
-                        autocomplete="username"
-                        autocapitalize="none"
-                        spellcheck="false"
-                        :disabled="sessionStore.loading"
-                        :invalid="!!errorMessage && !username"
-                        fluid
-                    />
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                    <label for="password" class="text-meta text-muted font-medium">Password</label>
-                    <PasswordInput
-                        inputId="password"
-                        v-model="password"
-                        :disabled="sessionStore.loading"
-                        :invalid="!!errorMessage && !password"
-                        autocomplete="current-password"
-                    />
-                </div>
-
+            <div class="flex flex-col gap-4">
                 <p
-                    v-if="errorMessage"
+                    v-if="errorMessage || sessionStore.error"
                     class="text-meta animate-rise-in m-0 rounded-xl bg-rose-400/10 px-3 py-2 text-rose-200"
                     role="alert"
                 >
-                    {{ errorMessage }}
+                    {{ errorMessage || sessionStore.error }}
                 </p>
 
                 <Button
-                    type="submit"
-                    :label="sessionStore.loading ? 'Signing in…' : 'Sign in'"
-                    class="mt-2 w-full"
-                    :loading="sessionStore.loading"
-                    :disabled="sessionStore.loading"
+                    type="button"
+                    :label="starting ? 'Opening Legacy Auth…' : 'Sign in with Legacy'"
+                    class="w-full"
+                    :loading="starting"
+                    :disabled="starting"
+                    @click="handleSignIn"
                 />
-
-                <template v-if="passkeySupported">
-                    <div class="text-meta text-subtle flex items-center gap-3" aria-hidden="true">
-                        <span class="bg-line h-px flex-1"></span>
-                        or
-                        <span class="bg-line h-px flex-1"></span>
-                    </div>
-                    <Button
-                        type="button"
-                        label="Sign in with a passkey"
-                        icon="pi pi-key"
-                        severity="secondary"
-                        class="w-full"
-                        :disabled="sessionStore.loading"
-                        @click="handlePasskeyLogin"
-                    />
-                </template>
-            </form>
+            </div>
 
             <p class="text-meta text-subtle m-0 text-center">
                 Powered by <span class="text-muted font-semibold">xForce</span>

@@ -26,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                     .then((key) => done(null, key))
                     .catch((error: unknown) => done(error));
             },
-            algorithms: ['ES256', 'HS256']
+            algorithms: ['ES256']
         });
     }
 

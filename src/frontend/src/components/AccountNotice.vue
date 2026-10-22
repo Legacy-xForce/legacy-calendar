@@ -12,9 +12,9 @@ defineProps<{
 
 const sessionStore = useSessionStore();
 
-// A disabled account never loads its profile, so fall back to the name inside the stored token
+// A disabled account never loads its profile, so fall back to the name inside the access token
 const username = computed<string | undefined>(
-    () => sessionStore.currentUser?.username ?? parseJwtPayload(localStorage.getItem('token') ?? '')?.username
+    () => sessionStore.currentUser?.username ?? parseJwtPayload(sessionStore.accessToken ?? '')?.username
 );
 const profilePictureUrl = computed(() => sessionStore.currentUser?.profilePictureUrl);
 

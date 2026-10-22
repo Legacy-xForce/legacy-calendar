@@ -4,6 +4,7 @@ import { accountIssueFromToken, accountIssueRoute } from '../utils/account';
 // Lazy load views
 const Calendar = () => import('../views/Calendar.vue');
 const Login = () => import('../views/Login.vue');
+const CallbackView = () => import('../views/CallbackView.vue');
 const AdminView = () => import('../views/AdminView.vue');
 const Profile = () => import('../views/Profile.vue');
 const Upcoming = () => import('../views/Upcoming.vue');
@@ -25,6 +26,7 @@ declare module 'vue-router' {
 
 const routes: RouteRecordRaw[] = [
     { path: '/', name: 'login', component: Login, meta: { requiresGuest: true, bare: true } },
+    { path: '/callback', name: 'callback', component: CallbackView, meta: { bare: true } },
     { path: '/disabled', name: 'disabled-account', component: DisabledAccountView, meta: { bare: true } },
     {
         path: '/insufficient-scope',
@@ -82,13 +84,22 @@ router.previousRoute = null;
 // Navigation guards
 router.beforeEach(async (to: any, from: any) => {
     router.previousRoute = from;
-    const token = localStorage.getItem('token');
-    const isAuthenticated = !!token;
-    const accountIssue = accountIssueFromToken(token);
 
-    // Redirect to login if route requires auth and user is not authenticated
+    // Back from Legacy Auth: the callback view completes the sign-in itself.
+    if (to.name === 'callback') return;
+
+    // Resumes the stored session (refreshing its access token) once per page load.
+    const { useSessionStore } = await import('../stores/session');
+    const sessionStore = useSessionStore();
+    await sessionStore.restore();
+
+    const isAuthenticated = sessionStore.isAuthenticated;
+    const accountIssue = accountIssueFromToken(sessionStore.accessToken);
+
+    // Send the user to sign in if the route requires auth and nobody is signed in, and bring them
+    // back to the page they asked for afterwards.
     if (to.meta.requiresAuth && !isAuthenticated) {
-        return { name: 'login' };
+        return { name: 'login', query: to.fullPath === '/calendar' ? {} : { next: to.fullPath } };
     }
 
     // Disabled accounts and tokens without the calendar scope go to their notice page,
@@ -104,10 +115,7 @@ router.beforeEach(async (to: any, from: any) => {
 
     // Redirect to calendar if route requires admin and user is not an admin
     if (to.meta.requiresAdmin) {
-        const { useSessionStore } = await import('../stores/session');
-        const sessionStore = useSessionStore();
-
-        // Ensure session is loaded before checking admin status
+        // Ensure the profile is loaded before checking admin status
         if (!sessionStore.currentUser) {
             await sessionStore.load();
         }

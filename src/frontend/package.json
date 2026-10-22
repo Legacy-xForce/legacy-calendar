@@ -22,6 +22,7 @@
     "firebase": "^12.12.1",
     "idb-keyval": "^6.2.2",
     "lottie-web": "^5.13.0",
+    "oauth4webapi": "3.8.8",
     "openmeteo": "^1.2.3",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",

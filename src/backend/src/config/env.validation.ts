@@ -5,13 +5,7 @@
  * defaults at request time.
  */
 
-const REQUIRED_KEYS = ['DATABASE_URL', 'JWT_SECRET'] as const;
-
-/**
- * Well-known placeholder values that must never be accepted as a real secret.
- * Shared with the runtime resolver so validation and boot rules cannot drift.
- */
-export const FORBIDDEN_JWT_SECRETS = new Set(['legacy-calendar-default-secret', 'changeme', 'secret', 'password']);
+const REQUIRED_KEYS = ['DATABASE_URL'] as const;
 
 export function validateEnvironment(config: Record<string, unknown>): Record<string, unknown> {
     const errors: string[] = [];
@@ -21,11 +15,6 @@ export function validateEnvironment(config: Record<string, unknown>): Record<str
         if (typeof value !== 'string' || !value.trim()) {
             errors.push(`${key} is required`);
         }
-    }
-
-    const jwtSecret = typeof config.JWT_SECRET === 'string' ? config.JWT_SECRET.trim() : '';
-    if (jwtSecret && FORBIDDEN_JWT_SECRETS.has(jwtSecret)) {
-        errors.push('JWT_SECRET must be a unique random value, not a well-known placeholder');
     }
 
     if (errors.length > 0) {

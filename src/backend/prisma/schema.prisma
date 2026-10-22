@@ -28,7 +28,6 @@ model User {
   auditLogEntriesAsActor        AuditLogEntry[]     @relation("AuditLogActor")
   auditLogEntriesAsImpersonator AuditLogEntry[]     @relation("AuditLogImpersonator")
   userGroups                    UserGroup[]
-  passkeyCredentials            PasskeyCredential[]
   apiTokens                     ApiToken[]
 }
 
@@ -281,18 +280,5 @@ model UserGroup {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
-  @@index([userId])
-}
-
-model PasskeyCredential {
-  id         String   @id
-  userId     Int
-  publicKey  String
-  counter    BigInt   @default(0)
-  deviceName String?
-  createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
 }

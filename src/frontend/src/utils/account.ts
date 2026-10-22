@@ -93,5 +93,10 @@ function tokenHasCalendarScope(payload: any): boolean {
           : [];
 
     if (scopes.length === 0) return false;
-    return scopes.includes('calendar') || scopes.includes('*') || scopes.includes('all');
+    return (
+        scopes.includes('calendar') ||
+        scopes.includes('calendar.read') ||
+        scopes.includes('*') ||
+        scopes.includes('all')
+    );
 }

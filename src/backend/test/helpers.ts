@@ -9,7 +9,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrismaClient as PrismaClientType } from '../prisma/generated/client.js';
 
-export const TEST_JWT_SECRET = 'test-only-jwt-secret-do-not-use-anywhere-else';
 export const TEST_AUTH_ISSUER = 'https://auth.test.invalid';
 
 // Stand-in for Legacy Auth's signing key; its public half is served as the
@@ -69,7 +68,6 @@ export type HttpOptions = {
 export async function startTestApp(): Promise<TestApp> {
     process.env.NODE_ENV = 'test';
     process.env.LOG_LEVEL = 'fatal';
-    process.env.JWT_SECRET = TEST_JWT_SECRET;
     process.env.FRONTEND_URL = 'http://localhost:5173';
     process.env.AUTH_HOST = 'http://127.0.0.1:1';
     process.env.AUTH_ISSUER = TEST_AUTH_ISSUER;
