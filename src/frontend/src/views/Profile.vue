@@ -55,6 +55,7 @@ const calendarLayoutHint = computed(
 
 const currentUser = computed(() => sessionStore.currentUser);
 const isAdmin = computed(() => currentUser.value?.isAdmin);
+const canonicalUsername = computed(() => currentUser.value?.username.toLowerCase() ?? '');
 
 const usersStore = useUsersStore();
 const userGroupsStore = useUserGroupsStore();
@@ -400,6 +401,7 @@ const handleClearCache = () => {
             />
             <div class="min-w-0">
                 <h1 class="text-display m-0 truncate">{{ currentUser?.username }}</h1>
+                <p v-if="canonicalUsername" class="text-meta text-subtle m-0 truncate">@{{ canonicalUsername }}</p>
                 <p class="text-meta text-muted m-0">{{ isAdmin ? 'Administrator' : 'Member' }}</p>
             </div>
         </header>
