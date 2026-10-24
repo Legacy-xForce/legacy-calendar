@@ -5,6 +5,19 @@ services:
     restart: always
     ports:
       - "3001:3000"
+    expose:
+      - "3000"
+    # Lets Coolify (and plain Docker) gate the deployment on real readiness.
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       # The image runs from /usr/src/app (Dockerfile WORKDIR), so config, uploads
       # and secrets must be mounted there for process.cwd()-relative lookups.

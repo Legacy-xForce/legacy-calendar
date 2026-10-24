@@ -247,6 +247,7 @@ npm run dev
 - The backend is set up to run from a compiled `dist/main.js` entrypoint in production.
 - Uploaded files are served from the local `uploads` directory, with optional fallback to a remote uploads origin.
 - The provided backend `docker-compose.yaml` is configured for a containerized deployment that mounts `.env`, `firebase.json`, `uploads`, and `secrets` into the container.
+- The image exposes port `3000` and defines a `HEALTHCHECK` against `/health`, so Coolify can gate a deployment on actual readiness.
 
 ## API Documentation
 
