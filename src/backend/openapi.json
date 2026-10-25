@@ -15,6 +15,20 @@
         ]
       }
     },
+    "/health": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
     "/auth/profile": {
       "post": {
         "operationId": "AuthController_getProfile",
