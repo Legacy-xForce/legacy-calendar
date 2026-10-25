@@ -142,6 +142,9 @@ jobs:
             echo "::warning::COOLIFY_WEBHOOK and COOLIFY_TOKEN are not configured; skipping Coolify deployment."
             exit 0
           fi
+          # Coolify rejects GET with 405; the deploy endpoint is POST-only.
           curl --fail-with-body --silent --show-error \
-            --request GET "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN"
+            --request POST "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data '{"force": false}'
