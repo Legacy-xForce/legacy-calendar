@@ -36,6 +36,7 @@
     "@nestjs/websockets": "^11.1.19",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "@scalar/nestjs-api-reference": "^1.2.31",
     "@types/compression": "^1.8.1",
     "@types/multer": "^2.1.0",
     "class-transformer": "^0.5.1",
@@ -52,8 +53,7 @@
     "pino": "^10.3.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "socket.io": "^4.8.3",
-    "swagger-ui-express": "^5.0.1"
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.3",

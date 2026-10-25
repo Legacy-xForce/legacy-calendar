@@ -16,6 +16,7 @@
   "dependencies": {
     "@meteocons/lottie": "^0.1.0",
     "@primeuix/themes": "^3.0.1",
+    "@scalar/api-reference": "^1.76.0",
     "@tailwindcss/vite": "^4.2.4",
     "axios": "^1.15.2",
     "date-fns": "^4.1.0",

@@ -25,7 +25,26 @@ export function createSwaggerConfig() {
                 'Most endpoints accept either a normal session token (`Authorization: Bearer <jwt>`) or a personal',
                 'API token (`X-API-Token: legacy-calendar-…`). API tokens are created from the profile page and',
                 'carry a `read` or `write` scope. Read-only tokens may only perform `GET`/`HEAD`/`OPTIONS` requests',
-                'and `POST /auth/profile`. Token management under `/api-tokens` always requires a session token.'
+                'and `POST /auth/profile`. Token management under `/api-tokens` always requires a session token.',
+                '',
+                '## Chat socket',
+                '',
+                'Event chat also runs over Socket.IO at the API origin. Authenticate the handshake with either a session',
+                'token (`auth.token`) or an API token (`auth.apiToken` or the `X-API-Token` header), then join the event',
+                'room with `joinRoom`; the server checks that you participate in the event.',
+                '',
+                '| Client event | Body | Broadcast to the room |',
+                '| --- | --- | --- |',
+                '| `joinRoom` / `leaveRoom` | `{ eventId }` | — |',
+                '| `sendMessage` | `{ eventId, text?, mediaUrl?, mediaType? }` | `newMessage` |',
+                '| `editMessage` | `{ messageId, text }` | `messageEdited` |',
+                '| `deleteMessage` | `{ messageId }` | `messageDeleted` |',
+                '| `addReaction` | `{ messageId, emoji }` | `reactionUpdated` |',
+                '| `pinMessage` / `unpinMessage` | `{ messageId }` | `messagePinned` / `messageUnpinned` |',
+                '| `typing` / `stopTyping` | `{ eventId }` | `userTyping` / `userStoppedTyping` |',
+                '',
+                'Read-only API tokens may join rooms and receive events but cannot send mutations. Failures arrive as an',
+                '`error` event with `{ code, message }`.'
             ].join('\n')
         )
         .setVersion('1.0')

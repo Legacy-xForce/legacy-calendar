@@ -23,7 +23,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 - Prisma 7 with PostgreSQL
 - Socket.IO for event chat and live updates
 - Passport JWT and local auth strategies
-- Swagger for API documentation
+- Scalar for interactive API documentation (generated from the OpenAPI schema)
 - Firebase Admin for push notifications
 - Multer-based file uploads
 - Compression middleware
@@ -251,9 +251,9 @@ npm run dev
 
 ## API Documentation
 
-Interactive Swagger documentation is available at `http://localhost:3000/api`, and the frontend includes a human-readable API reference at `/docs`.
+Interactive Scalar documentation is available at `http://localhost:3000/api`, and the frontend renders the same OpenAPI document at `/docs`.
 
-The backend exposes Swagger documentation and tags for:
+The OpenAPI document is tagged for:
 
 - authentication
 - users
