@@ -68,7 +68,7 @@ const routes: RouteRecordRaw[] = [
     { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/invite/:token', name: 'guest-invite', component: GuestInviteView, meta: { bare: true } },
     { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
-    { path: '/docs', name: 'docs', component: DocsView },
+    { path: '/docs', name: 'docs', component: DocsView, meta: { bare: true } },
     { path: '/403', name: 'forbidden', component: ErrorPage, props: { status: 403 } },
     { path: '/404', name: 'not-found', component: ErrorPage, props: { status: 404 } },
     { path: '/:pathMatch(.*)*', component: ErrorPage, props: { status: 404 } }

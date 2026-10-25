@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import compression from 'compression';
 import type { Express } from 'express';
 import { AppLogger } from './logging/app-logger.js';
@@ -41,11 +42,11 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
     // API docs are useful in development but should not be publicly exposed in production.
-    const exposeSwagger = process.env.NODE_ENV !== 'production';
-    if (exposeSwagger) {
+    const exposeApiDocs = process.env.NODE_ENV !== 'production';
+    if (exposeApiDocs) {
         const config = createSwaggerConfig();
         const document = addApiTokenSecurity(SwaggerModule.createDocument(app, config));
-        SwaggerModule.setup('api', app, document);
+        app.use('/api', apiReference({ content: document }));
     }
 
     const port = process.env.PORT ?? 3000;
@@ -54,7 +55,7 @@ async function bootstrap() {
 
     logger.info('Application is running', {
         url: `http://localhost:${port}`,
-        ...(exposeSwagger ? { swaggerUrl: `http://localhost:${port}/api` } : {})
+        ...(exposeApiDocs ? { apiDocsUrl: `http://localhost:${port}/api` } : {})
     });
 }
 
