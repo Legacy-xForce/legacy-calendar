@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from '../../users/dto/user.dto.js';
 import { InviteStatus, TransportMode } from '../../../prisma/generated/client.js';
+import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
 
 /**
  * The host view of a user. The payment fields (`paypalLink`, `ibanNumber`,
@@ -85,6 +86,14 @@ export class EventResponseDto {
 
     @ApiProperty({ type: String, example: 'Meeting Room A', description: 'Location', required: false, nullable: true })
     location?: string | null;
+
+    @ApiProperty({
+        type: () => AddressDetailsDto,
+        description: 'Structured details of the selected street address',
+        required: false,
+        nullable: true
+    })
+    locationDetails?: AddressDetailsDto | null;
 
     @ApiProperty({ type: Date, example: '2026-02-04T10:00:00Z', description: 'Start time' })
     startTime!: Date;

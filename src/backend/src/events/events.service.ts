@@ -18,6 +18,7 @@ import { attendanceId } from '../common/participant-id.util.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
 import { assertEventNotEnded } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
+import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
 
 @Injectable()
 export class EventsService {
@@ -38,6 +39,7 @@ export class EventsService {
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
         const coHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== hostId);
+        this.assertValidLocationForCreate(eventData.location, eventData.locationDetails);
         this.logger.info('Creating event', {
             hostId,
             title: eventData.title,
@@ -186,6 +188,7 @@ export class EventsService {
         this.validateEventNotEnded(event);
 
         const { participants, coHosts, ...eventData } = updateEventDto;
+        this.assertValidLocationForUpdate(event, eventData.location, eventData.locationDetails);
         const updateData: Prisma.EventUpdateInput = this.buildUpdateEventInput(eventData);
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
 
@@ -700,10 +703,11 @@ export class EventsService {
     private buildCreateEventInput(
         eventData: Omit<CreateEventDto, 'participants' | 'coHosts'>
     ): Omit<Prisma.EventCreateInput, 'host'> {
-        const { startTime, endTime, participationDeadline, ...rest } = eventData;
+        const { startTime, endTime, participationDeadline, locationDetails, ...rest } = eventData;
 
         return {
             ...rest,
+            ...(locationDetails ? { locationDetails: locationDetails as unknown as Prisma.InputJsonValue } : {}),
             startTime: new Date(startTime),
             endTime: endTime ? new Date(endTime) : null,
             participationDeadline: participationDeadline ? new Date(participationDeadline) : null
@@ -713,8 +717,12 @@ export class EventsService {
     private buildUpdateEventInput(
         eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>
     ): Prisma.EventUpdateInput {
-        const { startTime, endTime, participationDeadline, ...rest } = eventData;
+        const { startTime, endTime, participationDeadline, locationDetails, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };
+
+        if (locationDetails !== undefined) {
+            updateData.locationDetails = locationDetails as unknown as Prisma.InputJsonValue;
+        }
 
         if (startTime !== undefined) {
             updateData.startTime = new Date(startTime);
@@ -729,6 +737,62 @@ export class EventsService {
         }
 
         return updateData;
+    }
+
+    private assertValidLocationForCreate(location: string, details?: AddressDetailsDto): void {
+        const trimmedLocation = location?.trim();
+        if (!trimmedLocation) {
+            throw new BadRequestException('A complete street address is required');
+        }
+
+        if (!details) {
+            throw new BadRequestException('Pick a complete street address from the suggestions');
+        }
+
+        this.assertLocationDetailsMatch(trimmedLocation, details);
+    }
+
+    private assertValidLocationForUpdate(
+        event: EventWithRelations,
+        location?: string,
+        details?: AddressDetailsDto
+    ): void {
+        const locationProvided = location !== undefined;
+        const detailsProvided = details !== undefined;
+
+        if (!locationProvided && !detailsProvided) {
+            return;
+        }
+
+        if (detailsProvided && !locationProvided) {
+            throw new BadRequestException('Location is required when address details are provided');
+        }
+
+        const trimmedLocation = location?.trim() ?? '';
+        if (!detailsProvided) {
+            // Existing free-text (or missing) locations may keep their value when the field is untouched.
+            if (trimmedLocation === (event.location ?? '').trim()) {
+                return;
+            }
+
+            if (!trimmedLocation) {
+                throw new BadRequestException('A complete street address is required');
+            }
+
+            throw new BadRequestException('Pick a complete street address from the suggestions');
+        }
+
+        if (!trimmedLocation) {
+            throw new BadRequestException('A complete street address is required');
+        }
+
+        this.assertLocationDetailsMatch(trimmedLocation, details);
+    }
+
+    private assertLocationDetailsMatch(location: string, details: AddressDetailsDto): void {
+        if (details.formattedAddress.trim() !== location) {
+            throw new BadRequestException('The address details do not match the selected address');
+        }
     }
 
     private buildParticipantsUpdate(

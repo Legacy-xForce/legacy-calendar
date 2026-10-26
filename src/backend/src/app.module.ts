@@ -14,6 +14,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { UserGroupsModule } from './user-groups/user-groups.module.js';
 import { ApiTokensModule } from './api-tokens/api-tokens.module.js';
+import { GeocodingModule } from './geocoding/geocoding.module.js';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { createLoggerModuleParams } from './logging/pino.js';
@@ -39,7 +40,8 @@ import { ImpersonateInterceptor } from './auth/interceptors/impersonate.intercep
         UploadsModule,
         ChatModule,
         UserGroupsModule,
-        ApiTokensModule
+        ApiTokensModule,
+        GeocodingModule
     ],
     controllers: [AppController],
     providers: [

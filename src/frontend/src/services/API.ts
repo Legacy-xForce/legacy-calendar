@@ -17,6 +17,7 @@ import type { AuditLogEntry } from '../types/AuditLog';
 import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
 import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
 import type { ApiToken, CreateApiTokenDto, CreatedApiToken } from '../types/ApiToken';
+import type { AddressDetails } from '../types/Address';
 
 // --- API Class ---
 
@@ -257,6 +258,14 @@ class API {
 
     async leaveGuestInvite(token: string): Promise<AxiosResponse<GuestInviteResponse>> {
         return this.client.delete(`/guest-invites/${token}`);
+    }
+
+    // --- Address autocomplete ---
+
+    async autocompleteAddresses(query: string, limit = 5): Promise<AxiosResponse<AddressDetails[]>> {
+        return this.client.get('/geocoding/autocomplete', {
+            params: { q: query, limit }
+        });
     }
 
     // --- Chat ---

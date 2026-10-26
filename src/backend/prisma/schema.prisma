@@ -75,6 +75,7 @@ model Event {
   color                 String?            @default("#ffffff")
   description           String?
   location              String?
+  locationDetails       Json?
   startTime             DateTime
   endTime               DateTime?
   hostId                Int

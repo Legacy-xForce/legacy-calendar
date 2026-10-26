@@ -57,6 +57,40 @@ export type HttpOptions = {
     headers?: Record<string, string>;
 };
 
+/** A complete street address accepted by the event validators. */
+export const TEST_ADDRESS = {
+    location: 'Via Roma 10, 00100 Roma, Italy',
+    locationDetails: {
+        placeId: 'test-place-via-roma-10',
+        formattedAddress: 'Via Roma 10, 00100 Roma, Italy',
+        street: 'Via Roma',
+        houseNumber: '10',
+        city: 'Roma',
+        postcode: '00100',
+        country: 'Italy',
+        countryCode: 'IT',
+        lat: 41.9028,
+        lon: 12.4964
+    }
+} as const;
+
+/** A second complete street address, for update paths. */
+export const TEST_ADDRESS_2 = {
+    location: 'Via Milano 5, 20121 Milano, Italy',
+    locationDetails: {
+        placeId: 'test-place-via-milano-5',
+        formattedAddress: 'Via Milano 5, 20121 Milano, Italy',
+        street: 'Via Milano',
+        houseNumber: '5',
+        city: 'Milano',
+        postcode: '20121',
+        country: 'Italy',
+        countryCode: 'IT',
+        lat: 45.4642,
+        lon: 9.19
+    }
+} as const;
+
 /**
  * Minimal end-to-end backend harness.
  *

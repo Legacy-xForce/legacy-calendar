@@ -1,4 +1,5 @@
 import { EventHostDto, EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
+import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
 import { mapGuestToDto, mapUserToDto, type MappableUser } from '../users/user.mapper.js';
 import { EventWithRelations } from './events.repository.js';
@@ -70,6 +71,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
         color: event.color,
         description: event.description,
         location: event.location,
+        locationDetails: (event.locationDetails as AddressDetailsDto | null) ?? null,
         startTime: event.startTime,
         endTime: event.endTime ?? null,
         participationDeadline: event.participationDeadline ?? null,
