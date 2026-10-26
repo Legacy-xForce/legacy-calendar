@@ -532,6 +532,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/geocoding/autocomplete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search complete street addresses for autocomplete */
+        get: operations["GeocodingController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -584,6 +601,58 @@ export interface components {
              */
             isAdmin: boolean;
         };
+        AddressDetailsDto: {
+            /**
+             * @description Provider identifier for the selected address
+             * @example 511b0b0a2c3d4e5f6a7b8c9d0e1f2a3b
+             */
+            placeId: string;
+            /**
+             * @description Full address as shown to the user
+             * @example Via Roma 10, 00100 Roma, Italy
+             */
+            formattedAddress: string;
+            /**
+             * @description Street name
+             * @example Via Roma
+             */
+            street: string;
+            /**
+             * @description House number
+             * @example 10
+             */
+            houseNumber: string;
+            /**
+             * @description City or municipality
+             * @example Roma
+             */
+            city: string;
+            /**
+             * @description Postal code
+             * @example 00100
+             */
+            postcode?: string;
+            /**
+             * @description Country name
+             * @example Italy
+             */
+            country: string;
+            /**
+             * @description ISO 3166-1 alpha-2 country code
+             * @example IT
+             */
+            countryCode: string;
+            /**
+             * @description Latitude
+             * @example 41.9028
+             */
+            lat: number;
+            /**
+             * @description Longitude
+             * @example 12.4964
+             */
+            lon: number;
+        };
         CreateEventDto: {
             /**
              * @description Title of the event
@@ -601,10 +670,12 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Location of the event
-             * @example Meeting Room A
+             * @description Complete street address of the event
+             * @example Via Roma 10, 00100 Roma, Italy
              */
-            location?: string;
+            location: string;
+            /** @description Structured details of the selected street address */
+            locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.
              * @example 2026-02-04T10:00:00Z
@@ -939,6 +1010,8 @@ export interface components {
              * @example Meeting Room A
              */
             location?: string | null;
+            /** @description Structured details of the selected street address */
+            locationDetails?: components["schemas"]["AddressDetailsDto"] | null;
             /**
              * Format: date-time
              * @description Start time
@@ -1041,10 +1114,12 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Location of the event
-             * @example Meeting Room A
+             * @description Complete street address of the event
+             * @example Via Roma 10, 00100 Roma, Italy
              */
             location?: string;
+            /** @description Structured details of the selected street address */
+            locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.
              * @example 2026-02-04T10:00:00Z
@@ -2634,6 +2709,45 @@ export interface operations {
             };
             /** @description API token not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GeocodingController_search: {
+        parameters: {
+            query: {
+                /** @description Text typed by the user; at least 3 characters */
+                q: string;
+                /** @description Maximum number of suggestions (1-8) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching street addresses */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressDetailsDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Address search is not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

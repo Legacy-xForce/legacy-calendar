@@ -1567,6 +1567,69 @@
           "api-tokens"
         ]
       }
+    },
+    "/geocoding/autocomplete": {
+      "get": {
+        "operationId": "GeocodingController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Text typed by the user; at least 3 characters",
+            "schema": {
+              "example": "Via Roma 10, Roma",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of suggestions (1-8)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 8,
+              "default": 5,
+              "example": 5,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching street addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AddressDetailsDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "503": {
+            "description": "Address search is not configured"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "api-token": []
+          }
+        ],
+        "summary": "Search complete street addresses for autocomplete",
+        "tags": [
+          "geocoding"
+        ]
+      }
     }
   },
   "info": {
@@ -1652,6 +1715,72 @@
           }
         }
       },
+      "AddressDetailsDto": {
+        "type": "object",
+        "properties": {
+          "placeId": {
+            "type": "string",
+            "example": "511b0b0a2c3d4e5f6a7b8c9d0e1f2a3b",
+            "description": "Provider identifier for the selected address"
+          },
+          "formattedAddress": {
+            "type": "string",
+            "example": "Via Roma 10, 00100 Roma, Italy",
+            "description": "Full address as shown to the user"
+          },
+          "street": {
+            "type": "string",
+            "example": "Via Roma",
+            "description": "Street name"
+          },
+          "houseNumber": {
+            "type": "string",
+            "example": "10",
+            "description": "House number"
+          },
+          "city": {
+            "type": "string",
+            "example": "Roma",
+            "description": "City or municipality"
+          },
+          "postcode": {
+            "type": "string",
+            "example": "00100",
+            "description": "Postal code"
+          },
+          "country": {
+            "type": "string",
+            "example": "Italy",
+            "description": "Country name"
+          },
+          "countryCode": {
+            "type": "string",
+            "example": "IT",
+            "description": "ISO 3166-1 alpha-2 country code"
+          },
+          "lat": {
+            "type": "number",
+            "example": 41.9028,
+            "description": "Latitude"
+          },
+          "lon": {
+            "type": "number",
+            "example": 12.4964,
+            "description": "Longitude"
+          }
+        },
+        "required": [
+          "placeId",
+          "formattedAddress",
+          "street",
+          "houseNumber",
+          "city",
+          "country",
+          "countryCode",
+          "lat",
+          "lon"
+        ]
+      },
       "CreateEventDto": {
         "type": "object",
         "properties": {
@@ -1672,8 +1801,16 @@
           },
           "location": {
             "type": "string",
-            "example": "Meeting Room A",
-            "description": "Location of the event"
+            "example": "Via Roma 10, 00100 Roma, Italy",
+            "description": "Complete street address of the event"
+          },
+          "locationDetails": {
+            "description": "Structured details of the selected street address",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetailsDto"
+              }
+            ]
           },
           "startTime": {
             "type": "string",
@@ -1774,6 +1911,7 @@
         },
         "required": [
           "title",
+          "location",
           "startTime"
         ]
       },
@@ -2101,6 +2239,16 @@
             "description": "Location",
             "nullable": true
           },
+          "locationDetails": {
+            "description": "Structured details of the selected street address",
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetailsDto"
+              }
+            ]
+          },
           "startTime": {
             "format": "date-time",
             "type": "string",
@@ -2245,8 +2393,16 @@
           },
           "location": {
             "type": "string",
-            "example": "Meeting Room A",
-            "description": "Location of the event"
+            "example": "Via Roma 10, 00100 Roma, Italy",
+            "description": "Complete street address of the event"
+          },
+          "locationDetails": {
+            "description": "Structured details of the selected street address",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetailsDto"
+              }
+            ]
           },
           "startTime": {
             "type": "string",
