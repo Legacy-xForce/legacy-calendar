@@ -1,6 +1,17 @@
-import { IsBoolean, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+    IsBoolean,
+    IsDateString,
+    IsInt,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    ValidateNested
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEventStartTimeWithinAllowedRange } from '../validators/is-event-start-time-within-allowed-range.validator.js';
+import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
 
 export class CreateEventDto {
     @ApiProperty({ type: String, example: 'Team Standup', description: 'Title of the event' })
@@ -18,10 +29,23 @@ export class CreateEventDto {
     @IsOptional()
     description?: string;
 
-    @ApiProperty({ type: String, example: 'Meeting Room A', description: 'Location of the event', required: false })
+    @ApiProperty({
+        type: String,
+        example: 'Via Roma 10, 00100 Roma, Italy',
+        description: 'Complete street address of the event'
+    })
     @IsString()
+    location!: string;
+
+    @ApiProperty({
+        type: () => AddressDetailsDto,
+        description: 'Structured details of the selected street address',
+        required: false
+    })
+    @ValidateNested()
+    @Type(() => AddressDetailsDto)
     @IsOptional()
-    location?: string;
+    locationDetails?: AddressDetailsDto;
 
     @ApiProperty({
         type: String,

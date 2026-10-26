@@ -7,6 +7,7 @@ import {
     http,
     signSessionToken,
     startTestApp,
+    TEST_ADDRESS,
     type TestApp,
     type TestUser
 } from './helpers.js';
@@ -350,7 +351,7 @@ describe('API tokens', () => {
 
             const createEvent = await http<{ id: number; title: string }>(app, 'POST', '/events', {
                 apiToken: token.token,
-                body: { title: 'Written by token', startTime: start.toISOString() }
+                body: { title: 'Written by token', startTime: start.toISOString(), ...TEST_ADDRESS }
             });
             expect(createEvent.status).toBe(201);
             expect(createEvent.body.title).toBe('Written by token');

@@ -6,6 +6,7 @@ import {
     http,
     signSessionToken,
     startTestApp,
+    TEST_ADDRESS,
     type TestApp,
     type TestUser
 } from './helpers.js';
@@ -110,7 +111,7 @@ describe('Socket.IO API token authentication', () => {
 
         const created = await http<{ id: number }>(app, 'POST', '/events', {
             apiToken: writeToken,
-            body: { title: 'Socket event', startTime: futureDate(24).toISOString() }
+            body: { title: 'Socket event', startTime: futureDate(24).toISOString(), ...TEST_ADDRESS }
         });
         if (created.status !== 201) {
             throw new Error(`Could not create socket test event: ${JSON.stringify(created.body)}`);

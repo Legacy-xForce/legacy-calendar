@@ -1,7 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createApiToken, createUser, http, startTestApp, type TestApp, type TestUser } from './helpers.js';
+import {
+    createApiToken,
+    createUser,
+    http,
+    startTestApp,
+    TEST_ADDRESS,
+    TEST_ADDRESS_2,
+    type TestApp,
+    type TestUser
+} from './helpers.js';
 
 type EventParticipant = {
     id: number;
@@ -101,7 +110,8 @@ describe('API surface through personal tokens', () => {
                 startTime: start.toISOString(),
                 endTime: end.toISOString(),
                 isPrivate: true,
-                participants: [member.id]
+                participants: [member.id],
+                ...TEST_ADDRESS
             }
         });
         expect(created.status).toBe(201);
@@ -137,7 +147,7 @@ describe('API surface through personal tokens', () => {
 
         const updated = await http<EventJson>(app, 'PATCH', `/events/${eventId}`, {
             apiToken: hostWrite,
-            body: { title: 'Updated through token', location: 'Test hall' }
+            body: { title: 'Updated through token', ...TEST_ADDRESS_2 }
         });
         expect(updated.status).toBe(200);
         expect(updated.body.title).toBe('Updated through token');
@@ -221,6 +231,85 @@ describe('API surface through personal tokens', () => {
         expect(gone.status).toBe(404);
     });
 
+    test('requires a complete street address and leaves legacy locations unchanged', async () => {
+        const start = futureDate(60);
+        const eventWithAddress = { ...TEST_ADDRESS };
+        type AddressEventJson = EventJson & { location?: string; locationDetails?: { placeId: string } };
+
+        const missing = await http(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: { title: 'No address', startTime: start.toISOString() }
+        });
+        expect(missing.status).toBe(400);
+
+        const freeText = await http(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: { title: 'Free text', startTime: start.toISOString(), location: 'Test hall' }
+        });
+        expect(freeText.status).toBe(400);
+
+        const created = await http<AddressEventJson>(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: { title: 'Address event', startTime: start.toISOString(), ...eventWithAddress }
+        });
+        expect(created.status).toBe(201);
+        expect(created.body.locationDetails?.placeId).toBe(TEST_ADDRESS.locationDetails.placeId);
+
+        const invalidUpdate = await http(app, 'PATCH', `/events/${created.body.id}`, {
+            apiToken: hostWrite,
+            body: { location: 'Test hall' }
+        });
+        expect(invalidUpdate.status).toBe(400);
+
+        const detailsOnly = await http(app, 'PATCH', `/events/${created.body.id}`, {
+            apiToken: hostWrite,
+            body: { locationDetails: TEST_ADDRESS_2.locationDetails }
+        });
+        expect(detailsOnly.status).toBe(400);
+
+        const legacy = await app.prisma.event.create({
+            data: {
+                title: 'Legacy event',
+                location: 'Old hall',
+                startTime: start,
+                hostId: host.id
+            }
+        });
+
+        const legacyUnchanged = await http(app, 'PATCH', `/events/${legacy.id}`, {
+            apiToken: hostWrite,
+            body: { location: 'Old hall' }
+        });
+        expect(legacyUnchanged.status).toBe(200);
+
+        const legacyTitleOnly = await http(app, 'PATCH', `/events/${legacy.id}`, {
+            apiToken: hostWrite,
+            body: { title: 'Legacy event renamed' }
+        });
+        expect(legacyTitleOnly.status).toBe(200);
+
+        const legacyMoved = await http<AddressEventJson>(app, 'PATCH', `/events/${legacy.id}`, {
+            apiToken: hostWrite,
+            body: { ...TEST_ADDRESS }
+        });
+        expect(legacyMoved.status).toBe(200);
+        expect(legacyMoved.body.locationDetails?.placeId).toBe(TEST_ADDRESS.locationDetails.placeId);
+
+        const legacyWithoutLocation = await app.prisma.event.create({
+            data: {
+                title: 'Legacy event without a location',
+                startTime: start,
+                hostId: host.id
+            }
+        });
+
+        const noLocationUnchanged = await http(app, 'PATCH', `/events/${legacyWithoutLocation.id}`, {
+            apiToken: hostWrite,
+            body: { location: '' }
+        });
+        expect(noLocationUnchanged.status).toBe(200);
+    });
+
     test('creates and manages guest invites through a write token', async () => {
         const start = futureDate(72);
         const created = await http<EventJson>(app, 'POST', '/events', {
@@ -228,7 +317,8 @@ describe('API surface through personal tokens', () => {
             body: {
                 title: 'Guest invite event',
                 startTime: start.toISOString(),
-                endTime: futureDate(74).toISOString()
+                endTime: futureDate(74).toISOString(),
+                ...TEST_ADDRESS
             }
         });
         expect(created.status).toBe(201);
@@ -409,7 +499,7 @@ describe('API surface through personal tokens', () => {
         const start = futureDate(96);
         const created = await http<EventJson>(app, 'POST', '/events', {
             apiToken: hostWrite,
-            body: { title: 'Notification event', startTime: start.toISOString() }
+            body: { title: 'Notification event', startTime: start.toISOString(), ...TEST_ADDRESS }
         });
         expect(created.status).toBe(201);
         const eventId = created.body.id;
@@ -463,7 +553,7 @@ describe('API surface through personal tokens', () => {
         const start = futureDate(120);
         const created = await http<EventJson>(app, 'POST', '/events', {
             apiToken: hostWrite,
-            body: { title: 'Chat event', startTime: start.toISOString() }
+            body: { title: 'Chat event', startTime: start.toISOString(), ...TEST_ADDRESS }
         });
         expect(created.status).toBe(201);
         const eventId = created.body.id;
