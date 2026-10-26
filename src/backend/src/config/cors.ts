@@ -22,6 +22,15 @@ const LOCAL_DEV_ORIGINS = [
     'http://127.0.0.1:3000'
 ];
 
+/**
+ * Other first-party web apps that call this API directly with a calendar
+ * token. The tracker web reads upcoming events for its map; its origin is not
+ * the calendar frontend (`FRONTEND_URL`), so it is trusted here instead of
+ * making every deployment add it to that list. Subdomains (Cloudflare Pages
+ * previews) are allowed by the same rule as configured origins.
+ */
+const TRUSTED_APP_ORIGINS = ['https://legacytracker.pages.dev'];
+
 type OriginRule = {
     protocol: string;
     port: string;
@@ -59,7 +68,7 @@ function matchesOriginRule(origin: URL, rule: OriginRule): boolean {
 }
 
 export function getAllowedOrigins(): string[] {
-    return [...new Set([...getConfiguredOrigins(), ...LOCAL_DEV_ORIGINS])];
+    return [...new Set([...getConfiguredOrigins(), ...TRUSTED_APP_ORIGINS, ...LOCAL_DEV_ORIGINS])];
 }
 
 /**
@@ -87,7 +96,7 @@ export function isOriginAllowed(origin?: string | null): boolean {
         return false;
     }
 
-    return getConfiguredOrigins().some((configured) => {
+    return [...getConfiguredOrigins(), ...TRUSTED_APP_ORIGINS].some((configured) => {
         const rule = toOriginRule(configured);
         return rule !== null && matchesOriginRule(parsedOrigin, rule);
     });
