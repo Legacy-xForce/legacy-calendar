@@ -3,13 +3,14 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
+import AutoComplete from 'primevue/autocomplete';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import SelectButton from 'primevue/selectbutton';
-import IconField from 'primevue/iconfield';
-import InputIcon from 'primevue/inputicon';
 import type { CreateEventDto, Event, EventFeature } from '../../types/Event';
+import type { AddressDetails } from '../../types/Address';
 import type { User } from '../../types/User';
+import api from '../../services/API';
 import { VISIBILITY_OPTIONS, type EventVisibility } from '../../constants/visibility';
 import { DEFAULT_COLOR } from '../../constants/colors';
 import UserMultiSelect from '../UserMultiSelect.vue';
@@ -51,6 +52,11 @@ const { groups: userGroups } = storeToRefs(userGroupsStore);
 const title = ref('');
 const description = ref('');
 const location = ref('');
+const locationDetails = ref<AddressDetails | null>(null);
+const addressSuggestions = ref<AddressDetails[]>([]);
+const loadingAddresses = ref(false);
+const addressSearchError = ref(false);
+let addressRequestId = 0;
 const eventVisibility = ref<EventVisibility>('open');
 const eventColor = ref(DEFAULT_COLOR);
 const start = ref<Date | null>(null);
@@ -135,6 +141,7 @@ const initialize = () => {
         title.value = event.title;
         description.value = event.description || '';
         location.value = event.location || '';
+        locationDetails.value = event.locationDetails ?? null;
         eventColor.value = event.color || DEFAULT_COLOR;
         eventVisibility.value = event.isPrivate ? 'private' : event.isOpen ? 'open' : 'standard';
         start.value = new Date(event.startTime);
@@ -148,6 +155,7 @@ const initialize = () => {
         title.value = '';
         description.value = '';
         location.value = '';
+        locationDetails.value = null;
         eventColor.value = DEFAULT_COLOR;
         eventVisibility.value = 'open';
         start.value = props.initialDate ? new Date(props.initialDate) : null;
@@ -160,6 +168,10 @@ const initialize = () => {
     }
     showEnd.value = !!end.value;
     showDeadline.value = !!deadline.value;
+    addressRequestId += 1;
+    addressSuggestions.value = [];
+    loadingAddresses.value = false;
+    addressSearchError.value = false;
 };
 
 watch(() => [props.event, props.initialDate], initialize, { immediate: true });
@@ -177,9 +189,84 @@ const addDeadline = () => {
     }
 };
 
+const searchAddresses = async (event: { query: string }) => {
+    const query = event.query.trim();
+    if (query.length < 3) {
+        addressRequestId += 1;
+        addressSuggestions.value = [];
+        loadingAddresses.value = false;
+        return;
+    }
+
+    const requestId = ++addressRequestId;
+    loadingAddresses.value = true;
+    addressSearchError.value = false;
+
+    try {
+        const response = await api.autocompleteAddresses(query);
+        if (requestId === addressRequestId) {
+            addressSuggestions.value = response.data;
+        }
+    } catch {
+        if (requestId === addressRequestId) {
+            addressSuggestions.value = [];
+            addressSearchError.value = true;
+        }
+    } finally {
+        if (requestId === addressRequestId) {
+            loadingAddresses.value = false;
+        }
+    }
+};
+
+const onLocationModel = (value: string | AddressDetails | null | undefined) => {
+    if (value && typeof value === 'object') {
+        location.value = value.formattedAddress;
+        locationDetails.value = value;
+        return;
+    }
+
+    const next = typeof value === 'string' ? value : '';
+    if (next !== location.value) {
+        locationDetails.value = null;
+    }
+    location.value = next;
+
+    if (next.trim().length < 3) {
+        addressRequestId += 1;
+        addressSuggestions.value = [];
+        loadingAddresses.value = false;
+    }
+};
+
+const locationError = (): string | undefined => {
+    const trimmed = location.value.trim();
+
+    if (!props.event) {
+        if (!trimmed) return 'Pick a street address from the suggestions.';
+        if (!locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
+            return 'Pick a complete street address from the list.';
+        }
+        return undefined;
+    }
+
+    if (trimmed === (props.event.location ?? '').trim()) {
+        return locationDetails.value && locationDetails.value.formattedAddress.trim() !== trimmed
+            ? 'Pick a complete street address from the list.'
+            : undefined;
+    }
+
+    if (!trimmed || !locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
+        return 'Pick a complete street address from the list.';
+    }
+    return undefined;
+};
+
 const errors = computed(() => {
-    const result: Partial<Record<'title' | 'start' | 'end' | 'deadline', string>> = {};
+    const result: Partial<Record<'title' | 'location' | 'start' | 'end' | 'deadline', string>> = {};
     if (!title.value.trim()) result.title = 'Give it a name.';
+    const addressError = locationError();
+    if (addressError) result.location = addressError;
     if (!start.value) result.start = 'Pick when it starts.';
     else if (!isEdit.value && !isEventStartTimeWithinAllowedRange(start.value)) {
         result.start = 'Start must be between today and one year from now.';
@@ -208,7 +295,8 @@ const submit = () => {
     emit('save', {
         title: title.value.trim(),
         description: description.value || undefined,
-        location: location.value || undefined,
+        location: location.value.trim(),
+        locationDetails: locationDetails.value ?? undefined,
         startTime: start.value.toISOString(),
         endTime: showEnd.value && end.value ? end.value.toISOString() : undefined,
         participants: isEdit.value || selectedParticipants.value.length > 0 ? selectedParticipants.value : undefined,
@@ -253,10 +341,36 @@ defineExpose({ submit });
 
             <div class="flex flex-col gap-1.5">
                 <label for="event-location" class="text-meta text-muted font-medium">Where</label>
-                <IconField>
-                    <InputIcon class="pi pi-map-marker" />
-                    <InputText id="event-location" v-model="location" placeholder="Address, venue or link" fluid />
-                </IconField>
+                <AutoComplete
+                    :model-value="location"
+                    input-id="event-location"
+                    :suggestions="addressSuggestions"
+                    option-label="formattedAddress"
+                    data-key="placeId"
+                    :min-length="3"
+                    :delay="300"
+                    :loading="loadingAddresses"
+                    :invalid="!!showError('location')"
+                    placeholder="Street and number, city"
+                    fluid
+                    @update:model-value="onLocationModel"
+                    @complete="searchAddresses"
+                >
+                    <template #option="{ option }">
+                        <div class="flex min-w-0 flex-col">
+                            <span class="text-body text-fg truncate font-medium">
+                                {{ option.street }} {{ option.houseNumber }}
+                            </span>
+                            <span class="text-meta text-muted truncate">
+                                {{ [option.postcode, option.city, option.country].filter(Boolean).join(', ') }}
+                            </span>
+                        </div>
+                    </template>
+                </AutoComplete>
+                <small v-if="showError('location')" class="text-meta text-rose-300">{{ showError('location') }}</small>
+                <small v-else-if="addressSearchError" class="text-meta text-rose-300"
+                    >Address search is unavailable. Try again.</small
+                >
             </div>
 
             <div class="flex flex-col gap-1.5">

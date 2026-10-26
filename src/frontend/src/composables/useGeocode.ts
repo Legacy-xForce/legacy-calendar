@@ -129,6 +129,12 @@ export function useGeocode() {
     const getOrResolveCoords = async (event: Event) => {
         if (!event.location) return null;
 
+        if (event.locationDetails) {
+            const coords = { lat: event.locationDetails.lat, lon: event.locationDetails.lon };
+            coordsByEventId.value[event.id] = { ...coords, location: event.location };
+            return { ...coords, timezone: 'auto' };
+        }
+
         // Coordinates are only reusable while the event location is unchanged.
         const cached = coordsByEventId.value[event.id];
         if (cached?.location === event.location) {
