@@ -108,6 +108,13 @@ router.beforeEach(async (to: any, from: any) => {
         return { name: accountIssueRoute(accountIssue) };
     }
 
+    // The event view needs the profile to know whether this user can join, so load it before
+    // rendering a protected page. This is also what completes the sign-in after the OIDC callback,
+    // where the app shell loaded before the tokens existed.
+    if (to.meta.requiresAuth && !sessionStore.currentUser) {
+        await sessionStore.load();
+    }
+
     // Redirect to calendar if user is already authenticated and tries to access login
     if (to.meta.requiresGuest && isAuthenticated) {
         return { name: 'calendar' };

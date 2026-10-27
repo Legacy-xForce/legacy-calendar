@@ -63,6 +63,7 @@ export const useSessionStore = defineStore('session', () => {
     const error = ref<string | null>(null);
     let refreshing: Promise<void> | null = null;
     let restoring: Promise<boolean> | null = null;
+    let loadingProfile: Promise<boolean> | null = null;
 
     const isAuthenticated = computed(() => access.value !== null);
     const currentUser = computed(() => user.value);
@@ -137,7 +138,16 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     /** Loads the stored session and the account profile. Returns whether the user is signed in. */
-    async function load(): Promise<boolean> {
+    function load(): Promise<boolean> {
+        // The app shell and the router guard both ask for the profile on a cold start, and the
+        // callback flow asks again right after signing in: share the one request.
+        loadingProfile ??= loadProfile().finally(() => {
+            loadingProfile = null;
+        });
+        return loadingProfile;
+    }
+
+    async function loadProfile(): Promise<boolean> {
         if (!(await restore())) return false;
         // A disabled account or a token without calendar access never loads a profile; the router
         // sends it to its notice page.
