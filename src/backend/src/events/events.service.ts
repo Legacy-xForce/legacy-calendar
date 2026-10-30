@@ -18,6 +18,7 @@ import { attendanceId } from '../common/participant-id.util.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
 import { assertEventNotEnded } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
+import { EventsRealtime } from './events-realtime.service.js';
 import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
 
 @Injectable()
@@ -27,7 +28,8 @@ export class EventsService {
     constructor(
         @Inject(EventsRepository) private readonly eventsRepo: EventsRepository,
         @Inject(NotificationsService) private readonly notificationsService: NotificationsService,
-        @Inject(AuditLogService) private readonly auditLogService: AuditLogService
+        @Inject(AuditLogService) private readonly auditLogService: AuditLogService,
+        @Inject(EventsRealtime) private readonly realtime: EventsRealtime
     ) {}
 
     async create(
@@ -95,6 +97,7 @@ export class EventsService {
 
             await this.auditLogService.recordEventCreated(event, { actorId: hostId, impersonatorId });
             this.logger.info('Event created', { eventId: event.id, hostId, participantCount: participantIds.length });
+            this.realtime.eventChanged(event.id);
             return mapEventToDto(event);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
@@ -168,7 +171,9 @@ export class EventsService {
 
         await this.auditLogService.recordEventDeleted(event.id, event, { actorId: userId, impersonatorId });
         this.logger.info('Event removed', { eventId: id, userId });
-        return this.eventsRepo.remove(id);
+        const removed = await this.eventsRepo.remove(id);
+        this.realtime.eventChanged(id);
+        return removed;
     }
 
     async update(
@@ -308,6 +313,7 @@ export class EventsService {
             userId,
             participantDiff
         });
+        this.realtime.eventChanged(id);
         return mapEventToDto(finalEvent);
     }
 
@@ -346,6 +352,7 @@ export class EventsService {
             invitedUsername: username,
             invitedUserId: invitedUser?.id ?? null
         });
+        this.realtime.eventChanged(eventId);
         return { message: 'User invited' };
     }
 
@@ -423,6 +430,7 @@ export class EventsService {
         }
 
         this.logger.info('Event participation saved', { eventId, userId, isParticipant });
+        this.realtime.eventChanged(eventId);
         return result;
     }
 
@@ -472,6 +480,7 @@ export class EventsService {
             }
 
             this.logger.info('Event participation removed', { eventId, userId });
+            this.realtime.eventChanged(eventId);
             return result;
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
@@ -625,6 +634,7 @@ export class EventsService {
             driverId,
             requestingUserId
         });
+        this.realtime.eventChanged(eventId);
         return this.findOne(eventId, requestingUserId);
     }
 
@@ -663,6 +673,7 @@ export class EventsService {
         );
 
         this.logger.info('Participant payment status updated', { eventId, targetUserId, hasPaid });
+        this.realtime.eventChanged(eventId);
         return { success: true, hasPaid: updated.hasPaid };
     }
 

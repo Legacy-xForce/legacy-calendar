@@ -7,12 +7,22 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AuditLogController } from '../audit-log/audit-log.controller.js';
 import { AuditLogRepository } from '../audit-log/audit-log.repository.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
+import { EventsGateway } from './events.gateway.js';
+import { EventsRealtime } from './events-realtime.service.js';
 import { UsersRepository } from '../users/users.repository.js';
 
 @Module({
     imports: [PrismaModule, NotificationsModule],
     controllers: [EventsController, AuditLogController],
-    providers: [EventsService, EventsRepository, AuditLogService, AuditLogRepository, UsersRepository],
-    exports: [EventsService, EventsRepository, AuditLogService]
+    providers: [
+        EventsService,
+        EventsRepository,
+        EventsGateway,
+        EventsRealtime,
+        AuditLogService,
+        AuditLogRepository,
+        UsersRepository
+    ],
+    exports: [EventsService, EventsRepository, EventsRealtime, AuditLogService]
 })
 export class EventsModule {}

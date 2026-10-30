@@ -4,6 +4,7 @@ import type { Event } from '../../../types/Event';
 import { format, formatDistanceToNowStrict, isSameDay, parseISO } from 'date-fns';
 import { injectEventView } from '../../../composables/useEventView';
 import api from '../../../services/API';
+import { useEventsStore } from '../../../stores/events';
 import type { ChatMessage } from '../../../types/Chat';
 import { useRoute, useRouter } from 'vue-router';
 import UserAvatar from '../../UserAvatar.vue';
@@ -74,6 +75,7 @@ const deadlineSecondary = computed(() => {
 // Re-evaluate the countdown every tick
 const deadlineLabel = computed(() => (now.value && deadline.value ? deadlineSecondary.value : ''));
 
+const eventsStore = useEventsStore();
 const recentMessages = ref<ChatMessage[]>([]);
 
 const loadRecentMessages = async () => {
@@ -95,7 +97,7 @@ onMounted(() => {
 });
 
 watch(
-    () => [props.event?.id, canAccessChat.value],
+    () => [props.event?.id, canAccessChat.value, eventsStore.chatRevision],
     () => {
         void loadRecentMessages();
         if (props.event) {

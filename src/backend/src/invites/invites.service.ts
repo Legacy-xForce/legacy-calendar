@@ -7,6 +7,7 @@ import { NotificationCode } from '../notifications/notification-codes.js';
 import { EVENT_NOTIFICATION_TITLES, EVENT_NOTIFICATION_MESSAGES } from '../events/event-notification.constants.js';
 import { assertDeadlineNotPassed, assertEventNotEnded } from '../events/event-guards.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
+import { EventsRealtime } from '../events/events-realtime.service.js';
 import { mapEventToDto } from '../events/event-response.mapper.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { InvitesRepository, type GuestInviteWithRelations } from './invites.repository.js';
@@ -24,7 +25,8 @@ export class InvitesService {
         @Inject(InvitesRepository) private readonly invitesRepo: InvitesRepository,
         @Inject(EventsRepository) private readonly eventsRepo: EventsRepository,
         @Inject(AuditLogService) private readonly auditLogService: AuditLogService,
-        @Inject(NotificationsService) private readonly notificationsService: NotificationsService
+        @Inject(NotificationsService) private readonly notificationsService: NotificationsService,
+        @Inject(EventsRealtime) private readonly realtime: EventsRealtime
     ) {}
 
     async generateInvite(eventId: number, hostUserId: number, impersonatorId: number | null = null) {
@@ -105,6 +107,7 @@ export class InvitesService {
         }
 
         await this.notifyHost(updatedEvent, guestInvite.guestParticipantId, before ? 'updated' : 'accepted');
+        this.realtime.eventChanged(guestInvite.eventId);
 
         this.logger.info('Guest participation updated', {
             eventId: guestInvite.eventId,
@@ -133,6 +136,7 @@ export class InvitesService {
         }
 
         await this.notifyHost(event, guestInvite.guestParticipantId, 'cancelled');
+        this.realtime.eventChanged(guestInvite.eventId);
 
         this.logger.info('Guest left event', {
             eventId: guestInvite.eventId,

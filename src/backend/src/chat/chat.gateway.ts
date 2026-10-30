@@ -16,6 +16,7 @@ import { HttpException } from '@nestjs/common';
 import { AppLogger } from '../logging/app-logger.js';
 import { AuthIdentityService } from '../auth/auth-identity.service.js';
 import { ApiTokensService } from '../api-tokens/api-tokens.service.js';
+import { EventsRealtime } from '../events/events-realtime.service.js';
 import { isOriginAllowed } from '../config/cors.js';
 
 type SocketUser = {
@@ -41,7 +42,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     constructor(
         @Inject(ChatService) private readonly chatService: ChatService,
         @Inject(AuthIdentityService) private readonly identityService: AuthIdentityService,
-        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService
+        @Inject(ApiTokensService) private readonly apiTokensService: ApiTokensService,
+        @Inject(EventsRealtime) private readonly realtime: EventsRealtime
     ) {}
 
     afterInit(server: Server) {
@@ -150,6 +152,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 hasMedia: Boolean(mediaUrl)
             });
             this.server.to(roomName).emit('newMessage', message);
+            this.realtime.chatChanged(eventId);
         } catch (error) {
             this.emitSocketError(client, error);
         }
@@ -249,6 +252,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             const message = await this.chatService.deleteMessage(messageId, user.userId, user.isAdmin);
             this.logger.warn('Socket message deleted', { socketId: client.id, userId: user.userId, messageId });
             this.server.to(`chat:${message.eventId}`).emit('messageDeleted', { messageId });
+            this.realtime.chatChanged(message.eventId);
         } catch (error) {
             this.emitSocketError(client, error);
         }
@@ -285,6 +289,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             this.server
                 .to(`chat:${message.eventId}`)
                 .emit('messageEdited', this.chatService.toEditedMessagePayload(message));
+            this.realtime.chatChanged(message.eventId);
         } catch (error) {
             this.emitSocketError(client, error);
         }

@@ -4,6 +4,7 @@ import { useEventsStore } from '../stores/events';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import type { Event } from '../types/Event';
+import { useEventLiveUpdates } from './useEventLiveUpdates';
 import { getCurrentSection, getEventPathPrefix, getRouteAction, parseEventId } from '../utils/route';
 
 /**
@@ -60,6 +61,29 @@ export function useEventDialogs(events: Ref<Event[]>, externalEvent?: Ref<Event 
 
         return null;
     });
+
+    useEventLiveUpdates(
+        selectedEventId,
+        async (eventId) => {
+            // Don't clobber the form someone is typing into.
+            if (routeAction.value === 'edit') return;
+
+            const fresh = await eventsStore.refreshEvent(eventId);
+            if (selectedEventId.value !== eventId) return;
+
+            if (!fresh) {
+                toast.add({ severity: 'info', summary: 'This event is no longer available', life: 3500 });
+                await closeEventState();
+                return;
+            }
+            if (externalEvent?.value?.id === eventId) {
+                externalEvent.value = fresh;
+            }
+        },
+        () => {
+            eventsStore.chatRevision += 1;
+        }
+    );
 
     const closeEventState = async () => {
         await router.replace({ path: basePagePath.value });

@@ -19,6 +19,8 @@ export const useEventsStore = defineStore('events', () => {
     const upcomingEvents = ref<Event[]>([]);
     const upcomingLoaded = ref(false);
     const pendingRequests = ref(0);
+    // Bumped when chat activity happens on the event being viewed, so previews refetch.
+    const chatRevision = ref(0);
 
     // --- Helpers ---
 
@@ -308,6 +310,26 @@ export const useEventsStore = defineStore('events', () => {
         return result !== false;
     }
 
+    /**
+     * Quietly re-read an event another user changed. Returns the fresh event, or
+     * null when it was deleted or is no longer visible to us.
+     */
+    async function refreshEvent(id: number): Promise<Event | null> {
+        try {
+            const response = await api.findOneEvent(id);
+            applyEvent(response.data);
+            return response.data;
+        } catch (err: any) {
+            const status = err.response?.status;
+            if (status === 403 || status === 404) {
+                removeEvent(id);
+            } else {
+                logger.warn('Failed to refresh event', { eventId: id, status, message: err.message });
+            }
+            return null;
+        }
+    }
+
     async function fetchUpcomingEvents() {
         upcomingLoaded.value = true;
         return runEventsAction('Failed to fetch upcoming events', async () => {
@@ -401,6 +423,8 @@ export const useEventsStore = defineStore('events', () => {
         prefetchCalendarEvents,
         fetchUpcomingEvents,
         fetchEventById,
+        refreshEvent,
+        chatRevision,
         createEvent,
         updateEvent,
         deleteEvent,
