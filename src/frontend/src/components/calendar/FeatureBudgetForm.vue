@@ -1,14 +1,22 @@
 <script setup lang="ts">
-import { FEATURES } from '../../constants/features';
-import type { EventFeature } from '../../types/Event';
+import { computed, onMounted } from 'vue';
+import { useFeaturesStore } from '../../stores/features';
+import type { FeatureId } from '../../types/Event';
 import { toggleFeature as toggleFeatureInSelection } from '../../utils/event';
 import ToggleSwitch from 'primevue/toggleswitch';
 import InputNumber from 'primevue/inputnumber';
 
-const selectedFeatures = defineModel<EventFeature[]>('selectedFeatures', { required: true });
-const featurePrices = defineModel<Record<EventFeature, number | null>>('featurePrices', { required: true });
+const selectedFeatures = defineModel<FeatureId[]>('selectedFeatures', { required: true });
+const featurePrices = defineModel<Record<FeatureId, number | null>>('featurePrices', { required: true });
 
-const toggleFeature = (feature: EventFeature) => toggleFeatureInSelection(selectedFeatures.value, feature);
+const featuresStore = useFeaturesStore();
+const FEATURES = computed(() => featuresStore.features);
+
+onMounted(() => {
+    if (featuresStore.features.length === 0) void featuresStore.fetchFeatures();
+});
+
+const toggleFeature = (feature: FeatureId) => toggleFeatureInSelection(selectedFeatures.value, feature);
 </script>
 
 <template>
@@ -19,13 +27,13 @@ const toggleFeature = (feature: EventFeature) => toggleFeatureInSelection(select
                     class="font-emoji bg-surface-900 flex size-9 shrink-0 items-center justify-center rounded-xl text-lg transition-opacity"
                     :class="selectedFeatures.includes(feature.id) ? '' : 'opacity-50'"
                 >
-                    {{ feature.icon }}
+                    {{ feature.emoji }}
                 </span>
                 <span
                     class="text-body flex-1 font-medium"
                     :class="selectedFeatures.includes(feature.id) ? 'text-fg' : 'text-muted'"
                 >
-                    {{ feature.label }}
+                    {{ feature.name }}
                 </span>
                 <ToggleSwitch
                     :inputId="`feature-toggle-${feature.id}`"

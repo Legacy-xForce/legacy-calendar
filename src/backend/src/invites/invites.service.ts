@@ -11,6 +11,7 @@ import { EventsRealtime } from '../events/events-realtime.service.js';
 import { mapEventToDto } from '../events/event-response.mapper.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { InvitesRepository, type GuestInviteWithRelations } from './invites.repository.js';
+import { assertFeaturesOfferedByEvent } from '../events/event-guards.js';
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
 import { generateGuestToken, hashGuestToken } from './guest-token.util.js';
 import { guestId } from '../common/participant-id.util.js';
@@ -77,6 +78,8 @@ export class InvitesService {
         const before = event.participants.find(
             (participant) => participant.guestParticipantId === guestInvite.guestParticipantId
         );
+
+        assertFeaturesOfferedByEvent(event, dto.featureIds);
 
         try {
             await this.invitesRepo.updateGuestParticipation(guestInvite.guestParticipantId, guestInvite.eventId, dto);

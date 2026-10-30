@@ -51,6 +51,7 @@ const {
     userParticipantStatus,
     currentUser,
     dragOverDriverId,
+    availableFeatures,
     availableFeatureIds,
     getParticipantFeatures,
     getFeatureCount,
@@ -64,7 +65,10 @@ const otherFeatureCounts = computed(() => {
         userParticipantStatus.value === 'ACCEPTED' && currentUser.value
             ? getParticipantFeatures(currentUser.value.id)
             : [];
-    return createFeatureRecord((feature) => getFeatureCount(feature) - (mine.includes(feature) ? 1 : 0));
+    return createFeatureRecord(
+        availableFeatureIds.value,
+        (feature) => getFeatureCount(feature) - (mine.includes(feature) ? 1 : 0)
+    );
 });
 
 const joining = ref(false);
@@ -344,7 +348,7 @@ watch(
 
     <FeatureSelectionDialog
         v-model:visible="showFeatureSelection"
-        :availableFeatures="availableFeatureIds"
+        :availableFeatures="availableFeatures"
         :initialFeatures="currentUser ? getParticipantFeatures(currentUser.id) : []"
         :initialTransportMode="props.event?.participants?.find((p) => p.id === currentUser?.id)?.transportMode"
         :initialVehicleSeats="props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeats"

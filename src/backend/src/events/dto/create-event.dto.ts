@@ -1,4 +1,5 @@
 import {
+    IsArray,
     IsBoolean,
     IsDateString,
     IsInt,
@@ -6,12 +7,25 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    Min,
     ValidateNested
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEventStartTimeWithinAllowedRange } from '../validators/is-event-start-time-within-allowed-range.validator.js';
 import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
+
+export class EventFeatureInputDto {
+    @ApiProperty({ type: Number, example: 1, description: 'ID of an instance feature' })
+    @IsInt()
+    featureId!: number;
+
+    @ApiProperty({ type: Number, example: 10.5, description: 'Budget for this feature', required: false })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    price?: number;
+}
 
 export class CreateEventDto {
     @ApiProperty({ type: String, example: 'Team Standup', description: 'Title of the event' })
@@ -113,53 +127,14 @@ export class CreateEventDto {
     @IsBoolean()
     isPrivate?: boolean;
 
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the event has food', required: false })
+    @ApiProperty({
+        type: () => [EventFeatureInputDto],
+        description: 'Instance features enabled for this event, each with an optional budget',
+        required: false
+    })
     @IsOptional()
-    @IsBoolean()
-    hasFood?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the event has weed', required: false })
-    @IsOptional()
-    @IsBoolean()
-    hasWeed?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the event has sleep', required: false })
-    @IsOptional()
-    @IsBoolean()
-    hasSleep?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the event has alcohol', required: false })
-    @IsOptional()
-    @IsBoolean()
-    hasAlcohol?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the event has beer', required: false })
-    @IsOptional()
-    @IsBoolean()
-    hasBeer?: boolean;
-
-    @ApiProperty({ type: Number, example: 10.5, description: 'Food budget', required: false })
-    @IsOptional()
-    @IsNumber()
-    foodPrice?: number;
-
-    @ApiProperty({ type: Number, example: 50, description: 'Weed budget', required: false })
-    @IsOptional()
-    @IsNumber()
-    weedPrice?: number;
-
-    @ApiProperty({ type: Number, example: 20, description: 'Sleep/Accommodation budget', required: false })
-    @IsOptional()
-    @IsNumber()
-    sleepPrice?: number;
-
-    @ApiProperty({ type: Number, example: 30, description: 'Alcohol budget', required: false })
-    @IsOptional()
-    @IsNumber()
-    alcoholPrice?: number;
-
-    @ApiProperty({ type: Number, example: 15, description: 'Beer budget', required: false })
-    @IsOptional()
-    @IsNumber()
-    beerPrice?: number;
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => EventFeatureInputDto)
+    features?: EventFeatureInputDto[];
 }

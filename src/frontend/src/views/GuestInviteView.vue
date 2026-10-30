@@ -48,7 +48,7 @@ const currentUserRef = computed(() =>
 const eventView = useEventView(event, { currentUser: currentUserRef, guestMode: true });
 provide(EventViewInjectionKey, eventView);
 
-const { eventPrices, eventSplitPrices, availableFeatureIds, isEnded, getParticipantFeatures } = eventView;
+const { eventPrices, eventSplitPrices, availableFeatures, isEnded, getParticipantFeatures } = eventView;
 
 async function loadInvite() {
     loading.value = true;
@@ -238,7 +238,7 @@ const onLeave = () => {
 
         <FeatureSelectionDialog
             v-model:visible="showFeatureSelection"
-            :availableFeatures="availableFeatureIds"
+            :availableFeatures="availableFeatures"
             :initialFeatures="guestUserId ? getParticipantFeatures(guestUserId) : []"
             :initialTransportMode="guestParticipant?.transportMode"
             :initialVehicleSeats="guestParticipant?.vehicleSeats"

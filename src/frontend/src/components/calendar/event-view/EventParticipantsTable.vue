@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import type { Event } from '../../../types/Event';
 import UserAvatar from '../../UserAvatar.vue';
-import { FEATURE_BY_ID } from '../../../constants/features';
 import { injectEventView } from '../../../composables/useEventView';
 import api from '../../../services/API';
 import { totalEventBudget } from '../../../utils/event';
@@ -13,8 +12,15 @@ const props = defineProps<{
     event: Event;
 }>();
 
-const { resolvedInvitees, availableFeatureIds, allEventHosts, getParticipantFeatures, getFeatureSplitPrice, isHost } =
-    injectEventView();
+const {
+    resolvedInvitees,
+    availableFeatureIds,
+    featureById,
+    allEventHosts,
+    getParticipantFeatures,
+    getFeatureSplitPrice,
+    isHost
+} = injectEventView();
 const toast = useToast();
 
 // ---------- Payments: hosts and co-hosts mark who has paid their share ----------
@@ -102,9 +108,9 @@ const summary = computed(() => {
                             <span
                                 v-for="feature in optedFeatures(person.id)"
                                 :key="feature"
-                                :title="FEATURE_BY_ID[feature].label"
-                                :aria-label="FEATURE_BY_ID[feature].label"
-                                >{{ FEATURE_BY_ID[feature].icon }}</span
+                                :title="featureById.get(feature)?.name"
+                                :aria-label="featureById.get(feature)?.name"
+                                >{{ featureById.get(feature)?.emoji }}</span
                             >
                         </span>
                         <span v-if="hasPaymentDue && amountDue(person) > 0">{{

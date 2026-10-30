@@ -7,6 +7,7 @@ import { useUsersStore } from '../stores/users';
 import { storeToRefs } from 'pinia';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
+import FeaturesAdminSection from '../components/FeaturesAdminSection.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
@@ -71,11 +72,17 @@ onMounted(() => {
                 <i class="pi pi-arrow-left text-[0.625rem]"></i>
                 Profile
             </router-link>
-            <h1 class="text-display m-0">Users</h1>
+            <h1 class="text-display m-0">Admin</h1>
+        </header>
+
+        <FeaturesAdminSection />
+
+        <div>
+            <h2 class="text-headline m-0">Users</h2>
             <p class="text-meta text-muted tabular m-0 mt-1">
                 {{ users.length }} accounts · managed in Legacy accounts
             </p>
-        </header>
+        </div>
 
         <IconField>
             <InputIcon class="pi pi-search" />

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from '../../users/dto/user.dto.js';
 import { InviteStatus, TransportMode } from '../../../prisma/generated/client.js';
+import { FeatureDto } from '../../features/dto/feature.dto.js';
 import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
 
 /**
@@ -9,24 +10,22 @@ import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
  */
 export class EventHostDto extends UserDto {}
 
+export class EventFeatureDto extends FeatureDto {
+    @ApiProperty({
+        type: Number,
+        example: 10.5,
+        description: 'Budget for this feature, split between those who opted in',
+        nullable: true
+    })
+    price!: number | null;
+}
+
 export class EventParticipantDto extends UserDto {
     @ApiProperty({ enum: InviteStatus, example: 'PENDING', description: 'Status of the invitation' })
     status!: InviteStatus;
 
-    @ApiProperty({ type: Boolean, example: true, description: 'User wants food' })
-    wantsFood?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'User wants weed' })
-    wantsWeed?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'User wants sleep' })
-    wantsSleep?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'User wants alcohol' })
-    wantsAlcohol?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'User wants beer' })
-    wantsBeer?: boolean;
+    @ApiProperty({ type: [Number], example: [1, 3], description: 'IDs of the event features the user opted into' })
+    featureIds!: number[];
 
     @ApiProperty({ enum: TransportMode, example: 'NEEDS_RIDE', description: 'Transport mode' })
     transportMode?: TransportMode;
@@ -125,39 +124,6 @@ export class EventResponseDto {
     @ApiProperty({ type: Boolean, example: false, description: 'Whether the event is private' })
     isPrivate!: boolean;
 
-    @ApiProperty({ type: Boolean, example: true, description: 'Event has food' })
-    hasFood?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Event has weed' })
-    hasWeed?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Event has sleep' })
-    hasSleep?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Event has alcohol' })
-    hasAlcohol?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Event has beer' })
-    hasBeer?: boolean;
-
-    @ApiProperty({ type: Number, example: 10.5, description: 'Food budget', required: false, nullable: true })
-    foodPrice?: number | null;
-
-    @ApiProperty({ type: Number, example: 50, description: 'Weed budget', required: false, nullable: true })
-    weedPrice?: number | null;
-
-    @ApiProperty({
-        type: Number,
-        example: 20,
-        description: 'Sleep/Accommodation budget',
-        required: false,
-        nullable: true
-    })
-    sleepPrice?: number | null;
-
-    @ApiProperty({ type: Number, example: 30, description: 'Alcohol budget', required: false, nullable: true })
-    alcoholPrice?: number | null;
-
-    @ApiProperty({ type: Number, example: 15, description: 'Beer budget', required: false, nullable: true })
-    beerPrice?: number | null;
+    @ApiProperty({ type: () => [EventFeatureDto], description: 'Instance features enabled for this event' })
+    features!: EventFeatureDto[];
 }

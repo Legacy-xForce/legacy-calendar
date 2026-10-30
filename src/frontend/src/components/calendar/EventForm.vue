@@ -7,7 +7,7 @@ import AutoComplete from 'primevue/autocomplete';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import SelectButton from 'primevue/selectbutton';
-import type { CreateEventDto, Event, EventFeature } from '../../types/Event';
+import type { CreateEventDto, Event, FeatureId } from '../../types/Event';
 import type { AddressDetails } from '../../types/Address';
 import type { User } from '../../types/User';
 import api from '../../services/API';
@@ -20,8 +20,7 @@ import EventColorSelector from './EventColorSelector.vue';
 import GuestInviteDialog from './GuestInviteDialog.vue';
 import { useUserGroupsStore } from '../../stores/userGroups';
 import {
-    createNullFeatureRecord,
-    featureFlagsFromSelection,
+    eventFeaturesPayload,
     featurePricesFromEvent,
     getEventStartDateBounds,
     isEventStartTimeWithinAllowedRange,
@@ -65,8 +64,8 @@ const deadline = ref<Date | null>(null);
 const selectedParticipants = ref<number[]>([]);
 const selectedCoHosts = ref<number[]>([]);
 const showGuestInvite = ref(false);
-const selectedFeatures = ref<EventFeature[]>([]);
-const featurePrices = ref<Record<EventFeature, number | null>>(createNullFeatureRecord());
+const selectedFeatures = ref<FeatureId[]>([]);
+const featurePrices = ref<Record<FeatureId, number | null>>({});
 const showEnd = ref(false);
 const showDeadline = ref(false);
 const submitted = ref(false);
@@ -164,7 +163,7 @@ const initialize = () => {
         selectedParticipants.value = [];
         selectedCoHosts.value = [];
         selectedFeatures.value = [];
-        featurePrices.value = createNullFeatureRecord();
+        featurePrices.value = {};
     }
     showEnd.value = !!end.value;
     showDeadline.value = !!deadline.value;
@@ -304,12 +303,7 @@ const submit = () => {
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
         color: eventColor.value,
-        ...featureFlagsFromSelection(selectedFeatures.value),
-        foodPrice: featurePrices.value.FOOD ?? undefined,
-        weedPrice: featurePrices.value.WEED ?? undefined,
-        sleepPrice: featurePrices.value.SLEEP ?? undefined,
-        alcoholPrice: featurePrices.value.ALCOHOL ?? undefined,
-        beerPrice: featurePrices.value.BEER ?? undefined,
+        features: eventFeaturesPayload(selectedFeatures.value, featurePrices.value),
         participationDeadline: showDeadline.value && deadline.value ? deadline.value.toISOString() : undefined
     });
     return true;

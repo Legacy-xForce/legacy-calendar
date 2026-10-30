@@ -4,22 +4,27 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import SeatStepper from './SeatStepper.vue';
-import { type EventFeature, type FeatureSelectionResult, type TransportMode } from '../../types/Event';
+import {
+    type EventFeatureEntry,
+    type FeatureId,
+    type FeatureSelectionResult,
+    type TransportMode
+} from '../../types/Event';
 
-import { FEATURES } from '../../constants/features';
 import { TRANSPORT_OPTIONS } from '../../constants/transport';
 import { toggleFeature as toggleFeatureInSelection } from '../../utils/event';
 import { formatCurrency } from '../../utils/format';
 
 const props = defineProps<{
     visible: boolean;
-    availableFeatures?: EventFeature[];
-    initialFeatures?: EventFeature[];
+    /** The features the event offers. */
+    availableFeatures?: EventFeatureEntry[];
+    initialFeatures?: FeatureId[];
     submitLabel?: string;
-    featurePrices?: Record<EventFeature, number | null>;
-    featureSplitPrices?: Record<EventFeature, number | null>;
+    featurePrices?: Partial<Record<FeatureId, number | null>>;
+    featureSplitPrices?: Partial<Record<FeatureId, number | null>>;
     /** How many other people (not you) are in for each feature, used to project your share. */
-    featureCounts?: Record<EventFeature, number>;
+    featureCounts?: Partial<Record<FeatureId, number>>;
     initialTransportMode?: TransportMode;
     initialVehicleSeats?: number;
     initialVehicleSeatsOutbound?: number;
@@ -33,7 +38,7 @@ const emit = defineEmits<{
 
 const MIN_SEATS = 2;
 
-const selectedFeatures = ref<EventFeature[]>([]);
+const selectedFeatures = ref<FeatureId[]>([]);
 const transportMode = ref<TransportMode>('NEEDS_RIDE');
 // Drivers can offer a different number of seats for the way back
 const vehicleSeatsOutbound = ref(MIN_SEATS);
@@ -54,14 +59,10 @@ const onSplitTripsChange = (split: boolean) => {
     if (!split) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
 };
 
-const features = computed(() =>
-    props.availableFeatures === undefined
-        ? FEATURES
-        : FEATURES.filter((feature) => props.availableFeatures!.includes(feature.id))
-);
+const features = computed(() => props.availableFeatures ?? []);
 
 /** Your share if you opt in: the budget split across everyone in, counting you once. */
-const projectedShare = (feature: EventFeature) => {
+const projectedShare = (feature: FeatureId) => {
     const price = props.featurePrices?.[feature];
     if (price === null || price === undefined) return null;
     if (!props.featureCounts) return props.featureSplitPrices?.[feature] ?? price;
@@ -73,7 +74,7 @@ const totalShare = computed(() =>
 );
 const hasBudgets = computed(() => features.value.some((feature) => projectedShare(feature.id) !== null));
 
-const toggleFeature = (feature: EventFeature) => {
+const toggleFeature = (feature: FeatureId) => {
     toggleFeatureInSelection(selectedFeatures.value, feature);
 };
 
@@ -139,9 +140,9 @@ watch(
                         <span
                             class="font-emoji bg-surface-900 flex size-9 shrink-0 items-center justify-center rounded-xl text-lg"
                         >
-                            {{ feature.icon }}
+                            {{ feature.emoji }}
                         </span>
-                        <span class="text-body text-fg flex-1 font-medium">{{ feature.label }}</span>
+                        <span class="text-body text-fg flex-1 font-medium">{{ feature.name }}</span>
                         <span v-if="projectedShare(feature.id) !== null" class="text-meta text-muted tabular">
                             {{ formatCurrency(projectedShare(feature.id)) }}
                         </span>

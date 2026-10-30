@@ -6,6 +6,21 @@ import { ParticipateDto } from './dto/participate.dto.js';
 import { normalizeVehicleSeats } from './vehicle-seats.util.js';
 import { guestParticipantIdOf } from '../common/participant-id.util.js';
 
+const EVENT_FEATURES_INCLUDE = {
+    include: { feature: { select: { id: true, name: true, emoji: true } } },
+    orderBy: { featureId: 'asc' as const }
+};
+
+export const ATTENDANCE_FEATURES_INCLUDE = {
+    select: { featureId: true, feature: { select: { name: true, emoji: true } } }
+};
+
+/** Nested write that makes the attendance's opted-in features exactly `featureIds`. */
+export const replaceAttendanceFeatures = (featureIds: number[]) => ({
+    deleteMany: {},
+    create: featureIds.map((featureId) => ({ featureId }))
+});
+
 export const EVENT_INCLUDE = {
     host: { select: USER_SELECT },
     coHosts: {
@@ -17,9 +32,11 @@ export const EVENT_INCLUDE = {
     participants: {
         include: {
             user: { select: USER_SELECT },
-            guestParticipant: { select: { id: true, displayName: true } }
+            guestParticipant: { select: { id: true, displayName: true } },
+            features: ATTENDANCE_FEATURES_INCLUDE
         }
     },
+    features: EVENT_FEATURES_INCLUDE,
     // RideAssignment ids are namespaced: positive user IDs, negative guest participant IDs.
     rideAssignments: true
 } satisfies Prisma.EventInclude;
@@ -119,7 +136,7 @@ export class EventsRepository {
     }
 
     async join(userId: number, eventId: number, participateDto: ParticipateDto) {
-        const { wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = participateDto;
+        const { featureIds, transportMode } = participateDto;
         const { vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn } = normalizeVehicleSeats(participateDto);
 
         return this.prisma.attendance.upsert({
@@ -128,33 +145,26 @@ export class EventsRepository {
             },
             update: {
                 status: InviteStatus.ACCEPTED,
-                wantsFood,
-                wantsWeed,
-                wantsSleep,
-                wantsAlcohol,
-                wantsBeer,
                 transportMode,
                 vehicleSeats,
                 vehicleSeatsOutbound,
-                vehicleSeatsReturn
+                vehicleSeatsReturn,
+                ...(featureIds ? { features: replaceAttendanceFeatures(featureIds) } : {})
             },
             create: {
                 userId,
                 eventId,
                 status: InviteStatus.ACCEPTED,
-                wantsFood,
-                wantsWeed,
-                wantsSleep,
-                wantsAlcohol,
-                wantsBeer,
                 transportMode,
                 vehicleSeats,
                 vehicleSeatsOutbound,
-                vehicleSeatsReturn
+                vehicleSeatsReturn,
+                ...(featureIds ? { features: { create: featureIds.map((featureId) => ({ featureId })) } } : {})
             },
             include: {
                 user: { select: USER_SELECT },
-                guestParticipant: { select: { id: true, displayName: true } }
+                guestParticipant: { select: { id: true, displayName: true } },
+                features: ATTENDANCE_FEATURES_INCLUDE
             }
         });
     }
@@ -257,11 +267,7 @@ export class EventsRepository {
                 vehicleSeats: 0,
                 vehicleSeatsOutbound: 0,
                 vehicleSeatsReturn: 0,
-                wantsFood: false,
-                wantsWeed: false,
-                wantsSleep: false,
-                wantsAlcohol: false,
-                wantsBeer: false
+                features: { deleteMany: {} }
             }
         });
     }
@@ -271,6 +277,20 @@ export class EventsRepository {
             where: { id },
             data,
             include: EVENT_INCLUDE
+        });
+    }
+
+    async findMissingFeatureIds(ids: number[]): Promise<number[]> {
+        if (ids.length === 0) return [];
+        const found = await this.prisma.feature.findMany({ where: { id: { in: ids } }, select: { id: true } });
+        const foundIds = new Set(found.map((feature) => feature.id));
+        return ids.filter((id) => !foundIds.has(id));
+    }
+
+    /** Clears opt-ins for features an event no longer offers. */
+    async removeAttendanceFeaturesNotIn(eventId: number, offeredFeatureIds: number[]) {
+        return this.prisma.attendanceFeature.deleteMany({
+            where: { attendance: { eventId }, featureId: { notIn: offeredFeatureIds } }
         });
     }
 

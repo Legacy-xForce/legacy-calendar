@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma, InviteStatus, TransportMode } from '../../prisma/generated/client.js';
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
+import { ATTENDANCE_FEATURES_INCLUDE, replaceAttendanceFeatures } from '../events/events.repository.js';
 import { normalizeVehicleSeats } from '../events/vehicle-seats.util.js';
 
 const GUEST_INVITE_INCLUDE = {
@@ -56,7 +57,7 @@ export class InvitesRepository {
     }
 
     async updateGuestParticipation(guestParticipantId: number, eventId: number, dto: GuestParticipateDto) {
-        const { username, wantsFood, wantsWeed, wantsSleep, wantsAlcohol, wantsBeer, transportMode } = dto;
+        const { username, featureIds, transportMode } = dto;
         const { vehicleSeats, vehicleSeatsOutbound, vehicleSeatsReturn } = normalizeVehicleSeats(dto);
 
         return this.prisma.$transaction(async (tx) => {
@@ -71,30 +72,23 @@ export class InvitesRepository {
                 where: { guestParticipantId_eventId: { guestParticipantId, eventId } },
                 update: {
                     status: InviteStatus.ACCEPTED,
-                    wantsFood,
-                    wantsWeed,
-                    wantsSleep,
-                    wantsAlcohol,
-                    wantsBeer,
                     transportMode,
                     vehicleSeats,
                     vehicleSeatsOutbound,
-                    vehicleSeatsReturn
+                    vehicleSeatsReturn,
+                    ...(featureIds ? { features: replaceAttendanceFeatures(featureIds) } : {})
                 },
                 create: {
                     guestParticipantId,
                     eventId,
                     status: InviteStatus.ACCEPTED,
-                    wantsFood,
-                    wantsWeed,
-                    wantsSleep,
-                    wantsAlcohol,
-                    wantsBeer,
                     transportMode,
                     vehicleSeats,
                     vehicleSeatsOutbound,
-                    vehicleSeatsReturn
-                }
+                    vehicleSeatsReturn,
+                    ...(featureIds ? { features: { create: featureIds.map((featureId) => ({ featureId })) } } : {})
+                },
+                include: { features: ATTENDANCE_FEATURES_INCLUDE }
             });
         });
     }
@@ -108,11 +102,7 @@ export class InvitesRepository {
                 vehicleSeats: 0,
                 vehicleSeatsOutbound: 0,
                 vehicleSeatsReturn: 0,
-                wantsFood: false,
-                wantsWeed: false,
-                wantsSleep: false,
-                wantsAlcohol: false,
-                wantsBeer: false
+                features: { deleteMany: {} }
             }
         });
     }

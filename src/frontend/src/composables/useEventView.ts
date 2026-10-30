@@ -12,7 +12,7 @@ export function injectEventView() {
     }
     return context;
 }
-import type { Event, EventFeature, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
+import type { Event, FeatureId, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
 import { useSessionStore } from '../stores/session';
 import { useUsersStore } from '../stores/users';
 import {
@@ -164,12 +164,16 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         () => !isGuestMode && hasLocalAuditLogAccess(eventRef.value, currentUser.value?.id)
     );
 
+    const availableFeatures = computed(() => eventRef.value?.features ?? []);
     const availableFeatureIds = computed(() => selectedFeaturesFromEvent(eventRef.value));
+    const featureById = computed(() => new Map(availableFeatures.value.map((feature) => [feature.id, feature])));
 
     const eventPrices = computed(() => featurePricesFromEvent(eventRef.value));
 
     const eventSplitPrices = computed(() =>
-        createFeatureRecord((feature) => featureSplitPrice(eventRef.value, resolvedInvitees.value, feature))
+        createFeatureRecord(availableFeatureIds.value, (feature) =>
+            featureSplitPrice(eventRef.value, resolvedInvitees.value, feature)
+        )
     );
 
     const drivers = computed(() =>
@@ -243,9 +247,9 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
 
     const unpaidAmount = computed(() => Math.max(0, eventTotalBudget.value - paidAmount.value));
 
-    const getFeatureCount = (feature: EventFeature) => featureCount(resolvedInvitees.value, feature);
+    const getFeatureCount = (feature: FeatureId) => featureCount(resolvedInvitees.value, feature);
 
-    const getFeatureSplitPrice = (feature: EventFeature) =>
+    const getFeatureSplitPrice = (feature: FeatureId) =>
         featureSplitPrice(eventRef.value, resolvedInvitees.value, feature);
 
     const userTotalShare = computed(() => {
@@ -287,7 +291,7 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         return totalSeats < rideNeedingParticipants.length;
     });
 
-    const getParticipantFeatures = (userId: number): EventFeature[] => {
+    const getParticipantFeatures = (userId: number): FeatureId[] => {
         return participantFeatures(inviteeById.value.get(userId));
     };
 
@@ -337,7 +341,9 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         canAccept,
         canAccessChat,
         canAccessAuditLog,
+        availableFeatures,
         availableFeatureIds,
+        featureById,
         eventPrices,
         eventSplitPrices,
         drivers,

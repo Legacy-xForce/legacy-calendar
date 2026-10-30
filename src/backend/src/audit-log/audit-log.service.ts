@@ -337,16 +337,12 @@ export class AuditLogService {
             endTime: event.endTime?.toISOString() ?? null,
             hostId: event.hostId,
             isOpen: event.isOpen,
-            hasAlcohol: event.hasAlcohol,
-            hasFood: event.hasFood,
-            hasSleep: event.hasSleep,
-            hasWeed: event.hasWeed,
-            alcoholPrice: event.alcoholPrice,
-            beerPrice: event.beerPrice,
-            foodPrice: event.foodPrice,
-            hasBeer: event.hasBeer,
-            sleepPrice: event.sleepPrice,
-            weedPrice: event.weedPrice,
+            features: event.features
+                .map(
+                    (entry) =>
+                        `${entry.feature.emoji} ${entry.feature.name}${entry.price != null ? ` (${entry.price})` : ''}`
+                )
+                .join(', '),
             isPrivate: event.isPrivate,
             participationDeadline: event.participationDeadline?.toISOString() ?? null
         };
@@ -358,11 +354,7 @@ export class AuditLogService {
         guestParticipant?: { displayName: string } | null;
         status: string;
         createdAt: Date;
-        wantsAlcohol?: boolean;
-        wantsBeer?: boolean;
-        wantsFood?: boolean;
-        wantsSleep?: boolean;
-        wantsWeed?: boolean;
+        features?: { feature: { name: string; emoji: string } }[];
         transportMode?: string;
         vehicleSeats?: number;
         hasPaid?: boolean;
@@ -374,11 +366,11 @@ export class AuditLogService {
             joinedAt: participant.createdAt.toISOString()
         };
 
-        if (participant.wantsAlcohol !== undefined) snapshot.wantsAlcohol = participant.wantsAlcohol;
-        if (participant.wantsBeer !== undefined) snapshot.wantsBeer = participant.wantsBeer;
-        if (participant.wantsFood !== undefined) snapshot.wantsFood = participant.wantsFood;
-        if (participant.wantsSleep !== undefined) snapshot.wantsSleep = participant.wantsSleep;
-        if (participant.wantsWeed !== undefined) snapshot.wantsWeed = participant.wantsWeed;
+        if (participant.features !== undefined) {
+            snapshot.features = participant.features
+                .map(({ feature }) => `${feature.emoji} ${feature.name}`)
+                .join(', ');
+        }
         if (participant.transportMode !== undefined) snapshot.transportMode = participant.transportMode;
         if (participant.vehicleSeats !== undefined) snapshot.vehicleSeats = participant.vehicleSeats;
         if (participant.hasPaid !== undefined) snapshot.hasPaid = participant.hasPaid;

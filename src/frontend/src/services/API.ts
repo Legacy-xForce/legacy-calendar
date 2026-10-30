@@ -17,6 +17,7 @@ import type { AuditLogEntry } from '../types/AuditLog';
 import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
 import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
 import type { ApiToken, CreateApiTokenDto, CreatedApiToken } from '../types/ApiToken';
+import type { CreateFeatureDto, Feature, UpdateFeatureDto } from '../types/Event';
 import type { AddressDetails } from '../types/Address';
 
 // --- API Class ---
@@ -320,6 +321,24 @@ class API {
 
     async deleteUserGroup(id: number): Promise<AxiosResponse<void>> {
         return this.client.delete(`/user-groups/${id}`);
+    }
+
+    // --- Features ---
+
+    async getFeatures(): Promise<AxiosResponse<Feature[]>> {
+        return this.client.get('/features');
+    }
+
+    async createFeature(dto: CreateFeatureDto): Promise<AxiosResponse<Feature>> {
+        return this.client.post('/features', dto);
+    }
+
+    async updateFeature(id: number, dto: UpdateFeatureDto): Promise<AxiosResponse<Feature>> {
+        return this.client.patch(`/features/${id}`, dto);
+    }
+
+    async deleteFeature(id: number): Promise<AxiosResponse<void>> {
+        return this.client.delete(`/features/${id}`);
     }
 
     // --- API tokens ---
