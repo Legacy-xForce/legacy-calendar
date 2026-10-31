@@ -35,13 +35,15 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     {
         name: 'settings',
         label: 'Settings',
-        icon: 'pi pi-cog',
+        icon: 'pi pi-shield',
         match: (path) => path === '/settings',
-        showInHeader: true,
-        showInBottomBar: true,
+        showInHeader: false,
+        showInBottomBar: false,
         adminOnly: true
     }
 ];
+
+export const ADMIN_ITEM = NAVIGATION_ITEMS.find((item) => item.name === 'settings')!;
 
 export const HEADER_NAVIGATION = NAVIGATION_ITEMS.filter((item) => item.showInHeader);
 export const BOTTOM_NAVIGATION = NAVIGATION_ITEMS.filter((item) => item.showInBottomBar);
