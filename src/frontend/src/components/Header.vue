@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import UserAvatar from './UserAvatar.vue';
 import AppLogo from './AppLogo.vue';
 import { useSessionStore } from '../stores/session';
-import { HEADER_NAVIGATION, stopImpersonating } from '../constants/navigation';
+import { ADMIN_ITEM, HEADER_NAVIGATION, stopImpersonating } from '../constants/navigation';
 
 const sessionStore = useSessionStore();
 const route = useRoute();
@@ -50,6 +50,21 @@ const items = computed(() => HEADER_NAVIGATION.filter((item) => !item.adminOnly 
                     Viewing as {{ currentUser?.username }}
                     <span class="text-rose-200 underline underline-offset-2">Exit</span>
                 </button>
+                <router-link
+                    v-if="currentUser?.isAdmin"
+                    :to="{ name: ADMIN_ITEM.name }"
+                    class="pressable flex size-9 items-center justify-center rounded-full no-underline"
+                    :class="
+                        ADMIN_ITEM.match(route.path)
+                            ? 'bg-surface-850 text-fg'
+                            : 'text-muted hover:bg-surface-900 hover:text-fg'
+                    "
+                    :aria-label="ADMIN_ITEM.label"
+                    :title="ADMIN_ITEM.label"
+                    :aria-current="ADMIN_ITEM.match(route.path) ? 'page' : undefined"
+                >
+                    <i :class="ADMIN_ITEM.icon" class="text-sm"></i>
+                </router-link>
                 <router-link
                     :to="{ name: 'profile' }"
                     class="pressable text-body flex items-center gap-2.5 rounded-full py-1 pr-3.5 pl-1 font-medium no-underline"

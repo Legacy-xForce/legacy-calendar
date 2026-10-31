@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSessionStore } from '../stores/session';
 import UserAvatar from './UserAvatar.vue';
-import { BOTTOM_NAVIGATION, stopImpersonating } from '../constants/navigation';
+import { ADMIN_ITEM, BOTTOM_NAVIGATION, stopImpersonating } from '../constants/navigation';
 
 const route = useRoute();
 const sessionStore = useSessionStore();
@@ -43,6 +43,21 @@ const tabs = computed(() => BOTTOM_NAVIGATION.filter((tab) => !tab.adminOnly || 
                     />
                 </span>
                 <span class="text-[0.6875rem] leading-none font-medium">{{ tab.label }}</span>
+            </router-link>
+            <router-link
+                v-if="currentUser?.isAdmin"
+                :to="{ name: ADMIN_ITEM.name }"
+                class="group flex w-12 flex-none flex-col items-center justify-center gap-1 no-underline"
+                :class="ADMIN_ITEM.match(route.path) ? 'text-fg' : 'text-subtle'"
+                :aria-label="ADMIN_ITEM.label"
+                :aria-current="ADMIN_ITEM.match(route.path) ? 'page' : undefined"
+            >
+                <span
+                    class="flex size-7 items-center justify-center rounded-full transition-colors duration-200 group-active:scale-95"
+                    :class="ADMIN_ITEM.match(route.path) ? 'bg-surface-850' : ''"
+                >
+                    <i :class="ADMIN_ITEM.icon" class="text-[1.125rem]"></i>
+                </span>
             </router-link>
             <button
                 v-if="isImpersonating"
