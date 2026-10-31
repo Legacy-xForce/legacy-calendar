@@ -1,40 +1,6 @@
-import type { CreateEventDto, Event, EventFeature, EventParticipant, ParticipantStatus } from '../types/Event';
-import { EVENT_FEATURES } from '../types/Event';
+import type { Event, EventParticipant, FeatureId, ParticipantStatus } from '../types/Event';
 
 const MAX_EVENT_START_TIME_YEARS_AHEAD = 1;
-
-export const FEATURE_FLAG_FIELD: Record<
-    EventFeature,
-    keyof Pick<CreateEventDto, 'hasFood' | 'hasWeed' | 'hasSleep' | 'hasAlcohol' | 'hasBeer'>
-> = {
-    FOOD: 'hasFood',
-    WEED: 'hasWeed',
-    ALCOHOL: 'hasAlcohol',
-    SLEEP: 'hasSleep',
-    BEER: 'hasBeer'
-};
-
-export const FEATURE_PRICE_FIELD: Record<
-    EventFeature,
-    keyof Pick<CreateEventDto, 'foodPrice' | 'weedPrice' | 'sleepPrice' | 'alcoholPrice' | 'beerPrice'>
-> = {
-    FOOD: 'foodPrice',
-    WEED: 'weedPrice',
-    ALCOHOL: 'alcoholPrice',
-    SLEEP: 'sleepPrice',
-    BEER: 'beerPrice'
-};
-
-export const PARTICIPANT_WANTS_FIELD: Record<
-    EventFeature,
-    keyof Pick<EventParticipant, 'wantsFood' | 'wantsWeed' | 'wantsSleep' | 'wantsAlcohol' | 'wantsBeer'>
-> = {
-    FOOD: 'wantsFood',
-    WEED: 'wantsWeed',
-    ALCOHOL: 'wantsAlcohol',
-    SLEEP: 'wantsSleep',
-    BEER: 'wantsBeer'
-};
 
 export const PARTICIPANT_STATUS_SEVERITY: Record<ParticipantStatus, 'success' | 'danger' | 'warn'> = {
     ACCEPTED: 'success',
@@ -48,17 +14,14 @@ export const PARTICIPANT_STATUS_ICON: Record<ParticipantStatus, string> = {
     PENDING: 'pi pi-clock'
 };
 
-export function createFeatureRecord<T>(factory: (feature: EventFeature) => T): Record<EventFeature, T> {
-    return {
-        FOOD: factory('FOOD'),
-        WEED: factory('WEED'),
-        ALCOHOL: factory('ALCOHOL'),
-        SLEEP: factory('SLEEP'),
-        BEER: factory('BEER')
-    };
+export function createFeatureRecord<T>(
+    featureIds: readonly FeatureId[],
+    factory: (feature: FeatureId) => T
+): Record<FeatureId, T> {
+    return Object.fromEntries(featureIds.map((feature) => [feature, factory(feature)]));
 }
 
-export function toggleFeature(features: EventFeature[], feature: EventFeature) {
+export function toggleFeature(features: FeatureId[], feature: FeatureId) {
     const index = features.indexOf(feature);
     if (index === -1) {
         features.push(feature);
@@ -96,86 +59,48 @@ export function isEventStartTimeWithinAllowedRange(startTime: Date, referenceDat
     return startTime >= minDate && startTime <= maxDate;
 }
 
-export function selectedFeaturesFromEvent(
-    event: Pick<Event, 'hasFood' | 'hasWeed' | 'hasSleep' | 'hasAlcohol' | 'hasBeer'> | null | undefined
-): EventFeature[] {
-    if (!event) return [];
+type EventWithFeatures = Pick<Event, 'features'> | null | undefined;
 
-    return EVENT_FEATURES.filter((feature) => event[FEATURE_FLAG_FIELD[feature]] === true);
+export function selectedFeaturesFromEvent(event: EventWithFeatures): FeatureId[] {
+    return event?.features.map((feature) => feature.id) ?? [];
 }
 
-export function featureFlagsFromSelection(features: EventFeature[]) {
-    return {
-        hasFood: features.includes('FOOD'),
-        hasWeed: features.includes('WEED'),
-        hasSleep: features.includes('SLEEP'),
-        hasAlcohol: features.includes('ALCOHOL'),
-        hasBeer: features.includes('BEER')
-    };
-}
-
-export function participantWantsFromSelection(features: EventFeature[]) {
-    return {
-        wantsFood: features.includes('FOOD'),
-        wantsWeed: features.includes('WEED'),
-        wantsSleep: features.includes('SLEEP'),
-        wantsAlcohol: features.includes('ALCOHOL'),
-        wantsBeer: features.includes('BEER')
-    };
-}
-
-export function featurePricesFromEvent(
-    event: Pick<Event, 'foodPrice' | 'weedPrice' | 'sleepPrice' | 'alcoholPrice' | 'beerPrice'> | null | undefined
-) {
-    return createFeatureRecord((feature) => {
-        if (!event) return null;
-        const value = event[FEATURE_PRICE_FIELD[feature]];
-        return typeof value === 'number' ? value : null;
+/** The `features` payload for create/update: the selected ids with their optional budgets. */
+export function eventFeaturesPayload(selected: FeatureId[], prices: Record<FeatureId, number | null>) {
+    return selected.map((featureId) => {
+        const price = prices[featureId];
+        return typeof price === 'number' ? { featureId, price } : { featureId };
     });
 }
 
-export function participantFeatures(
-    participant:
-        | Pick<EventParticipant, 'wantsFood' | 'wantsWeed' | 'wantsSleep' | 'wantsAlcohol' | 'wantsBeer'>
-        | null
-        | undefined
-): EventFeature[] {
-    if (!participant) return [];
-
-    return EVENT_FEATURES.filter((feature) => participant[PARTICIPANT_WANTS_FIELD[feature]] === true);
+export function participantWantsFromSelection(features: FeatureId[]) {
+    return { featureIds: features };
 }
 
-export function featureCount(participants: EventParticipant[], feature: EventFeature) {
-    const wantsField = PARTICIPANT_WANTS_FIELD[feature];
-    return participants.filter((participant) => participant.status === 'ACCEPTED' && participant[wantsField]).length;
+export function featurePricesFromEvent(event: EventWithFeatures): Record<FeatureId, number | null> {
+    return Object.fromEntries((event?.features ?? []).map((feature) => [feature.id, feature.price ?? null]));
 }
 
-export function featureSplitPrice(
-    event: Pick<Event, 'foodPrice' | 'weedPrice' | 'sleepPrice' | 'alcoholPrice' | 'beerPrice'> | null | undefined,
-    participants: EventParticipant[],
-    feature: EventFeature
-) {
-    if (!event) return 0;
+export function participantFeatures(participant: Pick<EventParticipant, 'featureIds'> | null | undefined): FeatureId[] {
+    return participant?.featureIds ?? [];
+}
 
-    const price = event[FEATURE_PRICE_FIELD[feature]] ?? 0;
+export function featureCount(participants: EventParticipant[], feature: FeatureId) {
+    return participants.filter(
+        (participant) => participant.status === 'ACCEPTED' && participant.featureIds?.includes(feature)
+    ).length;
+}
+
+export function featureSplitPrice(event: EventWithFeatures, participants: EventParticipant[], feature: FeatureId) {
+    const price = event?.features.find((entry) => entry.id === feature)?.price ?? 0;
     if (!price) return 0;
 
     const count = featureCount(participants, feature);
     return count > 0 ? price / count : price;
 }
 
-export function totalEventBudget(
-    event: Pick<Event, 'foodPrice' | 'weedPrice' | 'sleepPrice' | 'alcoholPrice' | 'beerPrice'> | null | undefined
-) {
-    if (!event) return 0;
-
-    return (
-        (event.foodPrice ?? 0) +
-        (event.weedPrice ?? 0) +
-        (event.sleepPrice ?? 0) +
-        (event.alcoholPrice ?? 0) +
-        (event.beerPrice ?? 0)
-    );
+export function totalEventBudget(event: EventWithFeatures) {
+    return (event?.features ?? []).reduce((total, feature) => total + (feature.price ?? 0), 0);
 }
 
 export function canUserRespondToEvent(args: {
@@ -194,10 +119,6 @@ export function getParticipantStatusSeverity(status: string) {
 
 export function getParticipantStatusIcon(status: string) {
     return PARTICIPANT_STATUS_ICON[status as ParticipantStatus] ?? 'pi pi-info-circle';
-}
-
-export function createNullFeatureRecord() {
-    return createFeatureRecord(() => null);
 }
 
 export function getActiveParticipants(participants: EventParticipant[] | undefined) {

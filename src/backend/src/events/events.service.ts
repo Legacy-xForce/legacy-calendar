@@ -16,7 +16,7 @@ import { AuditLogService } from '../audit-log/audit-log.service.js';
 import { normalizeIdList } from '../common/id.util.js';
 import { attendanceId } from '../common/participant-id.util.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
-import { assertEventNotEnded } from './event-guards.js';
+import { assertEventNotEnded, assertFeaturesOfferedByEvent } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
 import { EventsRealtime } from './events-realtime.service.js';
 import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
@@ -37,7 +37,8 @@ export class EventsService {
         userId: number,
         impersonatorId: number | null = null
     ): Promise<EventResponseDto> {
-        const { participants = [], coHosts = [], ...eventData } = createEventDto;
+        const { participants = [], coHosts = [], features = [], ...eventData } = createEventDto;
+        await this.assertFeaturesExist(features);
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
         const coHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== hostId);
@@ -68,7 +69,8 @@ export class EventsService {
                               create: coHostIds.map((userId) => ({ userId }))
                           }
                       }
-                    : {})
+                    : {}),
+                ...(features.length > 0 ? { features: { create: this.toEventFeatureRows(features) } } : {})
             });
 
             if (participantIds.length > 0) {
@@ -192,10 +194,21 @@ export class EventsService {
 
         this.validateEventNotEnded(event);
 
-        const { participants, coHosts, ...eventData } = updateEventDto;
+        const { participants, coHosts, features, ...eventData } = updateEventDto;
         this.assertValidLocationForUpdate(event, eventData.location, eventData.locationDetails);
         const updateData: Prisma.EventUpdateInput = this.buildUpdateEventInput(eventData);
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
+
+        if (features) {
+            await this.assertFeaturesExist(features);
+            const offeredIds = features.map((entry) => entry.featureId);
+            updateData.features = {
+                deleteMany: {},
+                create: this.toEventFeatureRows(features)
+            };
+            // Dropping a feature from the event also drops it from everyone who had opted in.
+            await this.eventsRepo.removeAttendanceFeaturesNotIn(id, offeredIds);
+        }
 
         if (participants) {
             const existingParticipantIds = this.getParticipantUserIds(event);
@@ -378,6 +391,7 @@ export class EventsService {
             throw new ForbiddenException('The participation deadline for this event has passed');
         }
 
+        assertFeaturesOfferedByEvent(event, participateDto.featureIds);
         const result = await this.eventsRepo.join(userId, eventId, participateDto);
         const savedParticipant = result;
 
@@ -711,8 +725,21 @@ export class EventsService {
         ]);
     }
 
+    private toEventFeatureRows(features: NonNullable<CreateEventDto['features']>) {
+        const unique = new Map(features.map((entry) => [entry.featureId, entry]));
+        return [...unique.values()].map(({ featureId, price }) => ({ featureId, price: price ?? null }));
+    }
+
+    private async assertFeaturesExist(features: NonNullable<CreateEventDto['features']>) {
+        const ids = normalizeIdList(features.map((entry) => entry.featureId));
+        const missing = await this.eventsRepo.findMissingFeatureIds(ids);
+        if (missing.length > 0) {
+            throw new BadRequestException(`Unknown feature ids: ${missing.join(', ')}`);
+        }
+    }
+
     private buildCreateEventInput(
-        eventData: Omit<CreateEventDto, 'participants' | 'coHosts'>
+        eventData: Omit<CreateEventDto, 'participants' | 'coHosts' | 'features'>
     ): Omit<Prisma.EventCreateInput, 'host'> {
         const { startTime, endTime, participationDeadline, locationDetails, ...rest } = eventData;
 
@@ -726,7 +753,7 @@ export class EventsService {
     }
 
     private buildUpdateEventInput(
-        eventData: Omit<UpdateEventDto, 'participants' | 'coHosts'>
+        eventData: Omit<UpdateEventDto, 'participants' | 'coHosts' | 'features'>
     ): Prisma.EventUpdateInput {
         const { startTime, endTime, participationDeadline, locationDetails, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };

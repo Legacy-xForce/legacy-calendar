@@ -47,11 +47,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
                 ? mapUserToDto(attendance.user)
                 : mapGuestToDto(participantId, attendance.guestParticipant!.displayName)),
             status: attendance.status,
-            wantsFood: attendance.wantsFood,
-            wantsWeed: attendance.wantsWeed,
-            wantsSleep: attendance.wantsSleep,
-            wantsAlcohol: attendance.wantsAlcohol,
-            wantsBeer: attendance.wantsBeer,
+            featureIds: attendance.features.map((entry) => entry.featureId),
             transportMode: attendance.transportMode,
             vehicleSeats: attendance.vehicleSeats,
             vehicleSeatsOutbound: attendance.vehicleSeatsOutbound,
@@ -80,15 +76,11 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
         participants: participantsDto,
         isOpen: event.isOpen,
         isPrivate: event.isPrivate,
-        hasFood: event.hasFood,
-        hasWeed: event.hasWeed,
-        hasSleep: event.hasSleep,
-        hasAlcohol: event.hasAlcohol,
-        hasBeer: event.hasBeer,
-        foodPrice: event.foodPrice,
-        weedPrice: event.weedPrice,
-        sleepPrice: event.sleepPrice,
-        alcoholPrice: event.alcoholPrice,
-        beerPrice: event.beerPrice
+        features: event.features.map((entry) => ({
+            id: entry.feature.id,
+            name: entry.feature.name,
+            emoji: entry.feature.emoji,
+            price: entry.price
+        }))
     };
 }

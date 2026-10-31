@@ -239,6 +239,7 @@ const fieldLabels: Record<string, string> = {
     beerPrice: 'Beer price',
     foodPrice: 'Food price',
     hasBeer: 'Beer',
+    features: 'Features',
     sleepPrice: 'Sleep price',
     weedPrice: 'Weed price',
     isPrivate: 'Privacy',

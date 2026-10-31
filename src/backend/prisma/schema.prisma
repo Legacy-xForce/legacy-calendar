@@ -10,23 +10,23 @@ datasource db {
 }
 
 model User {
-  id                            Int                 @id @default(autoincrement())
-  username                      String              @unique
-  authId                        String?             @unique
+  id                            Int             @id @default(autoincrement())
+  username                      String          @unique
+  authId                        String?         @unique
   invitations                   Attendance[]
-  hostedEvents                  Event[]             @relation("EventHost")
+  hostedEvents                  Event[]         @relation("EventHost")
   coHostedEvents                EventCoHost[]
   fcmTokens                     FcmToken[]
   chatMutes                     ChatMute[]
-  isAdmin                       Boolean             @default(false)
+  isAdmin                       Boolean         @default(false)
   paypalLink                    String?
   ibanNumber                    String?
   ibanAccountHolder             String?
   revolutLink                   String?
   chatMessages                  ChatMessage[]
   chatReactions                 ChatReaction[]
-  auditLogEntriesAsActor        AuditLogEntry[]     @relation("AuditLogActor")
-  auditLogEntriesAsImpersonator AuditLogEntry[]     @relation("AuditLogImpersonator")
+  auditLogEntriesAsActor        AuditLogEntry[] @relation("AuditLogActor")
+  auditLogEntriesAsImpersonator AuditLogEntry[] @relation("AuditLogImpersonator")
   userGroups                    UserGroup[]
   apiTokens                     ApiToken[]
 }
@@ -80,16 +80,6 @@ model Event {
   endTime               DateTime?
   hostId                Int
   isOpen                Boolean            @default(true)
-  hasAlcohol            Boolean            @default(false)
-  hasFood               Boolean            @default(false)
-  hasSleep              Boolean            @default(false)
-  hasWeed               Boolean            @default(false)
-  alcoholPrice          Float?
-  beerPrice             Float?
-  foodPrice             Float?
-  hasBeer               Boolean            @default(false)
-  sleepPrice            Float?
-  weedPrice             Float?
   isPrivate             Boolean            @default(false)
   participationDeadline DateTime?
   participants          Attendance[]
@@ -100,6 +90,7 @@ model Event {
   auditLogEntries       AuditLogEntry[]
   guestInviteTokens     GuestInviteToken[]
   coHosts               EventCoHost[]
+  features              EventFeature[]
 
   @@index([startTime])
   @@index([hostId])
@@ -118,25 +109,21 @@ model EventCoHost {
 }
 
 model Attendance {
-  id                   Int               @id @default(autoincrement())
+  id                   Int                 @id @default(autoincrement())
   userId               Int?
   guestParticipantId   Int?
   eventId              Int
-  createdAt            DateTime          @default(now())
-  status               InviteStatus      @default(PENDING)
-  wantsAlcohol         Boolean           @default(false)
-  wantsFood            Boolean           @default(false)
-  wantsSleep           Boolean           @default(false)
-  wantsWeed            Boolean           @default(false)
-  wantsBeer            Boolean           @default(false)
-  transportMode        TransportMode     @default(NEEDS_RIDE)
-  vehicleSeats         Int               @default(0)
-  vehicleSeatsOutbound Int               @default(0)
-  vehicleSeatsReturn   Int               @default(0)
-  hasPaid              Boolean           @default(false)
-  event                Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user                 User?             @relation(fields: [userId], references: [id])
-  guestParticipant     GuestParticipant? @relation(fields: [guestParticipantId], references: [id], onDelete: Cascade)
+  createdAt            DateTime            @default(now())
+  status               InviteStatus        @default(PENDING)
+  transportMode        TransportMode       @default(NEEDS_RIDE)
+  vehicleSeats         Int                 @default(0)
+  vehicleSeatsOutbound Int                 @default(0)
+  vehicleSeatsReturn   Int                 @default(0)
+  hasPaid              Boolean             @default(false)
+  features             AttendanceFeature[]
+  event                Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                 User?               @relation(fields: [userId], references: [id])
+  guestParticipant     GuestParticipant?   @relation(fields: [guestParticipantId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@unique([guestParticipantId, eventId])
@@ -282,4 +269,39 @@ model UserGroup {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+/// Instance-wide optional extras (food, sleep, ...) that hosts can enable per event.
+model Feature {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  /// Lowercased, trimmed name: the case-insensitive uniqueness key.
+  nameKey            String              @unique
+  emoji              String              @unique
+  createdAt          DateTime            @default(now())
+  events             EventFeature[]
+  attendanceFeatures AttendanceFeature[]
+}
+
+model EventFeature {
+  eventId   Int
+  featureId Int
+  price     Float?
+
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, featureId])
+  @@index([featureId])
+}
+
+model AttendanceFeature {
+  attendanceId Int
+  featureId    Int
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  feature    Feature    @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([attendanceId, featureId])
+  @@index([featureId])
 }

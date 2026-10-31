@@ -5,7 +5,6 @@ import UserAvatar from '../../UserAvatar.vue';
 import BankLogo from '../../BankLogo.vue';
 import PaymentLinkRow from './PaymentLinkRow.vue';
 import type { Event, EventPersonSummary } from '../../../types/Event';
-import { FEATURE_BY_ID } from '../../../constants/features';
 import { formatCurrency } from '../../../utils/format';
 import { formatIban, getItalianBankName, normalizeIban } from '../../../utils/iban';
 import { injectEventView } from '../../../composables/useEventView';
@@ -18,6 +17,7 @@ const {
     userParticipantStatus,
     userTotalShare,
     availableFeatureIds,
+    featureById,
     eventPrices,
     eventTotalBudget,
     currentUser,
@@ -71,11 +71,11 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                 <span
                     class="bg-surface-900 font-emoji flex size-9 shrink-0 items-center justify-center rounded-xl text-lg"
                 >
-                    {{ FEATURE_BY_ID[featureId]?.icon }}
+                    {{ featureById.get(featureId)?.emoji }}
                 </span>
                 <div class="min-w-0 flex-1">
                     <p class="text-body text-fg m-0 flex items-center gap-2 font-medium">
-                        {{ FEATURE_BY_ID[featureId]?.label }}
+                        {{ featureById.get(featureId)?.name }}
                         <i
                             v-if="isGoing && myFeatures.includes(featureId)"
                             class="pi pi-check text-[0.625rem] text-emerald-300"
@@ -84,13 +84,13 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                     </p>
                     <p class="text-meta text-muted tabular m-0">
                         {{ getFeatureCount(featureId) }} in
-                        <template v-if="eventPrices[featureId] !== null">
+                        <template v-if="(eventPrices[featureId] ?? null) !== null">
                             · {{ formatCurrency(eventPrices[featureId] ?? 0) }} total
                         </template>
                     </p>
                 </div>
                 <div class="text-right">
-                    <template v-if="eventPrices[featureId] !== null">
+                    <template v-if="(eventPrices[featureId] ?? null) !== null">
                         <p class="text-body text-fg tabular m-0 font-semibold">
                             {{ formatCurrency(getFeatureSplitPrice(featureId)) }}
                         </p>

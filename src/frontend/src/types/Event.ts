@@ -14,8 +14,13 @@ export type CreateEventDto = Omit<ApiCreateEvent, 'isOpen' | 'isPrivate'> & {
 };
 export type ParticipateDto = ApiSchemas['ParticipateDto'];
 
-export const EVENT_FEATURES = ['FOOD', 'WEED', 'ALCOHOL', 'SLEEP', 'BEER'] as const;
-export type EventFeature = (typeof EVENT_FEATURES)[number];
+/** An instance-wide feature (name + emoji) an admin has defined. */
+export type Feature = ApiSchemas['FeatureDto'];
+/** A feature enabled on one event, with that event's optional budget. */
+export type EventFeatureEntry = ApiSchemas['EventFeatureDto'];
+export type FeatureId = number;
+export type CreateFeatureDto = ApiSchemas['CreateFeatureDto'];
+export type UpdateFeatureDto = ApiSchemas['UpdateFeatureDto'];
 
 export const PARTICIPANT_STATUSES = ['ACCEPTED', 'DECLINED', 'PENDING'] as const;
 export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
@@ -25,7 +30,7 @@ export type TransportMode = (typeof TRANSPORT_MODES)[number];
 export type RideDirection = 'OUTBOUND' | 'RETURN';
 
 export interface FeatureSelectionResult {
-    features: EventFeature[];
+    features: FeatureId[];
     transport: {
         transportMode: TransportMode;
         vehicleSeats?: number;
@@ -45,28 +50,12 @@ export type EventParticipant = EventPersonSummary &
 
 export type Event = Omit<
     ApiEvent,
-    | 'color'
-    | 'description'
-    | 'location'
-    | 'participationDeadline'
-    | 'foodPrice'
-    | 'weedPrice'
-    | 'sleepPrice'
-    | 'alcoholPrice'
-    | 'beerPrice'
-    | 'host'
-    | 'coHosts'
-    | 'participants'
+    'color' | 'description' | 'location' | 'participationDeadline' | 'host' | 'coHosts' | 'participants'
 > & {
     color?: string;
     description?: string;
     location?: string;
     participationDeadline?: string;
-    foodPrice?: number;
-    weedPrice?: number;
-    sleepPrice?: number;
-    alcoholPrice?: number;
-    beerPrice?: number;
     host?: EventPersonSummary;
     coHosts?: EventPersonSummary[];
     participants?: EventParticipant[];

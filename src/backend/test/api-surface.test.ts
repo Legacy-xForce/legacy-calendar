@@ -17,7 +17,7 @@ type EventParticipant = {
     username: string;
     status: string;
     isGuest?: boolean;
-    wantsFood?: boolean;
+    featureIds?: number[];
     transportMode?: string;
     driverId?: number;
     hasPaid?: boolean;
@@ -106,6 +106,7 @@ describe('API surface through personal tokens', () => {
             apiToken: hostWrite,
             body: {
                 title: 'Token integration event',
+                features: [{ featureId: 1, price: 12.5 }, { featureId: 2 }, { featureId: 4 }],
                 description: 'Created through a personal API token',
                 startTime: start.toISOString(),
                 endTime: end.toISOString(),
@@ -167,7 +168,7 @@ describe('API surface through personal tokens', () => {
 
         const joined = await http(app, 'POST', `/events/${eventId}/join`, {
             apiToken: memberWrite,
-            body: { wantsFood: true, wantsWeed: true }
+            body: { featureIds: [1, 2] }
         });
         expect(joined.status).toBe(201);
 
@@ -187,7 +188,7 @@ describe('API surface through personal tokens', () => {
         expect(afterJoin.status).toBe(200);
         const memberParticipant = afterJoin.body.participants.find((participant) => participant.id === member.id);
         expect(memberParticipant?.status).toBe('ACCEPTED');
-        expect(memberParticipant?.wantsFood).toBe(true);
+        expect(memberParticipant?.featureIds).toEqual([1, 2]);
 
         const ride = await http<EventJson>(app, 'PATCH', `/events/${eventId}/rides`, {
             apiToken: hostWrite,
@@ -217,7 +218,7 @@ describe('API surface through personal tokens', () => {
 
         const rejoin = await http(app, 'POST', `/events/${eventId}/join`, {
             apiToken: outsiderWrite,
-            body: { wantsBeer: true }
+            body: { featureIds: [4] }
         });
         expect(rejoin.status).toBe(201);
 
@@ -316,6 +317,7 @@ describe('API surface through personal tokens', () => {
             apiToken: hostWrite,
             body: {
                 title: 'Guest invite event',
+                features: [{ featureId: 1 }],
                 startTime: start.toISOString(),
                 endTime: futureDate(74).toISOString(),
                 ...TEST_ADDRESS
@@ -346,7 +348,7 @@ describe('API surface through personal tokens', () => {
 
         const guestName = `guest${Date.now().toString(36)}`.slice(0, 20);
         const updated = await http<GuestInviteViewJson>(app, 'PATCH', `/guest-invites/${token ?? ''}`, {
-            body: { username: guestName, wantsFood: true }
+            body: { username: guestName, featureIds: [1] }
         });
         expect(updated.status).toBe(200);
         expect(

@@ -549,6 +549,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the instance features hosts can enable on events */
+        get: operations["FeaturesController_findAll"];
+        put?: never;
+        /** Create a feature (Admin only) */
+        post: operations["FeaturesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/features/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a feature and remove it from all events (Admin only) */
+        delete: operations["FeaturesController_remove"];
+        options?: never;
+        head?: never;
+        /** Rename a feature or change its emoji (Admin only) */
+        patch: operations["FeaturesController_update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -653,6 +689,18 @@ export interface components {
              */
             lon: number;
         };
+        EventFeatureInputDto: {
+            /**
+             * @description ID of an instance feature
+             * @example 1
+             */
+            featureId: number;
+            /**
+             * @description Budget for this feature
+             * @example 10.5
+             */
+            price?: number;
+        };
         CreateEventDto: {
             /**
              * @description Title of the event
@@ -716,56 +764,8 @@ export interface components {
              * @example false
              */
             isPrivate?: boolean;
-            /**
-             * @description Whether the event has food
-             * @example true
-             */
-            hasFood?: boolean;
-            /**
-             * @description Whether the event has weed
-             * @example true
-             */
-            hasWeed?: boolean;
-            /**
-             * @description Whether the event has sleep
-             * @example true
-             */
-            hasSleep?: boolean;
-            /**
-             * @description Whether the event has alcohol
-             * @example true
-             */
-            hasAlcohol?: boolean;
-            /**
-             * @description Whether the event has beer
-             * @example true
-             */
-            hasBeer?: boolean;
-            /**
-             * @description Food budget
-             * @example 10.5
-             */
-            foodPrice?: number;
-            /**
-             * @description Weed budget
-             * @example 50
-             */
-            weedPrice?: number;
-            /**
-             * @description Sleep/Accommodation budget
-             * @example 20
-             */
-            sleepPrice?: number;
-            /**
-             * @description Alcohol budget
-             * @example 30
-             */
-            alcoholPrice?: number;
-            /**
-             * @description Beer budget
-             * @example 15
-             */
-            beerPrice?: number;
+            /** @description Instance features enabled for this event, each with an optional budget */
+            features?: components["schemas"]["EventFeatureInputDto"][];
         };
         EventHostDto: {
             /**
@@ -914,30 +914,13 @@ export interface components {
              */
             status: "PENDING" | "ACCEPTED" | "DECLINED";
             /**
-             * @description User wants food
-             * @example true
+             * @description IDs of the event features the user opted into
+             * @example [
+             *       1,
+             *       3
+             *     ]
              */
-            wantsFood: boolean;
-            /**
-             * @description User wants weed
-             * @example true
-             */
-            wantsWeed: boolean;
-            /**
-             * @description User wants sleep
-             * @example true
-             */
-            wantsSleep: boolean;
-            /**
-             * @description User wants alcohol
-             * @example true
-             */
-            wantsAlcohol: boolean;
-            /**
-             * @description User wants beer
-             * @example true
-             */
-            wantsBeer: boolean;
+            featureIds: number[];
             /**
              * @description Transport mode
              * @example NEEDS_RIDE
@@ -978,6 +961,25 @@ export interface components {
             driver?: components["schemas"]["UserDto"];
             /** @description Return driver details */
             driverReturn?: components["schemas"]["UserDto"];
+        };
+        EventFeatureDto: {
+            /** @example 1 */
+            id: number;
+            /**
+             * @description Display name
+             * @example Sleep
+             */
+            name: string;
+            /**
+             * @description Emoji shown next to the feature
+             * @example 🌙
+             */
+            emoji: string;
+            /**
+             * @description Budget for this feature, split between those who opted in
+             * @example 10.5
+             */
+            price: number | null;
         };
         EventResponseDto: {
             /**
@@ -1046,56 +1048,8 @@ export interface components {
              * @example false
              */
             isPrivate: boolean;
-            /**
-             * @description Event has food
-             * @example true
-             */
-            hasFood: boolean;
-            /**
-             * @description Event has weed
-             * @example true
-             */
-            hasWeed: boolean;
-            /**
-             * @description Event has sleep
-             * @example true
-             */
-            hasSleep: boolean;
-            /**
-             * @description Event has alcohol
-             * @example true
-             */
-            hasAlcohol: boolean;
-            /**
-             * @description Event has beer
-             * @example true
-             */
-            hasBeer: boolean;
-            /**
-             * @description Food budget
-             * @example 10.5
-             */
-            foodPrice?: number | null;
-            /**
-             * @description Weed budget
-             * @example 50
-             */
-            weedPrice?: number | null;
-            /**
-             * @description Sleep/Accommodation budget
-             * @example 20
-             */
-            sleepPrice?: number | null;
-            /**
-             * @description Alcohol budget
-             * @example 30
-             */
-            alcoholPrice?: number | null;
-            /**
-             * @description Beer budget
-             * @example 15
-             */
-            beerPrice?: number | null;
+            /** @description Instance features enabled for this event */
+            features: components["schemas"]["EventFeatureDto"][];
         };
         UpdateEventDto: {
             /**
@@ -1160,56 +1114,8 @@ export interface components {
              * @example false
              */
             isPrivate?: boolean;
-            /**
-             * @description Whether the event has food
-             * @example true
-             */
-            hasFood?: boolean;
-            /**
-             * @description Whether the event has weed
-             * @example true
-             */
-            hasWeed?: boolean;
-            /**
-             * @description Whether the event has sleep
-             * @example true
-             */
-            hasSleep?: boolean;
-            /**
-             * @description Whether the event has alcohol
-             * @example true
-             */
-            hasAlcohol?: boolean;
-            /**
-             * @description Whether the event has beer
-             * @example true
-             */
-            hasBeer?: boolean;
-            /**
-             * @description Food budget
-             * @example 10.5
-             */
-            foodPrice?: number;
-            /**
-             * @description Weed budget
-             * @example 50
-             */
-            weedPrice?: number;
-            /**
-             * @description Sleep/Accommodation budget
-             * @example 20
-             */
-            sleepPrice?: number;
-            /**
-             * @description Alcohol budget
-             * @example 30
-             */
-            alcoholPrice?: number;
-            /**
-             * @description Beer budget
-             * @example 15
-             */
-            beerPrice?: number;
+            /** @description Instance features enabled for this event, each with an optional budget */
+            features?: components["schemas"]["EventFeatureInputDto"][];
         };
         InviteUserDto: {
             /**
@@ -1220,30 +1126,13 @@ export interface components {
         };
         ParticipateDto: {
             /**
-             * @description Whether the user wants food
-             * @example true
+             * @description IDs of the event features the user opts into
+             * @example [
+             *       1,
+             *       3
+             *     ]
              */
-            wantsFood?: boolean;
-            /**
-             * @description Whether the user wants weed
-             * @example true
-             */
-            wantsWeed?: boolean;
-            /**
-             * @description Whether the user wants sleep
-             * @example true
-             */
-            wantsSleep?: boolean;
-            /**
-             * @description Whether the user wants alcohol
-             * @example true
-             */
-            wantsAlcohol?: boolean;
-            /**
-             * @description Whether the user wants beer
-             * @example true
-             */
-            wantsBeer?: boolean;
+            featureIds?: number[];
             /**
              * @description Transport mode: NEEDS_RIDE, SELF, or DRIVER
              * @example NEEDS_RIDE
@@ -1304,30 +1193,13 @@ export interface components {
         };
         GuestParticipateDto: {
             /**
-             * @description Whether the user wants food
-             * @example true
+             * @description IDs of the event features the user opts into
+             * @example [
+             *       1,
+             *       3
+             *     ]
              */
-            wantsFood?: boolean;
-            /**
-             * @description Whether the user wants weed
-             * @example true
-             */
-            wantsWeed?: boolean;
-            /**
-             * @description Whether the user wants sleep
-             * @example true
-             */
-            wantsSleep?: boolean;
-            /**
-             * @description Whether the user wants alcohol
-             * @example true
-             */
-            wantsAlcohol?: boolean;
-            /**
-             * @description Whether the user wants beer
-             * @example true
-             */
-            wantsBeer?: boolean;
+            featureIds?: number[];
             /**
              * @description Transport mode: NEEDS_RIDE, SELF, or DRIVER
              * @example NEEDS_RIDE
@@ -1480,6 +1352,44 @@ export interface components {
              * @example legacy-calendar-01a15968-64aa-707d-8904-a6a408611289
              */
             token: string;
+        };
+        FeatureDto: {
+            /** @example 1 */
+            id: number;
+            /**
+             * @description Display name
+             * @example Sleep
+             */
+            name: string;
+            /**
+             * @description Emoji shown next to the feature
+             * @example 🌙
+             */
+            emoji: string;
+        };
+        CreateFeatureDto: {
+            /**
+             * @description Feature name, unique ignoring case
+             * @example Karaoke
+             */
+            name: string;
+            /**
+             * @description A single emoji, unique across features
+             * @example 🎤
+             */
+            emoji: string;
+        };
+        UpdateFeatureDto: {
+            /**
+             * @description Feature name, unique ignoring case
+             * @example Karaoke
+             */
+            name?: string;
+            /**
+             * @description A single emoji, unique across features
+             * @example 🎤
+             */
+            emoji?: string;
         };
     };
     responses: never;
@@ -2748,6 +2658,128 @@ export interface operations {
             };
             /** @description Address search is not configured */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FeaturesController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureDto"][];
+                };
+            };
+        };
+    };
+    FeaturesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFeatureDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureDto"];
+                };
+            };
+            /** @description Forbidden - Admin access required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name or emoji already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FeaturesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feature deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Feature not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FeaturesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFeatureDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureDto"];
+                };
+            };
+            /** @description Feature not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name or emoji already in use */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,32 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional, Max, Min } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { TransportMode } from '../../../prisma/generated/client.js';
 
 export class ParticipateDto {
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the user wants food', required: false })
+    @ApiProperty({
+        type: [Number],
+        example: [1, 3],
+        description: 'IDs of the event features the user opts into',
+        required: false
+    })
     @IsOptional()
-    @IsBoolean()
-    wantsFood?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the user wants weed', required: false })
-    @IsOptional()
-    @IsBoolean()
-    wantsWeed?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the user wants sleep', required: false })
-    @IsOptional()
-    @IsBoolean()
-    wantsSleep?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the user wants alcohol', required: false })
-    @IsOptional()
-    @IsBoolean()
-    wantsAlcohol?: boolean;
-
-    @ApiProperty({ type: Boolean, example: true, description: 'Whether the user wants beer', required: false })
-    @IsOptional()
-    @IsBoolean()
-    wantsBeer?: boolean;
+    @IsArray()
+    @IsInt({ each: true })
+    featureIds?: number[];
 
     @ApiProperty({
         enum: TransportMode,
