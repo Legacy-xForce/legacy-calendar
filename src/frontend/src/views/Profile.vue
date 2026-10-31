@@ -880,18 +880,6 @@ const handleClearCache = () => {
                     <i class="pi pi-external-link text-subtle text-xs"></i>
                 </a>
 
-                <router-link
-                    v-if="isAdmin"
-                    :to="{ name: 'admin' }"
-                    class="hover:bg-surface-950 text-fg flex items-center gap-3.5 px-4 py-3.5 no-underline transition-colors"
-                >
-                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
-                        <i class="pi pi-shield text-sm"></i>
-                    </span>
-                    <span class="text-body flex-1 font-medium">Manage users</span>
-                    <i class="pi pi-chevron-right text-subtle text-xs"></i>
-                </router-link>
-
                 <button
                     type="button"
                     class="hover:bg-surface-950 flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors"

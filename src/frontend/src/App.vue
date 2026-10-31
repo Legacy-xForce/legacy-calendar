@@ -114,7 +114,7 @@ const transitionName = computed(() => {
         calendar: 1,
         upcoming: 2,
         profile: 3,
-        admin: 4
+        settings: 4
     };
 
     if (!from || !to || !order[from] || !order[to]) return 'fade';

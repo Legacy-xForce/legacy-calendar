@@ -65,14 +65,8 @@ onMounted(() => {
 <template>
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 pt-6 pb-10 md:pt-10">
         <header>
-            <router-link
-                :to="{ name: 'profile' }"
-                class="text-meta text-muted hover:text-fg mb-2 inline-flex items-center gap-1.5 no-underline"
-            >
-                <i class="pi pi-arrow-left text-[0.625rem]"></i>
-                Profile
-            </router-link>
-            <h1 class="text-display m-0">Admin</h1>
+            <h1 class="text-display m-0">Settings</h1>
+            <p class="text-meta text-muted m-0 mt-1">Instance-wide settings, visible to administrators only.</p>
         </header>
 
         <FeaturesAdminSection />
