@@ -4,6 +4,8 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
+import Popover from 'primevue/popover';
+import EmojiPickerPanel from './EmojiPickerPanel.vue';
 import { useFeaturesStore } from '../stores/features';
 import type { Feature } from '../types/Event';
 
@@ -17,6 +19,8 @@ const editingId = ref<number | null>(null);
 const name = ref('');
 const emoji = ref('');
 const saving = ref(false);
+const emojiPopover = ref();
+
 const formError = ref<string | null>(null);
 
 const isEditing = computed(() => editingId.value !== null);
@@ -40,6 +44,11 @@ const duplicateMessage = computed(() => {
         ? `A feature named "${other.name}" already exists.`
         : `${other.emoji} is already used by "${other.name}".`;
 });
+
+const onEmojiSelect = (picked: any) => {
+    emoji.value = picked.i;
+    emojiPopover.value.hide();
+};
 
 const reset = () => {
     editingId.value = null;
@@ -158,13 +167,18 @@ onMounted(() => {
         <form class="flex flex-col gap-2" @submit.prevent="save">
             <h3 class="eyebrow m-0">{{ isEditing ? 'Edit feature' : 'Add a feature' }}</h3>
             <div class="flex items-start gap-2">
-                <InputText
-                    v-model="emoji"
-                    placeholder="🎤"
-                    aria-label="Emoji"
-                    class="font-emoji w-16 text-center"
-                    :maxlength="16"
-                />
+                <Button
+                    type="button"
+                    severity="secondary"
+                    variant="outlined"
+                    class="font-emoji size-10! shrink-0 p-0! text-lg!"
+                    aria-label="Choose emoji"
+                    aria-haspopup="dialog"
+                    @click="emojiPopover.toggle($event)"
+                >
+                    <span v-if="emoji">{{ emoji }}</span>
+                    <i v-else class="pi pi-face-smile text-muted"></i>
+                </Button>
                 <InputText
                     v-model="name"
                     placeholder="Name, e.g. Karaoke"
@@ -184,5 +198,15 @@ onMounted(() => {
                 {{ formError ?? duplicateMessage }}
             </p>
         </form>
+
+        <Popover
+            ref="emojiPopover"
+            :pt="{
+                root: { class: 'rounded-2xl! overflow-hidden!' },
+                content: { class: 'p-0!' }
+            }"
+        >
+            <EmojiPickerPanel @select="onEmojiSelect" />
+        </Popover>
     </section>
 </template>
