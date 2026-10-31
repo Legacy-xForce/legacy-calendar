@@ -5,6 +5,7 @@ export interface NavigationItem {
     match: (path: string) => boolean;
     showInHeader: boolean;
     showInBottomBar: boolean;
+    adminOnly?: boolean;
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
@@ -27,9 +28,18 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     {
         name: 'profile',
         label: 'Profile',
-        match: (path) => path === '/profile' || path === '/admin',
+        match: (path) => path === '/profile',
         showInHeader: false,
         showInBottomBar: true
+    },
+    {
+        name: 'settings',
+        label: 'Settings',
+        icon: 'pi pi-cog',
+        match: (path) => path === '/settings',
+        showInHeader: true,
+        showInBottomBar: true,
+        adminOnly: true
     }
 ];
 
@@ -38,5 +48,5 @@ export const BOTTOM_NAVIGATION = NAVIGATION_ITEMS.filter((item) => item.showInBo
 
 export function stopImpersonating() {
     localStorage.removeItem('impersonate_user_id');
-    window.location.href = '/admin';
+    window.location.href = '/settings';
 }

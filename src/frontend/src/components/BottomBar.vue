@@ -11,7 +11,7 @@ const currentUser = computed(() => sessionStore.currentUser);
 const isAuthenticated = computed(() => sessionStore.isAuthenticated);
 const isImpersonating = computed(() => !!localStorage.getItem('impersonate_user_id'));
 
-const tabs = BOTTOM_NAVIGATION;
+const tabs = computed(() => BOTTOM_NAVIGATION.filter((tab) => !tab.adminOnly || currentUser.value?.isAdmin));
 </script>
 
 <template>

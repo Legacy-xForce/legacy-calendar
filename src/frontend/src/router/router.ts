@@ -65,7 +65,8 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true }
     },
     { path: '/upcoming/:id/edit', name: 'upcoming-event-edit', component: Upcoming, meta: { requiresAuth: true } },
-    { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/settings', name: 'settings', component: AdminView, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin', redirect: { name: 'settings' } },
     { path: '/invite/:token', name: 'guest-invite', component: GuestInviteView, meta: { bare: true } },
     { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
     { path: '/docs', name: 'docs', component: DocsView, meta: { bare: true } },
