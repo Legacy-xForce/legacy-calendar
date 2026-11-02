@@ -1,11 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { Prisma, InviteStatus } from '../../prisma/generated/client.js';
-import { CreateEventDto } from './dto/create-event.dto.js';
+import { CreateEventDto, EventFeatureInputDto, MAX_ONE_TIME_FEATURES } from './dto/create-event.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
 import { ParticipateDto } from './dto/participate.dto.js';
 import { EventResponseDto } from './dto/event-response.dto.js';
 import { FindEventsQueryDto } from './dto/find-events-query.dto.js';
-import { EventsRepository, EventWithRelations } from './events.repository.js';
+import { EventsRepository, EventWithRelations, type PlannedFeature } from './events.repository.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { NotificationCode } from '../notifications/notification-codes.js';
 import { EVENT_NOTIFICATION_MESSAGES, EVENT_NOTIFICATION_TITLES } from './event-notification.constants.js';
@@ -15,8 +15,9 @@ import { AppLogger } from '../logging/app-logger.js';
 import { AuditLogService } from '../audit-log/audit-log.service.js';
 import { normalizeIdList } from '../common/id.util.js';
 import { attendanceId } from '../common/participant-id.util.js';
+import { featureNameKey } from '../features/features.service.js';
 import { buildNotificationData } from '../notifications/notification-data.util.js';
-import { assertEventNotEnded, assertFeaturesOfferedByEvent } from './event-guards.js';
+import { assertEventNotEnded, resolveFeatureSelection } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
 import { EventsRealtime } from './events-realtime.service.js';
 import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
@@ -38,7 +39,7 @@ export class EventsService {
         impersonatorId: number | null = null
     ): Promise<EventResponseDto> {
         const { participants = [], coHosts = [], features = [], ...eventData } = createEventDto;
-        await this.assertFeaturesExist(features);
+        const plannedFeatures = await this.planFeatures(features, []);
         const hostId = Number(userId);
         const participantIds = this.normalizeUserIds(participants);
         const coHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== hostId);
@@ -50,28 +51,30 @@ export class EventsService {
         });
 
         try {
-            const event = await this.eventsRepo.create({
-                ...this.buildCreateEventInput(eventData),
-                host: { connect: { id: hostId } },
-                ...(participantIds.length > 0
-                    ? {
-                          participants: {
-                              create: participantIds.map((userId) => ({
-                                  userId,
-                                  status: InviteStatus.PENDING
-                              }))
+            const event = await this.eventsRepo.create(
+                {
+                    ...this.buildCreateEventInput(eventData),
+                    host: { connect: { id: hostId } },
+                    ...(participantIds.length > 0
+                        ? {
+                              participants: {
+                                  create: participantIds.map((userId) => ({
+                                      userId,
+                                      status: InviteStatus.PENDING
+                                  }))
+                              }
                           }
-                      }
-                    : {}),
-                ...(coHostIds.length > 0
-                    ? {
-                          coHosts: {
-                              create: coHostIds.map((userId) => ({ userId }))
+                        : {}),
+                    ...(coHostIds.length > 0
+                        ? {
+                              coHosts: {
+                                  create: coHostIds.map((userId) => ({ userId }))
+                              }
                           }
-                      }
-                    : {}),
-                ...(features.length > 0 ? { features: { create: this.toEventFeatureRows(features) } } : {})
-            });
+                        : {})
+                },
+                plannedFeatures
+            );
 
             if (participantIds.length > 0) {
                 await this.notifyUserIds(participantIds, {
@@ -200,14 +203,9 @@ export class EventsService {
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
 
         if (features) {
-            await this.assertFeaturesExist(features);
-            const offeredIds = features.map((entry) => entry.featureId);
-            updateData.features = {
-                deleteMany: {},
-                create: this.toEventFeatureRows(features)
-            };
-            // Dropping a feature from the event also drops it from everyone who had opted in.
-            await this.eventsRepo.removeAttendanceFeaturesNotIn(id, offeredIds);
+            // Replacing the features also reconciles participants: dropped or newly
+            // restricted features leave their opt-ins, mandatory ones are added.
+            await this.eventsRepo.replaceFeatures(id, await this.planFeatures(features, event.features));
         }
 
         if (participants) {
@@ -391,8 +389,13 @@ export class EventsService {
             throw new ForbiddenException('The participation deadline for this event has passed');
         }
 
-        assertFeaturesOfferedByEvent(event, participateDto.featureIds);
-        const result = await this.eventsRepo.join(userId, eventId, participateDto);
+        const featureIds = resolveFeatureSelection(
+            event,
+            userId,
+            participateDto.featureIds,
+            participant?.status === InviteStatus.ACCEPTED ? participant.features.map((entry) => entry.featureId) : []
+        );
+        const result = await this.eventsRepo.join(userId, eventId, { ...participateDto, featureIds });
         const savedParticipant = result;
 
         if (!participant) {
@@ -725,17 +728,83 @@ export class EventsService {
         ]);
     }
 
-    private toEventFeatureRows(features: NonNullable<CreateEventDto['features']>) {
-        const unique = new Map(features.map((entry) => [entry.featureId, entry]));
-        return [...unique.values()].map(({ featureId, price }) => ({ featureId, price: price ?? null }));
-    }
+    /**
+     * Turns the features payload into the rows the event will end up with:
+     * catalog features by id, the event's existing one-time features by id, and
+     * new one-time features by name + emoji. Omitted flags keep their stored value.
+     */
+    private async planFeatures(
+        inputs: EventFeatureInputDto[],
+        existing: EventWithRelations['features']
+    ): Promise<PlannedFeature[]> {
+        const existingById = new Map(existing.map((entry) => [entry.featureId, entry]));
+        const seenIds = new Set<number>();
+        const entries = inputs.filter((input) => {
+            if (input.featureId === undefined) return true;
+            if (seenIds.has(input.featureId)) return false;
+            seenIds.add(input.featureId);
+            return true;
+        });
 
-    private async assertFeaturesExist(features: NonNullable<CreateEventDto['features']>) {
-        const ids = normalizeIdList(features.map((entry) => entry.featureId));
-        const missing = await this.eventsRepo.findMissingFeatureIds(ids);
+        for (const input of entries) {
+            const referencesFeature = input.featureId !== undefined;
+            const describesNew = input.name !== undefined || input.emoji !== undefined;
+            if (referencesFeature === describesNew || (describesNew && (!input.name || !input.emoji))) {
+                throw new BadRequestException('Each feature needs either a featureId or both a name and an emoji');
+            }
+        }
+
+        const catalogIds = entries
+            .map((input) => input.featureId)
+            .filter((id): id is number => id !== undefined && !existingById.has(id));
+        const catalog = new Map((await this.eventsRepo.findCatalogFeatures(catalogIds)).map((f) => [f.id, f] as const));
+        const missing = catalogIds.filter((id) => !catalog.has(id));
         if (missing.length > 0) {
             throw new BadRequestException(`Unknown feature ids: ${missing.join(', ')}`);
         }
+
+        const planned = entries.map((input): PlannedFeature => {
+            const previous = input.featureId !== undefined ? existingById.get(input.featureId) : undefined;
+            let base: { name: string; nameKey: string; emoji: string; oneTime: boolean };
+            if (input.featureId === undefined) {
+                const name = input.name as string;
+                base = { name, nameKey: featureNameKey(name), emoji: input.emoji as string, oneTime: true };
+            } else if (previous) {
+                const { name, emoji, eventId } = previous.feature;
+                base = { name, nameKey: featureNameKey(name), emoji, oneTime: eventId !== null };
+            } else {
+                const found = catalog.get(input.featureId);
+                if (!found) throw new BadRequestException(`Unknown feature ids: ${input.featureId}`);
+                const { name, nameKey, emoji } = found;
+                base = { name, nameKey, emoji, oneTime: false };
+            }
+            return {
+                featureId: input.featureId,
+                name: base.name,
+                nameKey: base.nameKey,
+                emoji: base.emoji,
+                oneTime: base.oneTime,
+                price: input.price ?? null,
+                mandatory: input.mandatory ?? previous?.mandatory ?? false,
+                eligibleUserIds: input.eligibleUserIds
+                    ? normalizeIdList(input.eligibleUserIds, { positiveOnly: true })
+                    : (previous?.eligibleUserIds ?? [])
+            };
+        });
+
+        if (planned.filter((row) => row.oneTime).length > MAX_ONE_TIME_FEATURES) {
+            throw new BadRequestException(`An event can have at most ${MAX_ONE_TIME_FEATURES} one-time features`);
+        }
+        const names = new Set<string>();
+        const emojis = new Set<string>();
+        for (const row of planned) {
+            if (names.has(row.nameKey) || emojis.has(row.emoji)) {
+                throw new BadRequestException(`Features of one event need distinct names and emojis: ${row.name}`);
+            }
+            names.add(row.nameKey);
+            emojis.add(row.emoji);
+        }
+        return planned;
     }
 
     private buildCreateEventInput(

@@ -7,7 +7,7 @@ import { normalizeVehicleSeats } from './vehicle-seats.util.js';
 import { guestParticipantIdOf } from '../common/participant-id.util.js';
 
 const EVENT_FEATURES_INCLUDE = {
-    include: { feature: { select: { id: true, name: true, emoji: true } } },
+    include: { feature: { select: { id: true, name: true, emoji: true, eventId: true } } },
     orderBy: { featureId: 'asc' as const }
 };
 
@@ -20,6 +20,79 @@ export const replaceAttendanceFeatures = (featureIds: number[]) => ({
     deleteMany: {},
     create: featureIds.map((featureId) => ({ featureId }))
 });
+
+/** A feature row ready to be stored on an event: an existing feature, or a new one-time feature. */
+export type PlannedFeature = {
+    /** Set for catalog features and one-time features the event already has. */
+    featureId?: number;
+    name: string;
+    nameKey: string;
+    emoji: string;
+    oneTime: boolean;
+    price: number | null;
+    mandatory: boolean;
+    eligibleUserIds: number[];
+};
+
+async function writeEventFeatures(tx: Prisma.TransactionClient, eventId: number, features: PlannedFeature[]) {
+    const keptOneTime = features
+        .filter((row) => row.oneTime && row.featureId !== undefined)
+        .map((row) => row.featureId!);
+    // Deleting a one-time feature cascades to its event link and participants' opt-ins.
+    await tx.feature.deleteMany({ where: { eventId, id: { notIn: keptOneTime } } });
+    await tx.eventFeature.deleteMany({ where: { eventId } });
+
+    const offeredIds: number[] = [];
+    for (const row of features) {
+        const featureId =
+            row.featureId ??
+            (
+                await tx.feature.create({
+                    data: { name: row.name, nameKey: row.nameKey, emoji: row.emoji, eventId },
+                    select: { id: true }
+                })
+            ).id;
+        offeredIds.push(featureId);
+        await tx.eventFeature.create({
+            data: {
+                eventId,
+                featureId,
+                price: row.price,
+                mandatory: row.mandatory,
+                eligibleUserIds: row.eligibleUserIds
+            }
+        });
+
+        const restricted = row.eligibleUserIds.length > 0;
+        if (restricted) {
+            await tx.attendanceFeature.deleteMany({
+                where: {
+                    featureId,
+                    attendance: { eventId, OR: [{ userId: null }, { userId: { notIn: row.eligibleUserIds } }] }
+                }
+            });
+        }
+        if (row.mandatory) {
+            const attendances = await tx.attendance.findMany({
+                where: {
+                    eventId,
+                    status: InviteStatus.ACCEPTED,
+                    ...(restricted ? { userId: { in: row.eligibleUserIds } } : {})
+                },
+                select: { id: true }
+            });
+            await tx.attendanceFeature.createMany({
+                data: attendances.map((attendance) => ({ attendanceId: attendance.id, featureId })),
+                skipDuplicates: true
+            });
+        }
+    }
+
+    // Features the event no longer offers disappear from everyone's opt-ins.
+    await tx.attendanceFeature.deleteMany({
+        where: { attendance: { eventId }, featureId: { notIn: offeredIds } }
+    });
+}
 
 export const EVENT_INCLUDE = {
     host: { select: USER_SELECT },
@@ -66,10 +139,24 @@ export type EventChatAccess = Prisma.EventGetPayload<{
 export class EventsRepository {
     constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-    async create(data: Prisma.EventCreateInput): Promise<EventWithRelations> {
-        return this.prisma.event.create({
-            data,
-            include: EVENT_INCLUDE
+    async create(data: Prisma.EventCreateInput, features: PlannedFeature[] = []): Promise<EventWithRelations> {
+        return this.prisma.$transaction(async (tx) => {
+            const { id } = await tx.event.create({ data, select: { id: true } });
+            await writeEventFeatures(tx, id, features);
+            return tx.event.findUniqueOrThrow({ where: { id }, include: EVENT_INCLUDE });
+        });
+    }
+
+    /** Replaces the event's features and reconciles every participant's opt-ins with the new rules. */
+    async replaceFeatures(eventId: number, features: PlannedFeature[]): Promise<void> {
+        await this.prisma.$transaction((tx) => writeEventFeatures(tx, eventId, features));
+    }
+
+    async findCatalogFeatures(ids: number[]) {
+        if (ids.length === 0) return [];
+        return this.prisma.feature.findMany({
+            where: { id: { in: ids }, eventId: null },
+            select: { id: true, name: true, nameKey: true, emoji: true }
         });
     }
 
@@ -277,20 +364,6 @@ export class EventsRepository {
             where: { id },
             data,
             include: EVENT_INCLUDE
-        });
-    }
-
-    async findMissingFeatureIds(ids: number[]): Promise<number[]> {
-        if (ids.length === 0) return [];
-        const found = await this.prisma.feature.findMany({ where: { id: { in: ids } }, select: { id: true } });
-        const foundIds = new Set(found.map((feature) => feature.id));
-        return ids.filter((id) => !foundIds.has(id));
-    }
-
-    /** Clears opt-ins for features an event no longer offers. */
-    async removeAttendanceFeaturesNotIn(eventId: number, offeredFeatureIds: number[]) {
-        return this.prisma.attendanceFeature.deleteMany({
-            where: { attendance: { eventId }, featureId: { notIn: offeredFeatureIds } }
         });
     }
 

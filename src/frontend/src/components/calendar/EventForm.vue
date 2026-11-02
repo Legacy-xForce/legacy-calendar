@@ -7,7 +7,7 @@ import AutoComplete from 'primevue/autocomplete';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import SelectButton from 'primevue/selectbutton';
-import type { CreateEventDto, Event, FeatureId } from '../../types/Event';
+import type { CreateEventDto, Event, EventFeatureDraft } from '../../types/Event';
 import type { AddressDetails } from '../../types/Address';
 import type { User } from '../../types/User';
 import api from '../../services/API';
@@ -21,10 +21,9 @@ import GuestInviteDialog from './GuestInviteDialog.vue';
 import { useUserGroupsStore } from '../../stores/userGroups';
 import {
     eventFeaturesPayload,
-    featurePricesFromEvent,
+    featureDraftsFromEvent,
     getEventStartDateBounds,
-    isEventStartTimeWithinAllowedRange,
-    selectedFeaturesFromEvent
+    isEventStartTimeWithinAllowedRange
 } from '../../utils/event';
 
 /**
@@ -64,8 +63,7 @@ const deadline = ref<Date | null>(null);
 const selectedParticipants = ref<number[]>([]);
 const selectedCoHosts = ref<number[]>([]);
 const showGuestInvite = ref(false);
-const selectedFeatures = ref<FeatureId[]>([]);
-const featurePrices = ref<Record<FeatureId, number | null>>({});
+const featureDrafts = ref<EventFeatureDraft[]>([]);
 const showEnd = ref(false);
 const showDeadline = ref(false);
 const submitted = ref(false);
@@ -84,6 +82,9 @@ const people = computed(() => {
 });
 const hostId = computed(() => props.event?.hostId ?? props.event?.host?.id ?? props.excludeUserId);
 const participantOptions = computed(() => [...people.value.values()].filter((user) => user.id !== props.excludeUserId));
+
+// Only registered people (positive ids) can be made eligible for a feature; guests cannot.
+const eligibleUserOptions = computed(() => [...people.value.values()].filter((user) => user.id > 0));
 
 // Co-hosts must be invited, and can edit the event like the host
 const coHostOptions = computed(() =>
@@ -148,8 +149,7 @@ const initialize = () => {
         deadline.value = event.participationDeadline ? new Date(event.participationDeadline) : null;
         selectedParticipants.value = event.participants?.map((participant) => participant.id) || [];
         selectedCoHosts.value = event.coHosts?.map((coHost) => coHost.id) ?? [];
-        selectedFeatures.value = selectedFeaturesFromEvent(event);
-        featurePrices.value = featurePricesFromEvent(event);
+        featureDrafts.value = featureDraftsFromEvent(event);
     } else {
         title.value = '';
         description.value = '';
@@ -162,8 +162,7 @@ const initialize = () => {
         deadline.value = null;
         selectedParticipants.value = [];
         selectedCoHosts.value = [];
-        selectedFeatures.value = [];
-        featurePrices.value = {};
+        featureDrafts.value = [];
     }
     showEnd.value = !!end.value;
     showDeadline.value = !!deadline.value;
@@ -303,7 +302,7 @@ const submit = () => {
         isOpen: eventVisibility.value === 'open',
         isPrivate: eventVisibility.value === 'private',
         color: eventColor.value,
-        features: eventFeaturesPayload(selectedFeatures.value, featurePrices.value),
+        features: eventFeaturesPayload(featureDrafts.value),
         participationDeadline: showDeadline.value && deadline.value ? deadline.value.toISOString() : undefined
     });
     return true;
@@ -572,7 +571,7 @@ defineExpose({ submit });
                 <h3 class="eyebrow m-0">Extras</h3>
                 <p class="text-meta text-subtle m-0 mt-1">People pick what they're in for when they join.</p>
             </div>
-            <FeatureBudgetForm v-model:selectedFeatures="selectedFeatures" v-model:featurePrices="featurePrices" />
+            <FeatureBudgetForm v-model="featureDrafts" :userOptions="eligibleUserOptions" />
         </section>
     </form>
 </template>

@@ -12,7 +12,7 @@ import {
 } from '../../types/Event';
 
 import { TRANSPORT_OPTIONS } from '../../constants/transport';
-import { toggleFeature as toggleFeatureInSelection } from '../../utils/event';
+import { canSelectFeature, toggleFeature as toggleFeatureInSelection } from '../../utils/event';
 import { formatCurrency } from '../../utils/format';
 
 const props = defineProps<{
@@ -20,6 +20,8 @@ const props = defineProps<{
     /** The features the event offers. */
     availableFeatures?: EventFeatureEntry[];
     initialFeatures?: FeatureId[];
+    /** Who is choosing: a user id, or a negative guest id. Decides which features they may pick. */
+    viewerId?: number | null;
     submitLabel?: string;
     featurePrices?: Partial<Record<FeatureId, number | null>>;
     featureSplitPrices?: Partial<Record<FeatureId, number | null>>;
@@ -59,7 +61,12 @@ const onSplitTripsChange = (split: boolean) => {
     if (!split) vehicleSeatsReturn.value = vehicleSeatsOutbound.value;
 };
 
-const features = computed(() => props.availableFeatures ?? []);
+// Features the viewer is not eligible for are hidden; mandatory ones are locked in.
+const features = computed(() =>
+    (props.availableFeatures ?? []).filter((feature) => canSelectFeature(feature, props.viewerId))
+);
+const lockedIds = computed(() => features.value.filter((feature) => feature.mandatory).map((feature) => feature.id));
+const isLocked = (feature: FeatureId) => lockedIds.value.includes(feature);
 
 /** Your share if you opt in: the budget split across everyone in, counting you once. */
 const projectedShare = (feature: FeatureId) => {
@@ -75,6 +82,7 @@ const totalShare = computed(() =>
 const hasBudgets = computed(() => features.value.some((feature) => projectedShare(feature.id) !== null));
 
 const toggleFeature = (feature: FeatureId) => {
+    if (isLocked(feature)) return;
     toggleFeatureInSelection(selectedFeatures.value, feature);
 };
 
@@ -99,7 +107,7 @@ watch(
     () => props.visible,
     (newVal) => {
         if (newVal) {
-            selectedFeatures.value = props.initialFeatures ? [...props.initialFeatures] : [];
+            selectedFeatures.value = [...new Set([...(props.initialFeatures ?? []), ...lockedIds.value])];
             transportMode.value = props.initialTransportMode ?? 'NEEDS_RIDE';
             const seats = atLeastMin(props.initialVehicleSeats, MIN_SEATS);
             vehicleSeatsOutbound.value = atLeastMin(props.initialVehicleSeatsOutbound, seats);
@@ -129,12 +137,14 @@ watch(
                         :key="feature.id"
                         type="button"
                         class="pressable flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left"
-                        :class="
+                        :class="[
                             selectedFeatures.includes(feature.id)
                                 ? 'border-emerald-400/50 bg-emerald-400/10'
-                                : 'border-line bg-raised hover:border-line-strong'
-                        "
+                                : 'border-line bg-raised hover:border-line-strong',
+                            isLocked(feature.id) ? 'cursor-default' : ''
+                        ]"
                         :aria-pressed="selectedFeatures.includes(feature.id)"
+                        :aria-disabled="isLocked(feature.id)"
                         @click="toggleFeature(feature.id)"
                     >
                         <span
@@ -142,7 +152,12 @@ watch(
                         >
                             {{ feature.emoji }}
                         </span>
-                        <span class="text-body text-fg flex-1 font-medium">{{ feature.name }}</span>
+                        <span class="text-body text-fg flex-1 font-medium">
+                            {{ feature.name }}
+                            <span v-if="isLocked(feature.id)" class="text-meta text-muted ml-1.5 font-normal">
+                                <i class="pi pi-lock text-[0.625rem]"></i> Required
+                            </span>
+                        </span>
                         <span v-if="projectedShare(feature.id) !== null" class="text-meta text-muted tabular">
                             {{ formatCurrency(projectedShare(feature.id)) }}
                         </span>

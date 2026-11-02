@@ -338,10 +338,13 @@ export class AuditLogService {
             hostId: event.hostId,
             isOpen: event.isOpen,
             features: event.features
-                .map(
-                    (entry) =>
-                        `${entry.feature.emoji} ${entry.feature.name}${entry.price != null ? ` (${entry.price})` : ''}`
-                )
+                .map((entry) => {
+                    const flags = [
+                        entry.mandatory ? 'required' : null,
+                        entry.eligibleUserIds.length > 0 ? `${entry.eligibleUserIds.length} people only` : null
+                    ].filter(Boolean);
+                    return `${entry.feature.emoji} ${entry.feature.name}${entry.price != null ? ` (${entry.price})` : ''}${flags.length ? ` [${flags.join(', ')}]` : ''}`;
+                })
                 .join(', '),
             isPrivate: event.isPrivate,
             participationDeadline: event.participationDeadline?.toISOString() ?? null

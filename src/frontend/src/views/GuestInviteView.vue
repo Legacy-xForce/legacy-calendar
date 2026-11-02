@@ -239,6 +239,7 @@ const onLeave = () => {
         <FeatureSelectionDialog
             v-model:visible="showFeatureSelection"
             :availableFeatures="availableFeatures"
+            :viewerId="guestUserId"
             :initialFeatures="guestUserId ? getParticipantFeatures(guestUserId) : []"
             :initialTransportMode="guestParticipant?.transportMode"
             :initialVehicleSeats="guestParticipant?.vehicleSeats"

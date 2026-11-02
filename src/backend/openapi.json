@@ -1952,17 +1952,35 @@
           "featureId": {
             "type": "number",
             "example": 1,
-            "description": "ID of an instance feature"
+            "description": "ID of a catalog feature, or of a one-time feature this event already has"
+          },
+          "name": {
+            "type": "string",
+            "example": "Karaoke",
+            "description": "Name of a new one-time feature (with emoji, instead of featureId)"
+          },
+          "emoji": {
+            "type": "string",
+            "example": "🎤",
+            "description": "Emoji of a new one-time feature"
           },
           "price": {
             "type": "number",
             "example": 10.5,
             "description": "Budget for this feature"
+          },
+          "mandatory": {
+            "type": "boolean",
+            "description": "Everyone eligible who joins gets this feature and cannot opt out. Omitted keeps the current value"
+          },
+          "eligibleUserIds": {
+            "description": "Registered users allowed to opt in; empty means everyone, guests included. Omitted keeps the current value",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           }
-        },
-        "required": [
-          "featureId"
-        ]
+        }
       },
       "CreateEventDto": {
         "type": "object",
@@ -2042,7 +2060,7 @@
             "description": "Whether the event is private (visible only to invitees)"
           },
           "features": {
-            "description": "Instance features enabled for this event, each with an optional budget",
+            "description": "Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EventFeatureInputDto"
@@ -2347,13 +2365,31 @@
             "example": 10.5,
             "description": "Budget for this feature, split between those who opted in",
             "nullable": true
+          },
+          "mandatory": {
+            "type": "boolean",
+            "description": "Everyone eligible who joins gets it and cannot opt out"
+          },
+          "oneTime": {
+            "type": "boolean",
+            "description": "A one-time feature that exists only on this event"
+          },
+          "eligibleUserIds": {
+            "description": "Registered users allowed to opt in; empty means everyone, guests included",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           }
         },
         "required": [
           "id",
           "name",
           "emoji",
-          "price"
+          "price",
+          "mandatory",
+          "oneTime",
+          "eligibleUserIds"
         ]
       },
       "EventResponseDto": {
@@ -2454,7 +2490,7 @@
             "description": "Whether the event is private"
           },
           "features": {
-            "description": "Instance features enabled for this event",
+            "description": "Features enabled for this event",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EventFeatureDto"
@@ -2552,7 +2588,7 @@
             "description": "Whether the event is private (visible only to invitees)"
           },
           "features": {
-            "description": "Instance features enabled for this event, each with an optional budget",
+            "description": "Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EventFeatureInputDto"

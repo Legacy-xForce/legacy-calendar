@@ -1,4 +1,4 @@
-import type { Event, EventParticipant, FeatureId, ParticipantStatus } from '../types/Event';
+import type { Event, EventFeatureDraft, EventParticipant, FeatureId, ParticipantStatus } from '../types/Event';
 
 const MAX_EVENT_START_TIME_YEARS_AHEAD = 1;
 
@@ -65,12 +65,36 @@ export function selectedFeaturesFromEvent(event: EventWithFeatures): FeatureId[]
     return event?.features.map((feature) => feature.id) ?? [];
 }
 
-/** The `features` payload for create/update: the selected ids with their optional budgets. */
-export function eventFeaturesPayload(selected: FeatureId[], prices: Record<FeatureId, number | null>) {
-    return selected.map((featureId) => {
-        const price = prices[featureId];
-        return typeof price === 'number' ? { featureId, price } : { featureId };
-    });
+/** The form drafts for the features an event already offers. */
+export function featureDraftsFromEvent(event: EventWithFeatures): EventFeatureDraft[] {
+    return (event?.features ?? []).map((feature) => ({
+        key: `feature-${feature.id}`,
+        featureId: feature.id,
+        name: feature.name,
+        emoji: feature.emoji,
+        oneTime: feature.oneTime,
+        price: feature.price ?? null,
+        mandatory: feature.mandatory,
+        eligibleUserIds: [...feature.eligibleUserIds]
+    }));
+}
+
+/** The `features` payload for create/update: catalog/existing features by id, new one-time ones by name + emoji. */
+export function eventFeaturesPayload(drafts: EventFeatureDraft[]) {
+    return drafts.map((draft) => ({
+        ...(draft.featureId !== undefined
+            ? { featureId: draft.featureId }
+            : { name: draft.name.trim(), emoji: draft.emoji }),
+        ...(typeof draft.price === 'number' ? { price: draft.price } : {}),
+        mandatory: draft.mandatory,
+        eligibleUserIds: draft.eligibleUserIds
+    }));
+}
+
+/** Whether the person (user id, or negative guest id) may opt into this feature. */
+export function canSelectFeature(feature: { eligibleUserIds: number[] }, participantId: number | null | undefined) {
+    if (feature.eligibleUserIds.length === 0) return true;
+    return participantId != null && feature.eligibleUserIds.includes(participantId);
 }
 
 export function participantWantsFromSelection(features: FeatureId[]) {

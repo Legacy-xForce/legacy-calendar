@@ -19,6 +19,19 @@ export type Feature = ApiSchemas['FeatureDto'];
 /** A feature enabled on one event, with that event's optional budget. */
 export type EventFeatureEntry = ApiSchemas['EventFeatureDto'];
 export type FeatureId = number;
+
+/** One feature on the event form: a catalog feature, or a one-time feature (new, or already on the event). */
+export interface EventFeatureDraft {
+    /** Stable key for list rendering and for new one-time features that have no id yet. */
+    key: string;
+    featureId?: FeatureId;
+    name: string;
+    emoji: string;
+    oneTime: boolean;
+    price: number | null;
+    mandatory: boolean;
+    eligibleUserIds: number[];
+}
 export type CreateFeatureDto = ApiSchemas['CreateFeatureDto'];
 export type UpdateFeatureDto = ApiSchemas['UpdateFeatureDto'];
 

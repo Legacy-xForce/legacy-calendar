@@ -349,6 +349,7 @@ watch(
     <FeatureSelectionDialog
         v-model:visible="showFeatureSelection"
         :availableFeatures="availableFeatures"
+        :viewerId="currentUser?.id"
         :initialFeatures="currentUser ? getParticipantFeatures(currentUser.id) : []"
         :initialTransportMode="props.event?.participants?.find((p) => p.id === currentUser?.id)?.transportMode"
         :initialVehicleSeats="props.event?.participants?.find((p) => p.id === currentUser?.id)?.vehicleSeats"
