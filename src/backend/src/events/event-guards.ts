@@ -28,15 +28,38 @@ export function assertDeadlineNotPassed(
     }
 }
 
-/** Rejects feature ids the event does not offer, so participants cannot opt into unrelated extras. */
-export function assertFeaturesOfferedByEvent(
-    event: { features: { featureId: number }[] },
-    featureIds?: number[]
-): void {
-    if (!featureIds) return;
-    const offered = new Set(event.features.map((entry) => entry.featureId));
-    const unknown = featureIds.filter((id) => !offered.has(id));
+type OfferedFeature = { featureId: number; mandatory: boolean; eligibleUserIds: number[] };
+
+/** Empty list = everyone; otherwise registered users on the list (guests have negative ids). */
+export function isEligibleForFeature(feature: Pick<OfferedFeature, 'eligibleUserIds'>, participantId: number): boolean {
+    return feature.eligibleUserIds.length === 0 || feature.eligibleUserIds.includes(participantId);
+}
+
+/**
+ * The feature set an accepted participant ends up with. `requested` must only
+ * contain offered features the participant is eligible for; `current` is kept
+ * when nothing is requested. Mandatory features are always added, so a client
+ * can never opt out of them.
+ */
+export function resolveFeatureSelection(
+    event: { features: OfferedFeature[] },
+    participantId: number,
+    requested: number[] | undefined,
+    current: number[]
+): number[] {
+    const offered = new Map(event.features.map((entry) => [entry.featureId, entry]));
+    const unknown = (requested ?? []).filter((id) => !offered.has(id));
     if (unknown.length > 0) {
         throw new BadRequestException(`Feature ids not available for this event: ${unknown.join(', ')}`);
     }
+    const ineligible = (requested ?? []).filter((id) => !isEligibleForFeature(offered.get(id)!, participantId));
+    if (ineligible.length > 0) {
+        throw new ForbiddenException(`You cannot select these features: ${ineligible.join(', ')}`);
+    }
+
+    const base = requested ?? current.filter((id) => offered.has(id));
+    const mandatory = event.features
+        .filter((entry) => entry.mandatory && isEligibleForFeature(entry, participantId))
+        .map((entry) => entry.featureId);
+    return [...new Set([...base, ...mandatory])];
 }

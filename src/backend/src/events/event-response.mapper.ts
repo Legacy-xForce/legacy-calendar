@@ -80,7 +80,10 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
             id: entry.feature.id,
             name: entry.feature.name,
             emoji: entry.feature.emoji,
-            price: entry.price
+            price: entry.price,
+            mandatory: entry.mandatory,
+            oneTime: entry.feature.eventId !== null,
+            eligibleUserIds: entry.eligibleUserIds
         }))
     };
 }

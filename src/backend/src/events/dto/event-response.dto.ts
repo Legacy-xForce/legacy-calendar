@@ -18,6 +18,18 @@ export class EventFeatureDto extends FeatureDto {
         nullable: true
     })
     price!: number | null;
+
+    @ApiProperty({ type: Boolean, description: 'Everyone eligible who joins gets it and cannot opt out' })
+    mandatory!: boolean;
+
+    @ApiProperty({ type: Boolean, description: 'A one-time feature that exists only on this event' })
+    oneTime!: boolean;
+
+    @ApiProperty({
+        type: [Number],
+        description: 'Registered users allowed to opt in; empty means everyone, guests included'
+    })
+    eligibleUserIds!: number[];
 }
 
 export class EventParticipantDto extends UserDto {
@@ -124,6 +136,6 @@ export class EventResponseDto {
     @ApiProperty({ type: Boolean, example: false, description: 'Whether the event is private' })
     isPrivate!: boolean;
 
-    @ApiProperty({ type: () => [EventFeatureDto], description: 'Instance features enabled for this event' })
+    @ApiProperty({ type: () => [EventFeatureDto], description: 'Features enabled for this event' })
     features!: EventFeatureDto[];
 }

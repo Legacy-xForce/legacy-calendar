@@ -15,7 +15,11 @@ export class FeaturesService {
     constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
     findAll(): Promise<FeatureDto[]> {
-        return this.prisma.feature.findMany({ select: FEATURE_SELECT, orderBy: { id: 'asc' } });
+        return this.prisma.feature.findMany({
+            where: { eventId: null },
+            select: FEATURE_SELECT,
+            orderBy: { id: 'asc' }
+        });
     }
 
     async create(dto: CreateFeatureDto): Promise<FeatureDto> {
@@ -43,7 +47,7 @@ export class FeaturesService {
         );
     }
 
-    /** Removes the feature from every event and participant that used it. */
+    /** Removes the catalog feature from every event and participant that used it. */
     async remove(id: number): Promise<{ success: true }> {
         await this.findOrThrow(id);
         await this.prisma.feature.delete({ where: { id } });
@@ -51,7 +55,7 @@ export class FeaturesService {
     }
 
     private async findOrThrow(id: number) {
-        const feature = await this.prisma.feature.findUnique({ where: { id }, select: FEATURE_SELECT });
+        const feature = await this.prisma.feature.findFirst({ where: { id, eventId: null }, select: FEATURE_SELECT });
         if (!feature) throw new NotFoundException(`Feature ${id} not found`);
         return feature;
     }
@@ -63,7 +67,7 @@ export class FeaturesService {
         if (clauses.length === 0) return;
 
         const existing = await this.prisma.feature.findFirst({
-            where: { OR: clauses, ...(exceptId !== undefined ? { id: { not: exceptId } } : {}) }
+            where: { eventId: null, OR: clauses, ...(exceptId !== undefined ? { id: { not: exceptId } } : {}) }
         });
         if (!existing) return;
 

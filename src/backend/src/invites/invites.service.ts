@@ -11,7 +11,7 @@ import { EventsRealtime } from '../events/events-realtime.service.js';
 import { mapEventToDto } from '../events/event-response.mapper.js';
 import { AppLogger } from '../logging/app-logger.js';
 import { InvitesRepository, type GuestInviteWithRelations } from './invites.repository.js';
-import { assertFeaturesOfferedByEvent } from '../events/event-guards.js';
+import { resolveFeatureSelection } from '../events/event-guards.js';
 import { GuestParticipateDto } from './dto/guest-participate.dto.js';
 import { generateGuestToken, hashGuestToken } from './guest-token.util.js';
 import { guestId } from '../common/participant-id.util.js';
@@ -79,10 +79,18 @@ export class InvitesService {
             (participant) => participant.guestParticipantId === guestInvite.guestParticipantId
         );
 
-        assertFeaturesOfferedByEvent(event, dto.featureIds);
+        const featureIds = resolveFeatureSelection(
+            event,
+            guestId(guestInvite.guestParticipantId),
+            dto.featureIds,
+            before?.status === 'ACCEPTED' ? before.features.map((entry) => entry.featureId) : []
+        );
 
         try {
-            await this.invitesRepo.updateGuestParticipation(guestInvite.guestParticipantId, guestInvite.eventId, dto);
+            await this.invitesRepo.updateGuestParticipation(guestInvite.guestParticipantId, guestInvite.eventId, {
+                ...dto,
+                featureIds
+            });
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
                 throw new ForbiddenException('That username is already taken, please choose another one');

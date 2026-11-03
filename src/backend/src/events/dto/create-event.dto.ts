@@ -1,4 +1,5 @@
 import {
+    ArrayMaxSize,
     IsArray,
     IsBoolean,
     IsDateString,
@@ -7,24 +8,78 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    Matches,
+    MaxLength,
     Min,
     ValidateNested
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEventStartTimeWithinAllowedRange } from '../validators/is-event-start-time-within-allowed-range.validator.js';
+import { SINGLE_EMOJI_PATTERN } from '../../features/dto/create-feature.dto.js';
 import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
 
+export const MAX_ONE_TIME_FEATURES = 10;
+
+const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+
 export class EventFeatureInputDto {
-    @ApiProperty({ type: Number, example: 1, description: 'ID of an instance feature' })
+    @ApiProperty({
+        type: Number,
+        example: 1,
+        description: 'ID of a catalog feature, or of a one-time feature this event already has',
+        required: false
+    })
+    @IsOptional()
     @IsInt()
-    featureId!: number;
+    featureId?: number;
+
+    @ApiProperty({
+        type: String,
+        example: 'Karaoke',
+        description: 'Name of a new one-time feature (with emoji, instead of featureId)',
+        required: false
+    })
+    @IsOptional()
+    @Transform(trim)
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(32)
+    name?: string;
+
+    @ApiProperty({ type: String, example: '🎤', description: 'Emoji of a new one-time feature', required: false })
+    @IsOptional()
+    @Transform(trim)
+    @IsString()
+    @Matches(SINGLE_EMOJI_PATTERN, { message: 'emoji must be a single emoji' })
+    emoji?: string;
 
     @ApiProperty({ type: Number, example: 10.5, description: 'Budget for this feature', required: false })
     @IsOptional()
     @IsNumber()
     @Min(0)
     price?: number;
+
+    @ApiProperty({
+        type: Boolean,
+        description:
+            'Everyone eligible who joins gets this feature and cannot opt out. Omitted keeps the current value',
+        required: false
+    })
+    @IsOptional()
+    @IsBoolean()
+    mandatory?: boolean;
+
+    @ApiProperty({
+        type: [Number],
+        description:
+            'Registered users allowed to opt in; empty means everyone, guests included. Omitted keeps the current value',
+        required: false
+    })
+    @IsOptional()
+    @IsArray()
+    @IsInt({ each: true })
+    eligibleUserIds?: number[];
 }
 
 export class CreateEventDto {
@@ -129,11 +184,13 @@ export class CreateEventDto {
 
     @ApiProperty({
         type: () => [EventFeatureInputDto],
-        description: 'Instance features enabled for this event, each with an optional budget',
+        description:
+            'Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget',
         required: false
     })
     @IsOptional()
     @IsArray()
+    @ArrayMaxSize(100)
     @ValidateNested({ each: true })
     @Type(() => EventFeatureInputDto)
     features?: EventFeatureInputDto[];

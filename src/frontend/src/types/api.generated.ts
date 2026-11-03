@@ -691,15 +691,29 @@ export interface components {
         };
         EventFeatureInputDto: {
             /**
-             * @description ID of an instance feature
+             * @description ID of a catalog feature, or of a one-time feature this event already has
              * @example 1
              */
-            featureId: number;
+            featureId?: number;
+            /**
+             * @description Name of a new one-time feature (with emoji, instead of featureId)
+             * @example Karaoke
+             */
+            name?: string;
+            /**
+             * @description Emoji of a new one-time feature
+             * @example 🎤
+             */
+            emoji?: string;
             /**
              * @description Budget for this feature
              * @example 10.5
              */
             price?: number;
+            /** @description Everyone eligible who joins gets this feature and cannot opt out. Omitted keeps the current value */
+            mandatory?: boolean;
+            /** @description Registered users allowed to opt in; empty means everyone, guests included. Omitted keeps the current value */
+            eligibleUserIds?: number[];
         };
         CreateEventDto: {
             /**
@@ -764,7 +778,7 @@ export interface components {
              * @example false
              */
             isPrivate?: boolean;
-            /** @description Instance features enabled for this event, each with an optional budget */
+            /** @description Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget */
             features?: components["schemas"]["EventFeatureInputDto"][];
         };
         EventHostDto: {
@@ -980,6 +994,12 @@ export interface components {
              * @example 10.5
              */
             price: number | null;
+            /** @description Everyone eligible who joins gets it and cannot opt out */
+            mandatory: boolean;
+            /** @description A one-time feature that exists only on this event */
+            oneTime: boolean;
+            /** @description Registered users allowed to opt in; empty means everyone, guests included */
+            eligibleUserIds: number[];
         };
         EventResponseDto: {
             /**
@@ -1048,7 +1068,7 @@ export interface components {
              * @example false
              */
             isPrivate: boolean;
-            /** @description Instance features enabled for this event */
+            /** @description Features enabled for this event */
             features: components["schemas"]["EventFeatureDto"][];
         };
         UpdateEventDto: {
@@ -1114,7 +1134,7 @@ export interface components {
              * @example false
              */
             isPrivate?: boolean;
-            /** @description Instance features enabled for this event, each with an optional budget */
+            /** @description Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget */
             features?: components["schemas"]["EventFeatureInputDto"][];
         };
         InviteUserDto: {

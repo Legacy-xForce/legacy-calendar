@@ -76,6 +76,9 @@ const isGoing = computed(() => userParticipantStatus.value === 'ACCEPTED');
                 <div class="min-w-0 flex-1">
                     <p class="text-body text-fg m-0 flex items-center gap-2 font-medium">
                         {{ featureById.get(featureId)?.name }}
+                        <span v-if="featureById.get(featureId)?.mandatory" class="text-meta text-muted font-normal">
+                            Required
+                        </span>
                         <i
                             v-if="isGoing && myFeatures.includes(featureId)"
                             class="pi pi-check text-[0.625rem] text-emerald-300"

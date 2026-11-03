@@ -91,6 +91,7 @@ model Event {
   guestInviteTokens     GuestInviteToken[]
   coHosts               EventCoHost[]
   features              EventFeature[]
+  oneTimeFeatures       Feature[]          @relation("OneTimeFeatures")
 
   @@index([startTime])
   @@index([hostId])
@@ -271,22 +272,34 @@ model UserGroup {
   @@index([userId])
 }
 
-/// Instance-wide optional extras (food, sleep, ...) that hosts can enable per event.
+/// Optional extras (food, sleep, ...) that hosts can enable per event.
+/// `eventId` NULL: instance-wide catalog feature, managed by admins.
+/// `eventId` set: one-time feature owned by that event.
+/// Catalog name/emoji uniqueness is enforced by partial unique indexes
+/// (WHERE "eventId" IS NULL) created in the migration, which Prisma cannot express.
 model Feature {
   id                 Int                 @id @default(autoincrement())
   name               String
   /// Lowercased, trimmed name: the case-insensitive uniqueness key.
-  nameKey            String              @unique
-  emoji              String              @unique
+  nameKey            String
+  emoji              String
+  eventId            Int?
   createdAt          DateTime            @default(now())
+  event              Event?              @relation("OneTimeFeatures", fields: [eventId], references: [id], onDelete: Cascade)
   events             EventFeature[]
   attendanceFeatures AttendanceFeature[]
+
+  @@unique([eventId, nameKey])
 }
 
 model EventFeature {
   eventId   Int
   featureId Int
   price     Float?
+  /// Participants cannot opt out: everyone eligible gets it when they accept.
+  mandatory Boolean @default(false)
+  /// Registered users allowed to opt in. Empty means everyone (guests included).
+  eligibleUserIds Int[] @default([])
 
   event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
