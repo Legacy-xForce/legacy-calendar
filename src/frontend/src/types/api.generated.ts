@@ -4,14 +4,14 @@
  */
 
 export interface paths {
-    '/': {
+    "/": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations['AppController_getHello'];
+        get: operations["AppController_getHello"];
         put?: never;
         post?: never;
         delete?: never;
@@ -20,14 +20,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/health': {
+    "/health": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations['AppController_getHealth'];
+        get: operations["AppController_getHealth"];
         put?: never;
         post?: never;
         delete?: never;
@@ -36,7 +36,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/auth/profile': {
+    "/auth/profile": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,14 +46,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Get user profile */
-        post: operations['AuthController_getProfile'];
+        post: operations["AuthController_getProfile"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/users': {
+    "/users": {
         parameters: {
             query?: never;
             header?: never;
@@ -61,17 +61,17 @@ export interface paths {
             cookie?: never;
         };
         /** Get all users */
-        get: operations['UsersController_findAll'];
+        get: operations["UsersController_findAll"];
         put?: never;
         /** Create a new user (Admin only) */
-        post: operations['UsersController_create'];
+        post: operations["UsersController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/users/{id}': {
+    "/users/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -79,18 +79,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get a user by ID */
-        get: operations['UsersController_findOne'];
+        get: operations["UsersController_findOne"];
         put?: never;
         post?: never;
         /** Delete a user (Admin only) */
-        delete: operations['UsersController_remove'];
+        delete: operations["UsersController_remove"];
         options?: never;
         head?: never;
         /** Update a user (Admin only) */
-        patch: operations['UsersController_update'];
+        patch: operations["UsersController_update"];
         trace?: never;
     };
-    '/users/me/payment-info': {
+    "/users/me/payment-info": {
         parameters: {
             query?: never;
             header?: never;
@@ -104,10 +104,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update the authenticated user own payment coordinates (PayPal, IBAN, Revolut) */
-        patch: operations['UsersController_updatePaymentInfo'];
+        patch: operations["UsersController_updatePaymentInfo"];
         trace?: never;
     };
-    '/events': {
+    "/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -115,17 +115,17 @@ export interface paths {
             cookie?: never;
         };
         /** Get events for a visible calendar range */
-        get: operations['EventsController_findAll'];
+        get: operations["EventsController_findAll"];
         put?: never;
         /** Create a new event */
-        post: operations['EventsController_create'];
+        post: operations["EventsController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/events/upcoming': {
+    "/events/upcoming": {
         parameters: {
             query?: never;
             header?: never;
@@ -133,7 +133,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get upcoming events */
-        get: operations['EventsController_findUpcoming'];
+        get: operations["EventsController_findUpcoming"];
         put?: never;
         post?: never;
         delete?: never;
@@ -142,7 +142,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/events/{id}': {
+    "/events/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -150,18 +150,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get an event by ID */
-        get: operations['EventsController_findOne'];
+        get: operations["EventsController_findOne"];
         put?: never;
         post?: never;
         /** Delete an event */
-        delete: operations['EventsController_remove'];
+        delete: operations["EventsController_remove"];
         options?: never;
         head?: never;
         /** Update an event */
-        patch: operations['EventsController_update'];
+        patch: operations["EventsController_update"];
         trace?: never;
     };
-    '/events/{id}/invite': {
+    "/events/{id}/invite": {
         parameters: {
             query?: never;
             header?: never;
@@ -171,14 +171,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Invite a user to an event */
-        post: operations['EventsController_invite'];
+        post: operations["EventsController_invite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/events/{id}/join': {
+    "/events/{id}/join": {
         parameters: {
             query?: never;
             header?: never;
@@ -188,16 +188,16 @@ export interface paths {
         get?: never;
         put?: never;
         /** Join an event */
-        post: operations['EventsController_join'];
+        post: operations["EventsController_join"];
         /** Leave an event / Cancel participation */
-        delete: operations['EventsController_leave'];
+        delete: operations["EventsController_leave"];
         options?: never;
         head?: never;
         /** Edit participation details */
-        patch: operations['EventsController_editParticipation'];
+        patch: operations["EventsController_editParticipation"];
         trace?: never;
     };
-    '/events/{id}/assign-ride': {
+    "/events/{id}/assign-ride": {
         parameters: {
             query?: never;
             header?: never;
@@ -207,14 +207,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Assign a ride to a passenger */
-        post: operations['EventsController_assignRide'];
+        post: operations["EventsController_assignRide"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/events/{id}/rides': {
+    "/events/{id}/rides": {
         parameters: {
             query?: never;
             header?: never;
@@ -228,10 +228,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Assign several passengers to a ride in one request */
-        patch: operations['EventsController_assignRides'];
+        patch: operations["EventsController_assignRides"];
         trace?: never;
     };
-    '/events/{id}/participants/{userId}/payment': {
+    "/events/{id}/participants/{userId}/payment": {
         parameters: {
             query?: never;
             header?: never;
@@ -245,10 +245,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update payment status for a participant (host/co-host only) */
-        patch: operations['EventsController_updatePaymentStatus'];
+        patch: operations["EventsController_updatePaymentStatus"];
         trace?: never;
     };
-    '/events/{id}/audit-log': {
+    "/events/{id}/audit-log": {
         parameters: {
             query?: never;
             header?: never;
@@ -256,7 +256,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get the audit log for an event */
-        get: operations['AuditLogController_getAuditLog'];
+        get: operations["AuditLogController_getAuditLog"];
         put?: never;
         post?: never;
         delete?: never;
@@ -265,7 +265,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/notifications/subscribe': {
+    "/notifications/subscribe": {
         parameters: {
             query?: never;
             header?: never;
@@ -275,14 +275,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Subscribe device to notifications */
-        post: operations['NotificationsController_subscribe'];
+        post: operations["NotificationsController_subscribe"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/notifications/unsubscribe': {
+    "/notifications/unsubscribe": {
         parameters: {
             query?: never;
             header?: never;
@@ -292,14 +292,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Unsubscribe device from notifications */
-        post: operations['NotificationsController_unsubscribe'];
+        post: operations["NotificationsController_unsubscribe"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/notifications/mute': {
+    "/notifications/mute": {
         parameters: {
             query?: never;
             header?: never;
@@ -307,7 +307,7 @@ export interface paths {
             cookie?: never;
         };
         /** List muted event chat notification preferences */
-        get: operations['NotificationsController_listMutedEvents'];
+        get: operations["NotificationsController_listMutedEvents"];
         put?: never;
         post?: never;
         delete?: never;
@@ -316,7 +316,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/notifications/mute/{eventId}': {
+    "/notifications/mute/{eventId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -326,15 +326,15 @@ export interface paths {
         get?: never;
         put?: never;
         /** Mute chat notifications for an event */
-        post: operations['NotificationsController_mute'];
+        post: operations["NotificationsController_mute"];
         /** Unmute chat notifications for an event */
-        delete: operations['NotificationsController_unmute'];
+        delete: operations["NotificationsController_unmute"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/events/{id}/guest-invites': {
+    "/events/{id}/guest-invites": {
         parameters: {
             query?: never;
             header?: never;
@@ -344,14 +344,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Generate a magic-link invite for a guest without an account */
-        post: operations['EventGuestInvitesController_create'];
+        post: operations["EventGuestInvitesController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/guest-invites/{token}': {
+    "/guest-invites/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -359,25 +359,25 @@ export interface paths {
             cookie?: never;
         };
         /** Get event details and the current guest participation via a magic link */
-        get: operations['GuestInvitesController_get'];
+        get: operations["GuestInvitesController_get"];
         put?: never;
         post?: never;
         /** Leave the event as a guest */
-        delete: operations['GuestInvitesController_leave'];
+        delete: operations["GuestInvitesController_leave"];
         options?: never;
         head?: never;
         /** Set the guest username and/or update participation preferences */
-        patch: operations['GuestInvitesController_update'];
+        patch: operations["GuestInvitesController_update"];
         trace?: never;
     };
-    '/uploads/{path}': {
+    "/uploads/{path}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations['UploadsController_getUpload'];
+        get: operations["UploadsController_getUpload"];
         put?: never;
         post?: never;
         delete?: never;
@@ -386,14 +386,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/chat/{eventId}/messages': {
+    "/chat/{eventId}/messages": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations['ChatController_getHistory'];
+        get: operations["ChatController_getHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -402,14 +402,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/chat/{eventId}/pinned': {
+    "/chat/{eventId}/pinned": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations['ChatController_getPinned'];
+        get: operations["ChatController_getPinned"];
         put?: never;
         post?: never;
         delete?: never;
@@ -418,7 +418,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/chat/{eventId}/upload': {
+    "/chat/{eventId}/upload": {
         parameters: {
             query?: never;
             header?: never;
@@ -427,14 +427,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations['ChatController_uploadFile'];
+        post: operations["ChatController_uploadFile"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/user-groups': {
+    "/user-groups": {
         parameters: {
             query?: never;
             header?: never;
@@ -442,17 +442,17 @@ export interface paths {
             cookie?: never;
         };
         /** Get all custom user groups for current user */
-        get: operations['UserGroupsController_findAll'];
+        get: operations["UserGroupsController_findAll"];
         put?: never;
         /** Create a new custom user group */
-        post: operations['UserGroupsController_create'];
+        post: operations["UserGroupsController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/user-groups/{id}': {
+    "/user-groups/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -460,18 +460,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get a user group by ID */
-        get: operations['UserGroupsController_findOne'];
+        get: operations["UserGroupsController_findOne"];
         put?: never;
         post?: never;
         /** Delete a user group */
-        delete: operations['UserGroupsController_remove'];
+        delete: operations["UserGroupsController_remove"];
         options?: never;
         head?: never;
         /** Update a user group */
-        patch: operations['UserGroupsController_update'];
+        patch: operations["UserGroupsController_update"];
         trace?: never;
     };
-    '/api-tokens': {
+    "/api-tokens": {
         parameters: {
             query?: never;
             header?: never;
@@ -482,20 +482,20 @@ export interface paths {
          * List the API tokens of the authenticated user
          * @description Requires a session token. API tokens cannot list or manage API tokens.
          */
-        get: operations['ApiTokensController_findAll'];
+        get: operations["ApiTokensController_findAll"];
         put?: never;
         /**
          * Create an API token
          * @description The full token is returned only in this response. Store it somewhere safe.
          */
-        post: operations['ApiTokensController_create'];
+        post: operations["ApiTokensController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/api-tokens/{id}/rotate': {
+    "/api-tokens/{id}/rotate": {
         parameters: {
             query?: never;
             header?: never;
@@ -508,14 +508,14 @@ export interface paths {
          * Rotate an API token
          * @description Invalidates the old value immediately and returns the new token once.
          */
-        post: operations['ApiTokensController_rotate'];
+        post: operations["ApiTokensController_rotate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/api-tokens/{id}': {
+    "/api-tokens/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -526,13 +526,13 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete an API token */
-        delete: operations['ApiTokensController_remove'];
+        delete: operations["ApiTokensController_remove"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/geocoding/autocomplete': {
+    "/geocoding/autocomplete": {
         parameters: {
             query?: never;
             header?: never;
@@ -540,7 +540,7 @@ export interface paths {
             cookie?: never;
         };
         /** Search complete street addresses for autocomplete */
-        get: operations['GeocodingController_search'];
+        get: operations["GeocodingController_search"];
         put?: never;
         post?: never;
         delete?: never;
@@ -549,7 +549,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    '/features': {
+    "/features": {
         parameters: {
             query?: never;
             header?: never;
@@ -557,17 +557,17 @@ export interface paths {
             cookie?: never;
         };
         /** List the instance features hosts can enable on events */
-        get: operations['FeaturesController_findAll'];
+        get: operations["FeaturesController_findAll"];
         put?: never;
         /** Create a feature (Admin only) */
-        post: operations['FeaturesController_create'];
+        post: operations["FeaturesController_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    '/features/{id}': {
+    "/features/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -578,11 +578,11 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete a feature and remove it from all events (Admin only) */
-        delete: operations['FeaturesController_remove'];
+        delete: operations["FeaturesController_remove"];
         options?: never;
         head?: never;
         /** Rename a feature or change its emoji (Admin only) */
-        patch: operations['FeaturesController_update'];
+        patch: operations["FeaturesController_update"];
         trace?: never;
     };
 }
@@ -737,7 +737,7 @@ export interface components {
              */
             location: string;
             /** @description Structured details of the selected street address */
-            locationDetails?: components['schemas']['AddressDetailsDto'];
+            locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.
              * @example 2026-02-04T10:00:00Z
@@ -779,7 +779,7 @@ export interface components {
              */
             isPrivate?: boolean;
             /** @description Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget */
-            features?: components['schemas']['EventFeatureInputDto'][];
+            features?: components["schemas"]["EventFeatureInputDto"][];
         };
         EventHostDto: {
             /**
@@ -926,7 +926,7 @@ export interface components {
              * @example PENDING
              * @enum {string}
              */
-            status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+            status: "PENDING" | "ACCEPTED" | "DECLINED";
             /**
              * @description IDs of the event features the user opted into
              * @example [
@@ -940,7 +940,7 @@ export interface components {
              * @example NEEDS_RIDE
              * @enum {string}
              */
-            transportMode: 'NEEDS_RIDE' | 'SELF' | 'DRIVER';
+            transportMode: "NEEDS_RIDE" | "SELF" | "DRIVER";
             /**
              * @description Number of available seats
              * @example 4
@@ -972,9 +972,9 @@ export interface components {
              */
             driverIdReturn?: number;
             /** @description Outbound driver details */
-            driver?: components['schemas']['UserDto'];
+            driver?: components["schemas"]["UserDto"];
             /** @description Return driver details */
-            driverReturn?: components['schemas']['UserDto'];
+            driverReturn?: components["schemas"]["UserDto"];
         };
         EventFeatureDto: {
             /** @example 1 */
@@ -1033,7 +1033,7 @@ export interface components {
              */
             location?: string | null;
             /** @description Structured details of the selected street address */
-            locationDetails?: components['schemas']['AddressDetailsDto'] | null;
+            locationDetails?: components["schemas"]["AddressDetailsDto"] | null;
             /**
              * Format: date-time
              * @description Start time
@@ -1053,11 +1053,11 @@ export interface components {
              */
             participationDeadline?: string | null;
             /** @description Host of the event */
-            host: components['schemas']['EventHostDto'];
+            host: components["schemas"]["EventHostDto"];
             /** @description Co-hosts of the event (can edit it like the host) */
-            coHosts: components['schemas']['EventHostDto'][];
+            coHosts: components["schemas"]["EventHostDto"][];
             /** @description List of participants */
-            participants: components['schemas']['EventParticipantDto'][];
+            participants: components["schemas"]["EventParticipantDto"][];
             /**
              * @description Whether the event is open for spontaneous joining
              * @example true
@@ -1069,7 +1069,7 @@ export interface components {
              */
             isPrivate: boolean;
             /** @description Features enabled for this event */
-            features: components['schemas']['EventFeatureDto'][];
+            features: components["schemas"]["EventFeatureDto"][];
         };
         UpdateEventDto: {
             /**
@@ -1093,7 +1093,7 @@ export interface components {
              */
             location?: string;
             /** @description Structured details of the selected street address */
-            locationDetails?: components['schemas']['AddressDetailsDto'];
+            locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.
              * @example 2026-02-04T10:00:00Z
@@ -1135,7 +1135,7 @@ export interface components {
              */
             isPrivate?: boolean;
             /** @description Features enabled for this event: catalog ones by featureId, one-time ones by name + emoji, each with an optional budget */
-            features?: components['schemas']['EventFeatureInputDto'][];
+            features?: components["schemas"]["EventFeatureInputDto"][];
         };
         InviteUserDto: {
             /**
@@ -1158,7 +1158,7 @@ export interface components {
              * @example NEEDS_RIDE
              * @enum {string}
              */
-            transportMode?: 'NEEDS_RIDE' | 'SELF' | 'DRIVER';
+            transportMode?: "NEEDS_RIDE" | "SELF" | "DRIVER";
             /**
              * @description Number of total seats (for DRIVER mode)
              * @example 4
@@ -1184,7 +1184,7 @@ export interface components {
              * @default OUTBOUND
              * @enum {string}
              */
-            direction: 'OUTBOUND' | 'RETURN';
+            direction: "OUTBOUND" | "RETURN";
         };
         AssignRidesBatchDto: {
             /** @description Namespaced participant ids: positive for registered users, negative for guest participants (-guestParticipantId) */
@@ -1195,7 +1195,7 @@ export interface components {
              * @default OUTBOUND
              * @enum {string}
              */
-            direction: 'OUTBOUND' | 'RETURN';
+            direction: "OUTBOUND" | "RETURN";
         };
         UpdatePaymentStatusDto: {
             /**
@@ -1225,7 +1225,7 @@ export interface components {
              * @example NEEDS_RIDE
              * @enum {string}
              */
-            transportMode?: 'NEEDS_RIDE' | 'SELF' | 'DRIVER';
+            transportMode?: "NEEDS_RIDE" | "SELF" | "DRIVER";
             /**
              * @description Number of total seats (for DRIVER mode)
              * @example 4
@@ -1295,7 +1295,7 @@ export interface components {
              * @example read
              * @enum {string}
              */
-            scope: 'read' | 'write';
+            scope: "read" | "write";
             /**
              * @description Non-secret hint that identifies the token in lists
              * @example legacy-calendar-01a1…1289
@@ -1328,7 +1328,7 @@ export interface components {
              * @example read
              * @enum {string}
              */
-            scope: 'read' | 'write';
+            scope: "read" | "write";
         };
         CreatedApiTokenResponseDto: {
             /**
@@ -1346,7 +1346,7 @@ export interface components {
              * @example read
              * @enum {string}
              */
-            scope: 'read' | 'write';
+            scope: "read" | "write";
             /**
              * @description Non-secret hint that identifies the token in lists
              * @example legacy-calendar-01a1…1289
@@ -1506,7 +1506,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['CreateUserDto'];
+                "application/json": components["schemas"]["CreateUserDto"];
             };
         };
         responses: {
@@ -1612,7 +1612,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdateUserDto'];
+                "application/json": components["schemas"]["UpdateUserDto"];
             };
         };
         responses: {
@@ -1648,7 +1648,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdatePaymentInfoDto'];
+                "application/json": components["schemas"]["UpdatePaymentInfoDto"];
             };
         };
         responses: {
@@ -1681,7 +1681,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'][];
+                    "application/json": components["schemas"]["EventResponseDto"][];
                 };
             };
         };
@@ -1695,7 +1695,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['CreateEventDto'];
+                "application/json": components["schemas"]["CreateEventDto"];
             };
         };
         responses: {
@@ -1705,7 +1705,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'];
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
             /** @description Unauthorized */
@@ -1732,7 +1732,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'][];
+                    "application/json": components["schemas"]["EventResponseDto"][];
                 };
             };
         };
@@ -1754,7 +1754,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'];
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
             /** @description Event not found */
@@ -1811,7 +1811,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdateEventDto'];
+                "application/json": components["schemas"]["UpdateEventDto"];
             };
         };
         responses: {
@@ -1821,7 +1821,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'];
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
             /** @description Forbidden - Only host can update */
@@ -1844,7 +1844,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['InviteUserDto'];
+                "application/json": components["schemas"]["InviteUserDto"];
             };
         };
         responses: {
@@ -1868,7 +1868,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['ParticipateDto'];
+                "application/json": components["schemas"]["ParticipateDto"];
             };
         };
         responses: {
@@ -1940,7 +1940,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['ParticipateDto'];
+                "application/json": components["schemas"]["ParticipateDto"];
             };
         };
         responses: {
@@ -1978,7 +1978,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['AssignRideDto'];
+                "application/json": components["schemas"]["AssignRideDto"];
             };
         };
         responses: {
@@ -2002,7 +2002,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['AssignRidesBatchDto'];
+                "application/json": components["schemas"]["AssignRidesBatchDto"];
             };
         };
         responses: {
@@ -2012,7 +2012,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['EventResponseDto'];
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
         };
@@ -2029,7 +2029,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdatePaymentStatusDto'];
+                "application/json": components["schemas"]["UpdatePaymentStatusDto"];
             };
         };
         responses: {
@@ -2080,7 +2080,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': Record<string, never>[];
+                    "application/json": Record<string, never>[];
                 };
             };
             /** @description Unauthorized */
@@ -2115,7 +2115,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['SubscribeNotificationDto'];
+                "application/json": components["schemas"]["SubscribeNotificationDto"];
             };
         };
         responses: {
@@ -2137,7 +2137,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['SubscribeNotificationDto'];
+                "application/json": components["schemas"]["SubscribeNotificationDto"];
             };
         };
         responses: {
@@ -2165,7 +2165,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': number[];
+                    "application/json": number[];
                 };
             };
         };
@@ -2303,7 +2303,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['GuestParticipateDto'];
+                "application/json": components["schemas"]["GuestParticipateDto"];
             };
         };
         responses: {
@@ -2427,7 +2427,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['CreateUserGroupDto'];
+                "application/json": components["schemas"]["CreateUserGroupDto"];
             };
         };
         responses: {
@@ -2505,7 +2505,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdateUserGroupDto'];
+                "application/json": components["schemas"]["UpdateUserGroupDto"];
             };
         };
         responses: {
@@ -2540,7 +2540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['ApiTokenResponseDto'][];
+                    "application/json": components["schemas"]["ApiTokenResponseDto"][];
                 };
             };
             /** @description Unauthorized */
@@ -2561,7 +2561,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['CreateApiTokenDto'];
+                "application/json": components["schemas"]["CreateApiTokenDto"];
             };
         };
         responses: {
@@ -2571,7 +2571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['CreatedApiTokenResponseDto'];
+                    "application/json": components["schemas"]["CreatedApiTokenResponseDto"];
                 };
             };
             /** @description Invalid scope or token limit reached */
@@ -2607,7 +2607,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['CreatedApiTokenResponseDto'];
+                    "application/json": components["schemas"]["CreatedApiTokenResponseDto"];
                 };
             };
             /** @description API token not found */
@@ -2666,7 +2666,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['AddressDetailsDto'][];
+                    "application/json": components["schemas"]["AddressDetailsDto"][];
                 };
             };
             /** @description Unauthorized */
@@ -2699,7 +2699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['FeatureDto'][];
+                    "application/json": components["schemas"]["FeatureDto"][];
                 };
             };
         };
@@ -2713,7 +2713,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['CreateFeatureDto'];
+                "application/json": components["schemas"]["CreateFeatureDto"];
             };
         };
         responses: {
@@ -2722,7 +2722,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['FeatureDto'];
+                    "application/json": components["schemas"]["FeatureDto"];
                 };
             };
             /** @description Forbidden - Admin access required */
@@ -2779,7 +2779,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                'application/json': components['schemas']['UpdateFeatureDto'];
+                "application/json": components["schemas"]["UpdateFeatureDto"];
             };
         };
         responses: {
@@ -2788,7 +2788,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    'application/json': components['schemas']['FeatureDto'];
+                    "application/json": components["schemas"]["FeatureDto"];
                 };
             };
             /** @description Feature not found */
