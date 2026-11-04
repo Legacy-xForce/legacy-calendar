@@ -12,7 +12,8 @@ const EVENT_FEATURES_INCLUDE = {
 };
 
 export const ATTENDANCE_FEATURES_INCLUDE = {
-    select: { featureId: true, feature: { select: { name: true, emoji: true } } }
+    select: { featureId: true, feature: { select: { name: true, emoji: true } } },
+    orderBy: { featureId: 'asc' as const }
 };
 
 /** Nested write that makes the attendance's opted-in features exactly `featureIds`. */
