@@ -66,8 +66,11 @@ const declined = computed(() => resolvedInvitees.value.filter((i) => i.status ==
 
 const hostIds = computed(() => new Set(allEventHosts.value.map((host) => host.id)));
 
-const optedFeatures = (userId: number) =>
-    getParticipantFeatures(userId).filter((feature) => availableFeatureIds.value.includes(feature));
+// Follows the event's own feature order so every row lists them identically.
+const optedFeatures = (userId: number) => {
+    const opted = new Set(getParticipantFeatures(userId));
+    return availableFeatureIds.value.filter((feature) => opted.has(feature));
+};
 
 const summary = computed(() => {
     const parts = [`${going.value.length} going`];
@@ -104,14 +107,15 @@ const summary = computed(() => {
                         v-if="optedFeatures(person.id).length || (hasPaymentDue && amountDue(person) > 0)"
                         class="text-meta text-muted tabular m-0 flex items-center gap-2"
                     >
-                        <span v-if="optedFeatures(person.id).length" class="font-emoji flex gap-1">
+                        <span v-if="optedFeatures(person.id).length" class="flex flex-wrap gap-1">
                             <span
                                 v-for="feature in optedFeatures(person.id)"
                                 :key="feature"
-                                :title="featureById.get(feature)?.name"
-                                :aria-label="featureById.get(feature)?.name"
-                                >{{ featureById.get(feature)?.emoji }}</span
+                                class="bg-surface-850 text-fg inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
                             >
+                                <span class="font-emoji" aria-hidden="true">{{ featureById.get(feature)?.emoji }}</span>
+                                {{ featureById.get(feature)?.name }}
+                            </span>
                         </span>
                         <span v-if="hasPaymentDue && amountDue(person) > 0">{{
                             formatCurrency(amountDue(person))
