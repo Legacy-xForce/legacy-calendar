@@ -363,6 +363,8 @@ body {
     overflow-x: hidden;
     background-color: var(--color-canvas);
     overscroll-behavior-y: none;
+    /* Keeps a sideways trackpad swipe (month navigation) from becoming a browser back gesture. */
+    overscroll-behavior-x: none;
 }
 
 h1,
