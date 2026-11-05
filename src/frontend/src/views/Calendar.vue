@@ -138,6 +138,7 @@ const handleTouchEnd = (e: TouchEvent) => {
 // ---------- Trackpad / mouse wheel: scroll sideways to change month ----------
 
 const SWIPE_PIXELS = 120; // sideways travel needed for one month on a trackpad
+const NOTCH_PIXELS = 40; // one jump this large is a wheel notch, not a trackpad stream
 const GESTURE_GAP_MS = 200; // a pause starts a fresh gesture
 const SWITCH_COOLDOWN_MS = 350; // about the length of the month transition: one gesture, one month
 
@@ -145,12 +146,12 @@ let wheelAccum = 0;
 let wheelLastTime = 0;
 let wheelLockUntil = 0;
 
-/** Scrolling to the right reveals the earlier month, matching the touch swipe. */
+/** Scrolling to the left reveals the later month, matching the touch swipe. */
 const stepMonth = (delta: number, at: number) => {
     wheelAccum = 0;
     wheelLockUntil = at + SWITCH_COOLDOWN_MS;
-    if (delta > 0) goPrev();
-    else goNext();
+    if (delta > 0) goNext();
+    else goPrev();
 };
 
 const handleWheel = (e: WheelEvent) => {
@@ -164,8 +165,9 @@ const handleWheel = (e: WheelEvent) => {
     wheelLastTime = e.timeStamp;
     if (e.timeStamp < wheelLockUntil) return;
 
-    // Mice report discrete notches (line/page units), so a single notch steps one month.
-    if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) {
+    // A wheel notch (tilt wheel, Shift + wheel) arrives as one big jump or in line/page units,
+    // so it steps a month on its own; a trackpad streams small deltas that have to add up.
+    if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= NOTCH_PIXELS) {
         stepMonth(delta, e.timeStamp);
         return;
     }
