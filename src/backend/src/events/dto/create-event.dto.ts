@@ -73,7 +73,7 @@ export class EventFeatureInputDto {
     @ApiProperty({
         type: [Number],
         description:
-            'Registered users allowed to opt in; empty means everyone, guests included. Omitted keeps the current value',
+            'Participants allowed to opt in: registered user ids, or negative ids for magic-link guests. Empty means everyone. Omitted keeps the current value',
         required: false
     })
     @IsOptional()

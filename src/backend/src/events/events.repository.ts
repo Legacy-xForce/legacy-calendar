@@ -4,7 +4,7 @@ import { Prisma, Event, InviteStatus, TransportMode } from '../../prisma/generat
 import { USER_SELECT } from '../users/users.repository.js';
 import { ParticipateDto } from './dto/participate.dto.js';
 import { normalizeVehicleSeats } from './vehicle-seats.util.js';
-import { guestParticipantIdOf } from '../common/participant-id.util.js';
+import { attendanceId, guestParticipantIdOf } from '../common/participant-id.util.js';
 
 const EVENT_FEATURES_INCLUDE = {
     include: { feature: { select: { id: true, name: true, emoji: true, eventId: true } } },
@@ -65,25 +65,25 @@ async function writeEventFeatures(tx: Prisma.TransactionClient, eventId: number,
         });
 
         const restricted = row.eligibleUserIds.length > 0;
+        const eligible = new Set(row.eligibleUserIds);
+        // Compared in memory: guests have no userId, so a SQL "not in" would silently skip them (NULL semantics).
+        const isEligible = (attendance: { userId: number | null; guestParticipantId: number | null }) =>
+            !restricted || eligible.has(attendanceId(attendance));
         if (restricted) {
-            await tx.attendanceFeature.deleteMany({
-                where: {
-                    featureId,
-                    attendance: { eventId, OR: [{ userId: null }, { userId: { notIn: row.eligibleUserIds } }] }
-                }
+            const optedIn = await tx.attendanceFeature.findMany({
+                where: { featureId, attendance: { eventId } },
+                select: { attendanceId: true, attendance: { select: { userId: true, guestParticipantId: true } } }
             });
+            const ineligible = optedIn.filter((entry) => !isEligible(entry.attendance)).map((e) => e.attendanceId);
+            await tx.attendanceFeature.deleteMany({ where: { featureId, attendanceId: { in: ineligible } } });
         }
         if (row.mandatory) {
             const attendances = await tx.attendance.findMany({
-                where: {
-                    eventId,
-                    status: InviteStatus.ACCEPTED,
-                    ...(restricted ? { userId: { in: row.eligibleUserIds } } : {})
-                },
-                select: { id: true }
+                where: { eventId, status: InviteStatus.ACCEPTED },
+                select: { id: true, userId: true, guestParticipantId: true }
             });
             await tx.attendanceFeature.createMany({
-                data: attendances.map((attendance) => ({ attendanceId: attendance.id, featureId })),
+                data: attendances.filter(isEligible).map((attendance) => ({ attendanceId: attendance.id, featureId })),
                 skipDuplicates: true
             });
         }

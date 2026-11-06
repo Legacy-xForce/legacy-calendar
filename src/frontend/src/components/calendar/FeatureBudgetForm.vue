@@ -15,7 +15,7 @@ const MAX_NAME_LENGTH = 32;
 
 const drafts = defineModel<EventFeatureDraft[]>({ required: true });
 const props = defineProps<{
-    /** Registered people who can be made eligible for a feature. */
+    /** Registered people and magic-link guests (negative ids) who can be made eligible for a feature. */
     userOptions: Array<{ id: number; username: string; profilePictureUrl?: string | null }>;
 }>();
 
@@ -172,6 +172,7 @@ const addOneTime = () => {
                                 :options="props.userOptions"
                                 placeholder="Who can pick this?"
                                 filter
+                                bulkActions
                             />
                         </div>
                     </template>
@@ -241,6 +242,7 @@ const addOneTime = () => {
                             :options="props.userOptions"
                             placeholder="Who can pick this?"
                             filter
+                            bulkActions
                         />
                     </div>
                 </div>
