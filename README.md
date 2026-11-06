@@ -173,10 +173,10 @@ Create a `.env` file in `src/backend` using the example below:
 ```bash
 DATABASE_URL=postgresql://user:password@host/database
 LOG_LEVEL=trace
-GEOAPIFY_API_KEY=your-geoapify-api-key
+MAPBOX_ACCESS_TOKEN=your-mapbox-access-token
 ```
 
-`GEOAPIFY_API_KEY` powers the street-address autocomplete in the event form. Without it, the
+`MAPBOX_ACCESS_TOKEN` (Mapbox Geocoding API) powers the street-address autocomplete in the event form. Without it, the
 autocomplete endpoint returns `503` and the form cannot create events or change their address.
 
 Then run Prisma and start the API:

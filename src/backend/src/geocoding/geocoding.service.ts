@@ -3,27 +3,36 @@ import { ConfigService } from '@nestjs/config';
 import { AppLogger } from '../logging/app-logger.js';
 import { AddressDetailsDto } from './dto/address-details.dto.js';
 
-const GEOAPIFY_AUTOCOMPLETE_URL = 'https://api.geoapify.com/v1/geocode/autocomplete';
+const MAPBOX_FORWARD_URL = 'https://api.mapbox.com/search/geocode/v6/forward';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
 const REQUEST_TIMEOUT_MS = 5_000;
 
-type GeoapifyResult = {
-    place_id?: string;
-    formatted?: string;
-    street?: string;
-    housenumber?: string;
-    city?: string;
-    postcode?: string;
-    country?: string;
+type MapboxContextItem = {
+    name?: string;
+    address_number?: string;
+    street_name?: string;
     country_code?: string;
-    lat?: number;
-    lon?: number;
 };
 
-type GeoapifyResponse = {
-    results?: GeoapifyResult[];
-    features?: Array<{ properties?: GeoapifyResult }>;
+type MapboxFeature = {
+    properties?: {
+        mapbox_id?: string;
+        full_address?: string;
+        coordinates?: { latitude?: number; longitude?: number };
+        context?: {
+            address?: MapboxContextItem;
+            street?: MapboxContextItem;
+            place?: MapboxContextItem;
+            locality?: MapboxContextItem;
+            postcode?: MapboxContextItem;
+            country?: MapboxContextItem;
+        };
+    };
+};
+
+type MapboxResponse = {
+    features?: MapboxFeature[];
 };
 
 type CacheEntry = {
@@ -61,20 +70,21 @@ export class GeocodingService {
     }
 
     private async fetchSuggestions(query: string, limit: number): Promise<AddressDetailsDto[]> {
-        const apiKey = this.configService.get<string>('GEOAPIFY_API_KEY')?.trim();
+        const apiKey = this.configService.get<string>('MAPBOX_ACCESS_TOKEN')?.trim();
         if (!apiKey) {
             if (!this.missingKeyWarningLogged) {
-                this.logger.warn('Address search requested without GEOAPIFY_API_KEY');
+                this.logger.warn('Address search requested without MAPBOX_ACCESS_TOKEN');
                 this.missingKeyWarningLogged = true;
             }
             throw new ServiceUnavailableException('Address search is not configured');
         }
 
-        const url = new URL(GEOAPIFY_AUTOCOMPLETE_URL);
-        url.searchParams.set('text', query);
+        const url = new URL(MAPBOX_FORWARD_URL);
+        url.searchParams.set('q', query);
         url.searchParams.set('limit', String(limit));
-        url.searchParams.set('format', 'json');
-        url.searchParams.set('apiKey', apiKey);
+        url.searchParams.set('types', 'address');
+        url.searchParams.set('autocomplete', 'true');
+        url.searchParams.set('access_token', apiKey);
 
         let response: Response;
         try {
@@ -91,15 +101,15 @@ export class GeocodingService {
             throw new BadGatewayException('Address search is unavailable');
         }
 
-        let payload: GeoapifyResponse;
+        let payload: MapboxResponse;
         try {
-            payload = (await response.json()) as GeoapifyResponse;
+            payload = (await response.json()) as MapboxResponse;
         } catch (error) {
             this.logger.error('Address search returned an invalid payload', error);
             throw new BadGatewayException('Address search is unavailable');
         }
 
-        const rawResults = payload.results ?? payload.features?.map((feature) => feature.properties ?? {}) ?? [];
+        const rawResults = payload.features ?? [];
         const seen = new Set<string>();
         const results: AddressDetailsDto[] = [];
 
@@ -128,31 +138,40 @@ export class GeocodingService {
     }
 }
 
-function mapAddress(result: GeoapifyResult): AddressDetailsDto | null {
+function mapAddress(feature: MapboxFeature): AddressDetailsDto | null {
+    const props = feature.properties;
+    const context = props?.context;
+    const street = context?.address?.street_name ?? context?.street?.name;
+    const houseNumber = context?.address?.address_number;
+    const city = context?.place?.name ?? context?.locality?.name;
+    const country = context?.country;
+    const lat = props?.coordinates?.latitude;
+    const lon = props?.coordinates?.longitude;
+
     if (
-        !result.place_id ||
-        !result.formatted ||
-        !result.street ||
-        !result.housenumber ||
-        !result.city ||
-        !result.country ||
-        !result.country_code ||
-        typeof result.lat !== 'number' ||
-        typeof result.lon !== 'number'
+        !props?.mapbox_id ||
+        !props.full_address ||
+        !street ||
+        !houseNumber ||
+        !city ||
+        !country?.name ||
+        !country.country_code ||
+        typeof lat !== 'number' ||
+        typeof lon !== 'number'
     ) {
         return null;
     }
 
     return {
-        placeId: result.place_id,
-        formattedAddress: result.formatted,
-        street: result.street,
-        houseNumber: result.housenumber,
-        city: result.city,
-        postcode: result.postcode,
-        country: result.country,
-        countryCode: result.country_code.toUpperCase(),
-        lat: result.lat,
-        lon: result.lon
+        placeId: props.mapbox_id,
+        formattedAddress: props.full_address,
+        street,
+        houseNumber,
+        city,
+        postcode: context?.postcode?.name,
+        country: country.name,
+        countryCode: country.country_code.toUpperCase(),
+        lat,
+        lon
     };
 }
