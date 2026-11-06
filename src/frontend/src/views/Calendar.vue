@@ -177,6 +177,14 @@ const handleWheel = (e: WheelEvent) => {
     stepMonth(wheelAccum, e.timeStamp);
 };
 
+// ---------- Middle click: back to today ----------
+
+const handleAuxClick = (e: MouseEvent) => {
+    if (e.button !== 1) return;
+    e.preventDefault(); // no autoscroll, no primary-selection paste
+    goToday();
+};
+
 // ---------- Desktop: fit as many chips as each cell can show ----------
 
 const gridRef = ref<HTMLElement | null>(null);
@@ -317,6 +325,7 @@ const selectedDayLabel = computed(() => {
             'h-[calc(100dvh-var(--tabbar-height)-env(safe-area-inset-bottom)-env(safe-area-inset-top))]': compactGrid
         }"
         @wheel="handleWheel"
+        @auxclick="handleAuxClick"
     >
         <!-- Month header -->
         <div class="flex items-center gap-2 px-4 pt-4 pb-3 md:px-6 md:pt-5">
