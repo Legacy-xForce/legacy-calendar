@@ -479,6 +479,63 @@ describe('one-time, mandatory and restricted event features', () => {
         const update = audit.body.find((entry) => entry.actionType === 'EVENT_UPDATED');
         expect(update?.payloadDiff.after.features).toBe('🍗 Food [required, 1 people only]');
     });
+
+    test('magic-link guests can be made eligible and ineligible guests lose their opt-in', async () => {
+        const created = await create([{ name: 'Cake', emoji: '🍰' }]);
+        const eventId = created.body.id;
+        const cakeId = created.body.features[0]?.id ?? 0;
+        const [kept, dropped] = await Promise.all([
+            app.prisma.guestParticipant.create({ data: { displayName: 'Kept' } }),
+            app.prisma.guestParticipant.create({ data: { displayName: 'Dropped' } })
+        ]);
+        for (const guest of [kept, dropped]) {
+            await app.prisma.attendance.create({
+                data: {
+                    eventId,
+                    guestParticipantId: guest.id,
+                    status: 'ACCEPTED',
+                    features: { create: [{ featureId: cakeId }] }
+                }
+            });
+        }
+
+        const update = await http<EventJson>(app, 'PATCH', `/events/${eventId}`, {
+            bearer: host.token,
+            body: { features: [{ featureId: cakeId, eligibleUserIds: [-kept.id] }] }
+        });
+        expect(update.status).toBe(200);
+        expect(update.body.features[0]?.eligibleUserIds).toEqual([-kept.id]);
+        const optIns = await app.prisma.attendanceFeature.findMany({ where: { featureId: cakeId } });
+        expect(optIns).toHaveLength(1);
+        expect((await view(eventId)).participants.find((p) => p.id === -kept.id)?.featureIds).toEqual([cakeId]);
+    });
+
+    test('restricted one-time features are hidden from users who cannot select them', async () => {
+        const created = await create([
+            { name: 'VIP lounge', emoji: '🥂', eligibleUserIds: [alice.id] },
+            { name: 'Karaoke', emoji: '🎤' },
+            { featureId: 1, eligibleUserIds: [alice.id] }
+        ]);
+        expect(created.status).toBe(201);
+        const eventId = created.body.id;
+        await join(eventId, alice);
+        await join(eventId, bob);
+
+        const namesFor = async (user: TestUser) =>
+            (await http<EventJson>(app, 'GET', `/events/${eventId}`, { bearer: user.token })).body.features
+                .map((f) => f.name)
+                .sort();
+
+        expect(await namesFor(host)).toEqual(['Food', 'Karaoke', 'VIP lounge']);
+        expect(await namesFor(alice)).toEqual(['Food', 'Karaoke', 'VIP lounge']);
+        // Bob sees the open one-time feature and the restricted catalog feature, but not the VIP lounge.
+        expect(await namesFor(bob)).toEqual(['Food', 'Karaoke']);
+
+        const upcoming = await http<EventJson[]>(app, 'GET', '/events/upcoming', { bearer: bob.token });
+        expect(upcoming.status).toBe(200);
+        const listedNames = upcoming.body.flatMap((e) => e.features.map((f) => f.name));
+        expect(listedNames).not.toContain('VIP lounge');
+    });
 });
 
 describe('add_one_time_features migration', () => {

@@ -83,8 +83,8 @@ const people = computed(() => {
 const hostId = computed(() => props.event?.hostId ?? props.event?.host?.id ?? props.excludeUserId);
 const participantOptions = computed(() => [...people.value.values()].filter((user) => user.id !== props.excludeUserId));
 
-// Only registered people (positive ids) can be made eligible for a feature; guests cannot.
-const eligibleUserOptions = computed(() => [...people.value.values()].filter((user) => user.id > 0));
+// Guests invited by link (negative ids) can be made eligible for a feature just like registered people.
+const eligibleUserOptions = computed(() => [...people.value.values()]);
 
 // Co-hosts must be invited, and can edit the event like the host
 const coHostOptions = computed(() =>

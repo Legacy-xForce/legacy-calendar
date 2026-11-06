@@ -161,9 +161,10 @@ export class InvitesService {
     private buildInviteResponse(event: EventWithRelations, guestInvite: GuestInviteWithRelations) {
         const isDeadlinePassed = !!event.participationDeadline && new Date() > event.participationDeadline;
 
+        const guestUserId = guestId(guestInvite.guestParticipantId);
         return {
-            event: mapEventToDto(event),
-            guestUserId: guestId(guestInvite.guestParticipantId),
+            event: mapEventToDto(event, guestUserId),
+            guestUserId,
             isDeadlinePassed,
             canEdit: !isDeadlinePassed && !(event.endTime && new Date() > event.endTime)
         };

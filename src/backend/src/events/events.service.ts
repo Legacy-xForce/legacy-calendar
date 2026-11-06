@@ -103,7 +103,7 @@ export class EventsService {
             await this.auditLogService.recordEventCreated(event, { actorId: hostId, impersonatorId });
             this.logger.info('Event created', { eventId: event.id, hostId, participantCount: participantIds.length });
             this.realtime.eventChanged(event.id);
-            return mapEventToDto(event);
+            return mapEventToDto(event, hostId);
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
                 this.logger.warn('Event create failed: referenced user not found', {
@@ -135,14 +135,14 @@ export class EventsService {
         this.logger.debug('Fetching calendar events', { userId, start: query.start, end: query.end });
         const events = await this.eventsRepo.findAll(userId, query.start, query.end);
         this.logger.info('Calendar events loaded', { userId, count: events.length });
-        return events.map((event) => mapEventToDto(event));
+        return events.map((event) => mapEventToDto(event, userId));
     }
 
     async findUpcoming(userId: number): Promise<EventResponseDto[]> {
         this.logger.debug('Fetching upcoming events', { userId });
         const events = await this.eventsRepo.findUpcoming(userId);
         this.logger.info('Upcoming events loaded', { userId, count: events.length });
-        return events.map((event) => mapEventToDto(event));
+        return events.map((event) => mapEventToDto(event, userId));
     }
 
     async findOne(id: number, userId?: number): Promise<EventResponseDto> {
@@ -153,7 +153,7 @@ export class EventsService {
             throw new NotFoundException(`Event with id ${id} not found`);
         }
 
-        return mapEventToDto(event);
+        return mapEventToDto(event, userId);
     }
 
     async remove(id: number, userId: number, impersonatorId: number | null = null) {
@@ -327,7 +327,7 @@ export class EventsService {
             participantDiff
         });
         this.realtime.eventChanged(id);
-        return mapEventToDto(finalEvent);
+        return mapEventToDto(finalEvent, userId);
     }
 
     async invite(eventId: number, username: string, userId: number, impersonatorId: number | null = null) {
@@ -789,7 +789,7 @@ export class EventsService {
                 price: input.price ?? null,
                 mandatory: input.mandatory ?? previous?.mandatory ?? false,
                 eligibleUserIds: input.eligibleUserIds
-                    ? normalizeIdList(input.eligibleUserIds, { positiveOnly: true })
+                    ? normalizeIdList(input.eligibleUserIds).filter((id) => id !== 0)
                     : (previous?.eligibleUserIds ?? [])
             };
         });

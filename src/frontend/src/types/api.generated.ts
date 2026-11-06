@@ -712,7 +712,7 @@ export interface components {
             price?: number;
             /** @description Everyone eligible who joins gets this feature and cannot opt out. Omitted keeps the current value */
             mandatory?: boolean;
-            /** @description Registered users allowed to opt in; empty means everyone, guests included. Omitted keeps the current value */
+            /** @description Participants allowed to opt in: registered user ids, or negative ids for magic-link guests. Empty means everyone. Omitted keeps the current value */
             eligibleUserIds?: number[];
         };
         CreateEventDto: {
@@ -998,7 +998,7 @@ export interface components {
             mandatory: boolean;
             /** @description A one-time feature that exists only on this event */
             oneTime: boolean;
-            /** @description Registered users allowed to opt in; empty means everyone, guests included */
+            /** @description Participants allowed to opt in (user ids, negative ids for magic-link guests); empty means everyone */
             eligibleUserIds: number[];
         };
         EventResponseDto: {

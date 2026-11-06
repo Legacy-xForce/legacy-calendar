@@ -3,6 +3,7 @@ import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
 import { mapGuestToDto, mapUserToDto, type MappableUser } from '../users/user.mapper.js';
 import { EventWithRelations } from './events.repository.js';
+import { isEligibleForFeature } from './event-guards.js';
 import { attendanceId, guestParticipantIdOf } from '../common/participant-id.util.js';
 
 // Only hosts/co-hosts surface payment coordinates - participants use the public
@@ -11,7 +12,25 @@ function mapHostDto(user: MappableUser): EventHostDto {
     return mapUserToDto(user, { includePaymentInfo: true });
 }
 
-export function mapEventToDto(event: EventWithRelations): EventResponseDto {
+/**
+ * Restricted one-time features are private to the people who may select them,
+ * so everyone else (except hosts, who manage the restriction) must not see them.
+ * `viewerId` is a registered user id, or a negative guest participant id.
+ */
+function visibleFeatures(event: EventWithRelations, viewerId: number | undefined) {
+    const isManager =
+        viewerId !== undefined && (event.hostId === viewerId || event.coHosts.some((c) => c.user.id === viewerId));
+    return event.features.filter(
+        (entry) =>
+            isManager ||
+            entry.feature.eventId === null ||
+            (viewerId !== undefined && isEligibleForFeature(entry, viewerId))
+    );
+}
+
+export function mapEventToDto(event: EventWithRelations, viewerId?: number): EventResponseDto {
+    const features = visibleFeatures(event, viewerId);
+    const visibleFeatureIds = new Set(features.map((entry) => entry.featureId));
     const mapPerson = (id: number): UserDto | undefined => {
         if (id < 0) {
             const guest = event.participants.find(
@@ -47,7 +66,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
                 ? mapUserToDto(attendance.user)
                 : mapGuestToDto(participantId, attendance.guestParticipant!.displayName)),
             status: attendance.status,
-            featureIds: attendance.features.map((entry) => entry.featureId),
+            featureIds: attendance.features.map((entry) => entry.featureId).filter((id) => visibleFeatureIds.has(id)),
             transportMode: attendance.transportMode,
             vehicleSeats: attendance.vehicleSeats,
             vehicleSeatsOutbound: attendance.vehicleSeatsOutbound,
@@ -76,7 +95,7 @@ export function mapEventToDto(event: EventWithRelations): EventResponseDto {
         participants: participantsDto,
         isOpen: event.isOpen,
         isPrivate: event.isPrivate,
-        features: event.features.map((entry) => ({
+        features: features.map((entry) => ({
             id: entry.feature.id,
             name: entry.feature.name,
             emoji: entry.feature.emoji,

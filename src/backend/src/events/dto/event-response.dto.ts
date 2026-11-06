@@ -27,7 +27,8 @@ export class EventFeatureDto extends FeatureDto {
 
     @ApiProperty({
         type: [Number],
-        description: 'Registered users allowed to opt in; empty means everyone, guests included'
+        description:
+            'Participants allowed to opt in (user ids, negative ids for magic-link guests); empty means everyone'
     })
     eligibleUserIds!: number[];
 }
