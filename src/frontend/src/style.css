@@ -357,14 +357,18 @@ html[data-theme='catppuccin-latte'] {
     --color-red-600: color-mix(in oklab, var(--ctp-red) 80%, var(--ctp-text));
 }
 
+html {
+    /* The viewport is the scroller, so the gesture blockers belong here: a sideways touchpad
+       swipe must not become a browser back, and a pull down must not become a reload. */
+    overscroll-behavior: none;
+}
+
 body {
     margin: 0;
     min-height: 100dvh;
     overflow-x: hidden;
     background-color: var(--color-canvas);
     overscroll-behavior-y: none;
-    /* Keeps a sideways trackpad swipe (month navigation) from becoming a browser back gesture. */
-    overscroll-behavior-x: none;
 }
 
 h1,

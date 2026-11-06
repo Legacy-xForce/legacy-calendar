@@ -160,6 +160,9 @@ const handleWheel = (e: WheelEvent) => {
     // directly. Plain vertical scrolling is left to the page.
     const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
     if (delta === 0) return;
+    // Chromium turns a sideways touchpad swipe into back/forward navigation. Consuming the event
+    // keeps that gesture for the month, even while a step is on cooldown.
+    e.preventDefault();
 
     if (e.timeStamp - wheelLastTime > GESTURE_GAP_MS) wheelAccum = 0;
     wheelLastTime = e.timeStamp;
