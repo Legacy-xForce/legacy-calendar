@@ -14,19 +14,22 @@ function serviceWithKey(apiKey?: string): GeocodingService {
     return new GeocodingService({ get: () => apiKey } as unknown as ConfigService);
 }
 
-function geoapifyResult(overrides: Record<string, unknown> = {}) {
+function mapboxFeature(overrides: Record<string, unknown> = {}, context: Record<string, unknown> = {}) {
     return {
-        place_id: 'place-via-roma-10',
-        formatted: 'Via Roma 10, 00100 Roma, Italy',
-        street: 'Via Roma',
-        housenumber: '10',
-        city: 'Roma',
-        postcode: '00100',
-        country: 'Italy',
-        country_code: 'it',
-        lat: 41.9028,
-        lon: 12.4964,
-        ...overrides
+        type: 'Feature',
+        properties: {
+            mapbox_id: 'place-via-roma-10',
+            full_address: 'Via Roma 10, 00100 Roma, Italy',
+            coordinates: { latitude: 41.9028, longitude: 12.4964 },
+            context: {
+                address: { name: '10 Via Roma', address_number: '10', street_name: 'Via Roma' },
+                place: { name: 'Roma' },
+                postcode: { name: '00100' },
+                country: { name: 'Italy', country_code: 'IT' },
+                ...context
+            },
+            ...overrides
+        }
     };
 }
 
@@ -39,11 +42,14 @@ describe('GeocodingService', () => {
             calls += 1;
             requestedUrl = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
             return Response.json({
-                results: [
-                    geoapifyResult(),
-                    geoapifyResult(),
-                    geoapifyResult({ place_id: 'place-street-only', housenumber: undefined }),
-                    geoapifyResult({ place_id: 'place-city-only', street: undefined, housenumber: undefined })
+                features: [
+                    mapboxFeature(),
+                    mapboxFeature(),
+                    mapboxFeature(
+                        { mapbox_id: 'place-street-only' },
+                        { address: { name: 'Via Roma', street_name: 'Via Roma' } }
+                    ),
+                    mapboxFeature({ mapbox_id: 'place-city-only' }, { address: undefined })
                 ]
             });
         }) as unknown as typeof fetch;
@@ -65,23 +71,16 @@ describe('GeocodingService', () => {
                 lon: 12.4964
             }
         ]);
-        expect(requestedUrl?.searchParams.get('text')).toBe('via roma 10');
+        expect(requestedUrl?.hostname).toBe('api.mapbox.com');
+        expect(requestedUrl?.searchParams.get('q')).toBe('via roma 10');
         expect(requestedUrl?.searchParams.get('limit')).toBe('5');
-        expect(requestedUrl?.searchParams.get('format')).toBe('json');
-        expect(requestedUrl?.searchParams.get('apiKey')).toBe('test-key');
+        expect(requestedUrl?.searchParams.get('types')).toBe('address');
+        expect(requestedUrl?.searchParams.get('autocomplete')).toBe('true');
+        expect(requestedUrl?.searchParams.get('access_token')).toBe('test-key');
 
         const cached = await service.autocomplete('VIA ROMA 10', 5);
         expect(cached).toEqual(results);
         expect(calls).toBe(1);
-    });
-
-    test('supports GeoJSON feature responses', async () => {
-        globalThis.fetch = (() =>
-            Response.json({ features: [{ properties: geoapifyResult() }] })) as unknown as typeof fetch;
-
-        const [result] = await serviceWithKey('test-key').autocomplete('Via Roma 10', 5);
-        expect(result?.placeId).toBe('place-via-roma-10');
-        expect(result?.countryCode).toBe('IT');
     });
 
     test('reports a missing API key as unavailable', async () => {
@@ -110,7 +109,7 @@ describe('GeocodingService', () => {
         let calls = 0;
         globalThis.fetch = (() => {
             calls += 1;
-            return Response.json({ results: [geoapifyResult()] });
+            return Response.json({ features: [mapboxFeature()] });
         }) as unknown as typeof fetch;
 
         const results = await serviceWithKey('test-key').autocomplete('Ro', 5);
@@ -123,7 +122,7 @@ describe('GET /geocoding/autocomplete', () => {
     let app: TestApp;
 
     beforeAll(async () => {
-        process.env.GEOAPIFY_API_KEY = 'test-key';
+        process.env.MAPBOX_ACCESS_TOKEN = 'test-key';
         app = await startTestApp();
     }, 120_000);
 
@@ -140,8 +139,8 @@ describe('GET /geocoding/autocomplete', () => {
         const user = await createUser(app, 'geocoder');
         globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
             const url = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
-            if (url.hostname === 'api.geoapify.com') {
-                return Response.json({ results: [geoapifyResult()] });
+            if (url.hostname === 'api.mapbox.com') {
+                return Response.json({ features: [mapboxFeature()] });
             }
             return originalFetch(input, init);
         }) as unknown as typeof fetch;
