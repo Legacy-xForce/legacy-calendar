@@ -210,7 +210,9 @@ export class EventsService {
 
         if (participants) {
             const existingParticipantIds = this.getParticipantUserIds(event);
-            const nextParticipantIds = this.normalizeUserIds(participants);
+            // Guests carry negative namespaced ids and are managed through invites;
+            // they have no User row, so they must never reach the attendance insert.
+            const nextParticipantIds = this.normalizeUserIds(participants).filter((participantId) => participantId > 0);
             participantDiff = this.diffParticipantIds(existingParticipantIds, nextParticipantIds);
             const { toAdd, toRemove } = participantDiff;
 
