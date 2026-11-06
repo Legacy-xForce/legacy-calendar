@@ -48,7 +48,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 
 ### Calendar and Events
 
-- Month-based calendar view with swipe navigation on mobile
+- Month-based calendar view with swipe navigation on mobile and sideways trackpad/wheel scrolling on desktop
 - Create, edit, inspect, and delete events
 - Event participation flow with invite statuses
 - Ride assignment support for passengers and drivers

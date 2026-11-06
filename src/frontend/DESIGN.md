@@ -124,7 +124,7 @@ Depth comes from tone and hairlines, not shadows. Shadows are reserved for float
 - **Grouped list** (iOS inset style) for facts and settings: `border-line bg-raised divide-line divide-y rounded-2xl border`, each row with a 36px icon tile.
 - **Quick actions** row on the event sheet: equal tiles with icon and label (Chat, Directions, Share, Activity, Edit).
 - **Sheets:** every non-maximized PrimeVue dialog becomes a bottom sheet under 640px (`style.css`) and can be dragged down by its header (`useSheetGestures`). Primary actions sit in the sheet footer, full width on phones.
-- **Mobile calendar:** compact month grid with event dots plus the selected day's agenda below, a floating create button, swipe between months. Desktop keeps the full grid with chips and "N more".
+- **Mobile calendar:** compact month grid with event dots plus the selected day's agenda below, a floating create button, swipe between months. Desktop keeps the full grid with chips and "N more", scrolls sideways (trackpad, or Shift + wheel) to change month, and middle-clicks back to today.
 
 ## 6. Motion
 

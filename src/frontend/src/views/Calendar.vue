@@ -135,6 +135,59 @@ const handleTouchEnd = (e: TouchEvent) => {
     else goPrev();
 };
 
+// ---------- Trackpad / mouse wheel: scroll sideways to change month ----------
+
+const SWIPE_PIXELS = 120; // sideways travel needed for one month on a trackpad
+const NOTCH_PIXELS = 40; // one jump this large is a wheel notch, not a trackpad stream
+const GESTURE_GAP_MS = 200; // a pause starts a fresh gesture
+const SWITCH_COOLDOWN_MS = 350; // about the length of the month transition: one gesture, one month
+
+let wheelAccum = 0;
+let wheelLastTime = 0;
+let wheelLockUntil = 0;
+
+/** Scrolling to the left reveals the later month, matching the touch swipe. */
+const stepMonth = (delta: number, at: number) => {
+    wheelAccum = 0;
+    wheelLockUntil = at + SWITCH_COOLDOWN_MS;
+    if (delta > 0) goNext();
+    else goPrev();
+};
+
+const handleWheel = (e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Shift turns a mouse wheel into sideways scrolling in some browsers, others report deltaX
+    // directly. Plain vertical scrolling is left to the page.
+    const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+    if (delta === 0) return;
+    // Chromium turns a sideways touchpad swipe into back/forward navigation. Consuming the event
+    // keeps that gesture for the month, even while a step is on cooldown.
+    e.preventDefault();
+
+    if (e.timeStamp - wheelLastTime > GESTURE_GAP_MS) wheelAccum = 0;
+    wheelLastTime = e.timeStamp;
+    if (e.timeStamp < wheelLockUntil) return;
+
+    // A wheel notch (tilt wheel, Shift + wheel) arrives as one big jump or in line/page units,
+    // so it steps a month on its own; a trackpad streams small deltas that have to add up.
+    if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= NOTCH_PIXELS) {
+        stepMonth(delta, e.timeStamp);
+        return;
+    }
+
+    wheelAccum += delta;
+    if (Math.abs(wheelAccum) < SWIPE_PIXELS) return;
+    stepMonth(wheelAccum, e.timeStamp);
+};
+
+// ---------- Middle click: back to today ----------
+
+const handleAuxClick = (e: MouseEvent) => {
+    if (e.button !== 1) return;
+    e.preventDefault(); // no autoscroll, no primary-selection paste
+    goToday();
+};
+
 // ---------- Desktop: fit as many chips as each cell can show ----------
 
 const gridRef = ref<HTMLElement | null>(null);
@@ -274,6 +327,8 @@ const selectedDayLabel = computed(() => {
         :class="{
             'h-[calc(100dvh-var(--tabbar-height)-env(safe-area-inset-bottom)-env(safe-area-inset-top))]': compactGrid
         }"
+        @wheel="handleWheel"
+        @auxclick="handleAuxClick"
     >
         <!-- Month header -->
         <div class="flex items-center gap-2 px-4 pt-4 pb-3 md:px-6 md:pt-5">
