@@ -123,8 +123,8 @@ const logger = createLogger('Weather');
 const WEATHER_CONCURRENCY = 4;
 
 /**
- * Geocoding is still serialized by useGeocode's global throttle; this only
- * allows the forecast requests that follow it to overlap.
+ * Geocoding is deduplicated by useGeocode; this only allows the forecast
+ * requests that follow it to overlap.
  */
 async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
     let nextIndex = 0;

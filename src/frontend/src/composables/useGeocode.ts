@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import type { Event } from '../types/Event';
 import { createLogger } from '../services/logger';
+import { forwardGeocode } from '../services/mapboxSearch';
 import { readTimedCache, writeTimedCache } from '../utils/idbCache';
 
 // Persistent Cache Keys (Prefixes)
@@ -11,49 +12,12 @@ const GEO_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 day
 const pendingGeocodes = new Map<string, Promise<{ lat: number; lon: number; timezone: string } | null>>();
 const logger = createLogger('Geocode');
 
-// Throttle for Nominatim (max 1 req/sec)
-let nextAvailableGeocodeTime = 0;
-const GEOCONTROL_DELAY = 1200;
-
 // Module-level state to share coordinates across components without prop drilling
 const coordsByEventId = ref<Record<number, { lat: number; lon: number; location: string } | null>>({});
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const performGeocode = async (q: string): Promise<{ lat: number; lon: number; timezone: string } | null> => {
-    // Enforce sequential execution with delay
-    const now = Date.now();
-    const startTime = Math.max(now, nextAvailableGeocodeTime);
-    nextAvailableGeocodeTime = startTime + GEOCONTROL_DELAY;
-
-    const waitTime = startTime - now;
-    if (waitTime > 0) {
-        await delay(waitTime);
-    }
-
-    const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`,
-        {
-            headers: {
-                'User-Agent': 'legacy-calendar-client/1.0 (contact@iquick.dev)'
-            }
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(`Geocoding failed for "${q}": HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data || data.length === 0) {
-        return null;
-    }
-
-    return {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon),
-        timezone: 'auto'
-    };
+    const coords = await forwardGeocode(q);
+    return coords ? { ...coords, timezone: 'auto' } : null;
 };
 
 export const geocodeLocation = async (
