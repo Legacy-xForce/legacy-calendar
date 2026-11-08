@@ -8,7 +8,11 @@ import { FindEventsQueryDto } from './dto/find-events-query.dto.js';
 import { EventsRepository, EventWithRelations, type PlannedFeature } from './events.repository.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { NotificationCode } from '../notifications/notification-codes.js';
-import { EVENT_NOTIFICATION_MESSAGES, EVENT_NOTIFICATION_TITLES } from './event-notification.constants.js';
+import {
+    describeEventFieldChange,
+    EVENT_NOTIFICATION_MESSAGES,
+    EVENT_NOTIFICATION_TITLES
+} from './event-notification.constants.js';
 import { mapEventToDto } from './event-response.mapper.js';
 import { hasSplitVehicleSeats } from './vehicle-seats.util.js';
 import { AppLogger } from '../logging/app-logger.js';
@@ -309,12 +313,22 @@ export class EventsService {
         const eventFieldsChanged = this.auditLogService.hasEventChanges(event, finalEvent);
 
         if (eventFieldsChanged || participantsChanged || coHostsChanged) {
+            const changes = this.auditLogService
+                .getEventChanges(event, finalEvent)
+                .map(({ field, value }) => describeEventFieldChange(field, value))
+                .filter((change): change is string => change !== null);
+            if (participantsChanged) {
+                changes.push('participants changed');
+            }
+            if (coHostsChanged) {
+                changes.push('co-hosts changed');
+            }
             await this.notifyParticipants(
                 event.id,
                 {
                     type: NotificationCode.EVENT_UPDATED,
                     title: EVENT_NOTIFICATION_TITLES.eventUpdated,
-                    body: EVENT_NOTIFICATION_MESSAGES.eventUpdated(updatedEvent.title),
+                    body: this.truncateText(EVENT_NOTIFICATION_MESSAGES.eventUpdated(updatedEvent.title, changes), 300),
                     actorUsername: this.getActorUsername(event.host.username)
                 },
                 InviteStatus.ACCEPTED
