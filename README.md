@@ -223,16 +223,17 @@ npm run dev
 #### Mapbox token
 
 The event form searches places and addresses in the browser through the [Mapbox Search Box API](https://docs.mapbox.com/api/search/search-box/)
-using `VITE_MAPBOX_ACCESS_TOKEN`. The same token forward-geocodes legacy/free-text event locations for weather forecasts,
-so both location search and weather geocoding use Mapbox. We call the REST API directly instead of adding the
-`@mapbox/search-js` SDK because the app only needs `/suggest`, `/retrieve`, and `/forward`; the SDK's UI and map
-integrations would be unused weight.
+using `VITE_MAPBOX_ACCESS_TOKEN`. The same token resolves legacy/free-text event locations for weather forecasts through
+the [Mapbox Geocoding API v6](https://docs.mapbox.com/api/search/geocoding/), so both location search and weather
+geocoding use Mapbox. We call the REST APIs directly instead of adding the `@mapbox/search-js` SDK because the app only
+needs Search Box `/suggest` + `/retrieve` and Geocoding `/forward`; the SDK's UI and map integrations would be unused
+weight.
 
-Use a **public** token (`pk.*`), never a secret token: Vite inlines it into the client bundle. The Search Box API does
-**not require any token scopes**, so create a public token with no scopes and add URL restrictions for the frontend
-origins (for example `https://calendar.legacy-group.tech` and `http://localhost:5173`). Without a token, location search
-and weather geocoding are unavailable, so events can only be saved without a location and legacy free-text locations
-cannot be used to fetch weather forecasts.
+Use a **public** token (`pk.*`), never a secret token: Vite inlines it into the client bundle. Neither the Search Box nor
+the Geocoding API requires token scopes, so create a public token with no scopes and add URL restrictions for the
+frontend origins (for example `https://calendar.legacy-group.tech` and `http://localhost:5173`). Without a token,
+location search and weather geocoding are unavailable, so events can only be saved without a location and legacy
+free-text locations cannot be used to fetch weather forecasts.
 
 ## Common Scripts
 
