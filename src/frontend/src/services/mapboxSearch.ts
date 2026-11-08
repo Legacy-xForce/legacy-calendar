@@ -148,7 +148,8 @@ export async function forwardGeocode(query: string): Promise<{ lat: number; lon:
     const url = new URL(`${MAPBOX_SEARCH_URL}/forward`);
     url.searchParams.set('q', query);
     url.searchParams.set('limit', '1');
-    url.searchParams.set('proximity', 'ip');
+    // Mapbox defaults proximity to the caller's IP, so no explicit proximity
+    // parameter is needed.
     url.searchParams.set('access_token', token);
 
     const payload = await fetchSearchJson<MapboxFeatureResponse>(url);
