@@ -232,16 +232,34 @@ describe('API surface through personal tokens', () => {
         expect(gone.status).toBe(404);
     });
 
-    test('requires a complete street address and leaves legacy locations unchanged', async () => {
+    test('makes the address optional, validates it when given and leaves legacy locations unchanged', async () => {
         const start = futureDate(60);
         const eventWithAddress = { ...TEST_ADDRESS };
         type AddressEventJson = EventJson & { location?: string; locationDetails?: { placeId: string } };
 
-        const missing = await http(app, 'POST', '/events', {
+        const missing = await http<AddressEventJson>(app, 'POST', '/events', {
             apiToken: hostWrite,
             body: { title: 'No address', startTime: start.toISOString() }
         });
-        expect(missing.status).toBe(400);
+        expect(missing.status).toBe(201);
+        expect(missing.body.location ?? null).toBeNull();
+
+        const blank = await http<AddressEventJson>(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: { title: 'Blank address', startTime: start.toISOString(), location: '  ' }
+        });
+        expect(blank.status).toBe(201);
+        expect(blank.body.location ?? null).toBeNull();
+
+        const detailsWithoutLocation = await http(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: {
+                title: 'Orphan details',
+                startTime: start.toISOString(),
+                locationDetails: TEST_ADDRESS.locationDetails
+            }
+        });
+        expect(detailsWithoutLocation.status).toBe(400);
 
         const freeText = await http(app, 'POST', '/events', {
             apiToken: hostWrite,
@@ -295,6 +313,14 @@ describe('API surface through personal tokens', () => {
         });
         expect(legacyMoved.status).toBe(200);
         expect(legacyMoved.body.locationDetails?.placeId).toBe(TEST_ADDRESS.locationDetails.placeId);
+
+        const cleared = await http<AddressEventJson>(app, 'PATCH', `/events/${legacy.id}`, {
+            apiToken: hostWrite,
+            body: { location: '' }
+        });
+        expect(cleared.status).toBe(200);
+        expect(cleared.body.location ?? null).toBeNull();
+        expect(cleared.body.locationDetails ?? null).toBeNull();
 
         const legacyWithoutLocation = await app.prisma.event.create({
             data: {

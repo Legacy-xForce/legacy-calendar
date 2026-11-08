@@ -732,10 +732,10 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Complete street address of the event
+             * @description Complete street address of the event (optional)
              * @example Via Roma 10, 00100 Roma, Italy
              */
-            location: string;
+            location?: string;
             /** @description Structured details of the selected street address */
             locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
@@ -1088,7 +1088,7 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Complete street address of the event
+             * @description Complete street address of the event (optional)
              * @example Via Roma 10, 00100 Roma, Italy
              */
             location?: string;
