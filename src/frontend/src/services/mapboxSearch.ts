@@ -2,12 +2,16 @@ import type { AddressDetails } from '../types/Address';
 import { createLogger } from './logger';
 
 /**
- * Address autocomplete against the Mapbox Search Box API.
+ * Location autocomplete against the Mapbox Search Box API.
  *
  * The REST API is used directly instead of `@mapbox/search-js-core`: the app
  * only needs `/suggest` + `/retrieve`, while the SDK mainly adds UI/session
  * helpers we would not use. Direct requests keep the bundle smaller and let us
- * map results straight to the address shape the event form already saves.
+ * map results straight to the location shape the event form already saves.
+ *
+ * Searches are intentionally not limited to addresses. Any place Mapbox can
+ * return (venues, cities, regions, countries, addresses, ...) is a valid event
+ * location.
  *
  * The token is a public browser token, so it is inlined into the client bundle
  * and must never be a secret token. The Search Box API requires no token scopes;
@@ -21,13 +25,18 @@ const logger = createLogger('MapboxSearch');
 
 export interface AddressSuggestion {
     mapboxId: string;
+    /** Display label for the result, including the venue/place name when relevant. */
     formattedAddress: string;
-    street: string;
-    houseNumber: string;
-    city: string;
+    /** Primary result label, e.g. a venue, city or street address. */
+    name: string;
+    /** Secondary context line shown below the name. */
+    description?: string;
+    street?: string;
+    houseNumber?: string;
+    city?: string;
     postcode?: string;
-    country: string;
-    countryCode: string;
+    country?: string;
+    countryCode?: string;
     /** The Mapbox search session this suggestion belongs to (used by `/retrieve`). */
     sessionToken: string;
 }
@@ -48,13 +57,16 @@ type MapboxContext = {
     country?: MapboxContextItem;
 };
 
-type MapboxSuggestion = {
+type MapboxAddressParts = {
     name?: string;
-    mapbox_id?: string;
-    feature_type?: string;
     address?: string;
     full_address?: string;
     place_formatted?: string;
+};
+
+type MapboxSuggestion = MapboxAddressParts & {
+    mapbox_id?: string;
+    feature_type?: string;
     context?: MapboxContext;
 };
 
@@ -66,10 +78,8 @@ type MapboxRetrieveFeature = {
     geometry?: {
         coordinates?: [number, number];
     };
-    properties?: {
+    properties?: MapboxAddressParts & {
         mapbox_id?: string;
-        full_address?: string;
-        place_formatted?: string;
         context?: MapboxContext;
         coordinates?: {
             latitude?: number;
@@ -98,7 +108,6 @@ export async function suggestAddresses(query: string, sessionToken: string, limi
     const url = new URL(`${MAPBOX_SEARCH_URL}/suggest`);
     url.searchParams.set('q', query);
     url.searchParams.set('limit', String(Math.min(Math.max(limit, 1), MAX_RESULTS)));
-    url.searchParams.set('types', 'address');
     url.searchParams.set('session_token', sessionToken);
     url.searchParams.set('access_token', token);
 
@@ -113,7 +122,7 @@ export async function suggestAddresses(query: string, sessionToken: string, limi
         results.push(mapped);
     }
 
-    logger.debug('Address suggestions received', { query, count: results.length });
+    logger.debug('Location suggestions received', { query, count: results.length });
     return results;
 }
 
@@ -134,7 +143,7 @@ function accessToken(): string {
 function requireAccessToken(): string {
     const token = accessToken();
     if (!token) {
-        throw new Error('Address search is not configured');
+        throw new Error('Location search is not configured');
     }
     return token;
 }
@@ -144,38 +153,40 @@ async function fetchSearchJson<T>(url: URL): Promise<T> {
     try {
         response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     } catch (error) {
-        logger.warn('Address search request failed', error);
-        throw new Error('Address search is unavailable', { cause: error });
+        logger.warn('Location search request failed', error);
+        throw new Error('Location search is unavailable', { cause: error });
     }
 
     if (!response.ok) {
-        logger.warn('Address search provider returned an error', { status: response.status });
-        throw new Error('Address search is unavailable');
+        logger.warn('Location search provider returned an error', { status: response.status });
+        throw new Error('Location search is unavailable');
     }
 
     try {
         return (await response.json()) as T;
     } catch (error) {
-        logger.warn('Address search returned an invalid payload', error);
-        throw new Error('Address search is unavailable', { cause: error });
+        logger.warn('Location search returned an invalid payload', error);
+        throw new Error('Location search is unavailable', { cause: error });
     }
 }
 
 function mapSuggestion(raw: MapboxSuggestion, sessionToken: string): AddressSuggestion | null {
-    if (raw.feature_type !== 'address' || !raw.mapbox_id) {
+    if (!raw.mapbox_id) {
         return null;
     }
 
-    const address = buildAddressFields(raw.context);
     const formattedAddress = buildFormattedAddress(raw);
-    if (!address || !formattedAddress) {
+    const name = raw.name?.trim() || raw.address?.trim() || raw.full_address?.trim();
+    if (!name || !formattedAddress) {
         return null;
     }
 
     return {
         mapboxId: raw.mapbox_id,
         formattedAddress,
-        ...address,
+        name,
+        description: raw.place_formatted?.trim() || undefined,
+        ...buildAddressFields(raw.context),
         sessionToken
     };
 }
@@ -185,56 +196,54 @@ function mapRetrievedAddress(
     suggestion: AddressSuggestion
 ): AddressDetails | null {
     const properties = feature?.properties;
-    const address = buildAddressFields(properties?.context, suggestion);
     const coordinates = feature?.geometry?.coordinates;
     const lat = properties?.coordinates?.latitude ?? coordinates?.[1];
     const lon = properties?.coordinates?.longitude ?? coordinates?.[0];
 
-    if (typeof lat !== 'number' || typeof lon !== 'number' || !address) {
+    if (typeof lat !== 'number' || typeof lon !== 'number') {
         return null;
     }
 
     return {
         placeId: properties?.mapbox_id ?? suggestion.mapboxId,
-        formattedAddress: properties?.full_address?.trim() || suggestion.formattedAddress,
-        ...address,
+        formattedAddress: buildFormattedAddress(properties ?? {}) || suggestion.formattedAddress,
+        ...buildAddressFields(properties?.context),
         lat,
         lon
     };
 }
 
 function buildAddressFields(
-    context: MapboxContext | undefined,
-    fallback?: AddressSuggestion
-): Pick<AddressSuggestion, 'street' | 'houseNumber' | 'city' | 'postcode' | 'country' | 'countryCode'> | null {
-    const street = context?.address?.street_name ?? context?.street?.name ?? fallback?.street;
-    const houseNumber = context?.address?.address_number ?? fallback?.houseNumber;
-    const city = context?.place?.name ?? context?.locality?.name ?? fallback?.city;
-    const country = context?.country?.name ?? fallback?.country;
-    const countryCode = context?.country?.country_code ?? fallback?.countryCode;
-
-    if (!street || !houseNumber || !city || !country || !countryCode) {
-        return null;
-    }
+    context: MapboxContext | undefined
+): Pick<AddressSuggestion, 'street' | 'houseNumber' | 'city' | 'postcode' | 'country' | 'countryCode'> {
+    const countryCode = context?.country?.country_code;
 
     return {
-        street,
-        houseNumber,
-        city,
-        postcode: context?.postcode?.name ?? fallback?.postcode,
-        country,
-        countryCode: countryCode.toUpperCase()
+        street: context?.address?.street_name ?? context?.street?.name,
+        houseNumber: context?.address?.address_number,
+        city: context?.place?.name ?? context?.locality?.name,
+        postcode: context?.postcode?.name,
+        country: context?.country?.name,
+        countryCode: countryCode?.toUpperCase()
     };
 }
 
-function buildFormattedAddress(suggestion: MapboxSuggestion): string {
-    const fullAddress = suggestion.full_address?.trim();
+function buildFormattedAddress(source: MapboxAddressParts): string {
+    const name = source.name?.trim();
+    const fullAddress = source.full_address?.trim();
+    const placeFormatted = source.place_formatted?.trim();
+    const address = source.address?.trim();
+
+    // `full_address` already contains the street for addresses but may omit the
+    // venue name for POIs, so prepend the name when it is not already present.
     if (fullAddress) {
-        return fullAddress;
+        return name && !fullAddress.toLowerCase().includes(name.toLowerCase())
+            ? `${name}, ${fullAddress}`
+            : fullAddress;
     }
 
-    return [suggestion.address ?? suggestion.name, suggestion.place_formatted]
+    return [name, address, placeFormatted]
         .map((part) => part?.trim())
-        .filter((part): part is string => Boolean(part))
+        .filter((part, index, parts): part is string => Boolean(part) && parts.indexOf(part) === index)
         .join(', ');
 }
