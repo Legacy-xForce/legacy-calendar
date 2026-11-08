@@ -104,6 +104,12 @@ export class AuditLogService {
         return Object.keys(payloadDiff.before).length > 0 || Object.keys(payloadDiff.after).length > 0;
     }
 
+    /** Fields of the event that differ between two snapshots, with their new values. */
+    getEventChanges(before: EventWithRelations, after: EventWithRelations): Array<{ field: string; value: unknown }> {
+        const { after: changed } = this.buildObjectDiff(this.snapshotEvent(before), this.snapshotEvent(after));
+        return Object.entries(changed).map(([field, value]) => ({ field, value }));
+    }
+
     recordEventDeleted(eventId: number, before: EventWithRelations, actor: AuditActor) {
         return this.safeRecord('EVENT_DELETED', eventId, actor, {
             before: this.snapshotEvent(before),
