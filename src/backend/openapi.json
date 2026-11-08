@@ -2003,7 +2003,7 @@
           "location": {
             "type": "string",
             "example": "Via Roma 10, 00100 Roma, Italy",
-            "description": "Complete street address of the event"
+            "description": "Complete street address of the event (optional)"
           },
           "locationDetails": {
             "description": "Structured details of the selected street address",
@@ -2069,7 +2069,6 @@
         },
         "required": [
           "title",
-          "location",
           "startTime"
         ]
       },
@@ -2531,7 +2530,7 @@
           "location": {
             "type": "string",
             "example": "Via Roma 10, 00100 Roma, Italy",
-            "description": "Complete street address of the event"
+            "description": "Complete street address of the event (optional)"
           },
           "locationDetails": {
             "description": "Structured details of the selected street address",

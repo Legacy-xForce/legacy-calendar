@@ -240,8 +240,10 @@ const onLocationModel = (value: string | AddressDetails | null | undefined) => {
 const locationError = (): string | undefined => {
     const trimmed = location.value.trim();
 
+    // Location is optional; when filled in it must be a picked address.
+    if (!trimmed) return undefined;
+
     if (!props.event) {
-        if (!trimmed) return 'Pick a street address from the suggestions.';
         if (!locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
             return 'Pick a complete street address from the list.';
         }
@@ -254,7 +256,7 @@ const locationError = (): string | undefined => {
             : undefined;
     }
 
-    if (!trimmed || !locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
+    if (!locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
         return 'Pick a complete street address from the list.';
     }
     return undefined;
@@ -333,7 +335,9 @@ defineExpose({ submit });
             <EventColorSelector v-model="eventColor" />
 
             <div class="flex flex-col gap-1.5">
-                <label for="event-location" class="text-meta text-muted font-medium">Where</label>
+                <label for="event-location" class="text-meta text-muted font-medium"
+                    >Where <span class="font-normal">(optional)</span></label
+                >
                 <AutoComplete
                     :model-value="location"
                     input-id="event-location"

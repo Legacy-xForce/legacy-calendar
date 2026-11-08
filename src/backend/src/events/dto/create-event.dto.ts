@@ -101,10 +101,12 @@ export class CreateEventDto {
     @ApiProperty({
         type: String,
         example: 'Via Roma 10, 00100 Roma, Italy',
-        description: 'Complete street address of the event'
+        description: 'Complete street address of the event (optional)',
+        required: false
     })
     @IsString()
-    location!: string;
+    @IsOptional()
+    location?: string;
 
     @ApiProperty({
         type: () => AddressDetailsDto,

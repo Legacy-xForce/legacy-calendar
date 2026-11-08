@@ -830,6 +830,7 @@ export class EventsService {
 
         return {
             ...rest,
+            location: rest.location?.trim() || null,
             ...(locationDetails ? { locationDetails: locationDetails as unknown as Prisma.InputJsonValue } : {}),
             startTime: new Date(startTime),
             endTime: endTime ? new Date(endTime) : null,
@@ -843,7 +844,11 @@ export class EventsService {
         const { startTime, endTime, participationDeadline, locationDetails, ...rest } = eventData;
         const updateData: Prisma.EventUpdateInput = { ...rest };
 
-        if (locationDetails !== undefined) {
+        if (rest.location !== undefined && !rest.location.trim()) {
+            // Clearing the location also clears its structured address.
+            updateData.location = null;
+            updateData.locationDetails = Prisma.JsonNull;
+        } else if (locationDetails !== undefined) {
             updateData.locationDetails = locationDetails as unknown as Prisma.InputJsonValue;
         }
 
@@ -862,10 +867,13 @@ export class EventsService {
         return updateData;
     }
 
-    private assertValidLocationForCreate(location: string, details?: AddressDetailsDto): void {
+    private assertValidLocationForCreate(location?: string, details?: AddressDetailsDto): void {
         const trimmedLocation = location?.trim();
         if (!trimmedLocation) {
-            throw new BadRequestException('A complete street address is required');
+            if (details) {
+                throw new BadRequestException('Location is required when address details are provided');
+            }
+            return;
         }
 
         if (!details) {
@@ -892,21 +900,21 @@ export class EventsService {
         }
 
         const trimmedLocation = location?.trim() ?? '';
+        if (!trimmedLocation) {
+            // Clearing the location is allowed, but not together with address details.
+            if (detailsProvided) {
+                throw new BadRequestException('Location is required when address details are provided');
+            }
+            return;
+        }
+
         if (!detailsProvided) {
             // Existing free-text (or missing) locations may keep their value when the field is untouched.
             if (trimmedLocation === (event.location ?? '').trim()) {
                 return;
             }
 
-            if (!trimmedLocation) {
-                throw new BadRequestException('A complete street address is required');
-            }
-
             throw new BadRequestException('Pick a complete street address from the suggestions');
-        }
-
-        if (!trimmedLocation) {
-            throw new BadRequestException('A complete street address is required');
         }
 
         this.assertLocationDetailsMatch(trimmedLocation, details);
