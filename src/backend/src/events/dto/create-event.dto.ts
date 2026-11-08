@@ -101,7 +101,7 @@ export class CreateEventDto {
     @ApiProperty({
         type: String,
         example: 'Via Roma 10, 00100 Roma, Italy',
-        description: 'Complete street address of the event (optional)',
+        description: 'Complete location of the event (optional)',
         required: false
     })
     @IsString()
@@ -110,7 +110,7 @@ export class CreateEventDto {
 
     @ApiProperty({
         type: () => AddressDetailsDto,
-        description: 'Structured details of the selected street address',
+        description: 'Structured details of the selected location',
         required: false
     })
     @ValidateNested()

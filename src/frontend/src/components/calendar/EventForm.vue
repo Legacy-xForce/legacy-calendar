@@ -307,24 +307,24 @@ const onLocationModel = (value: string | AddressSuggestion | null | undefined) =
 const locationError = (): string | undefined => {
     const trimmed = location.value.trim();
 
-    // Location is optional; when filled in it must be a picked address.
+    // Location is optional; when filled in it must be picked from the suggestions.
     if (!trimmed) return undefined;
 
     if (!props.event) {
         if (!locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
-            return 'Pick a complete street address from the list.';
+            return 'Pick a location from the list.';
         }
         return undefined;
     }
 
     if (trimmed === (props.event.location ?? '').trim()) {
         return locationDetails.value && locationDetails.value.formattedAddress.trim() !== trimmed
-            ? 'Pick a complete street address from the list.'
+            ? 'Pick a location from the list.'
             : undefined;
     }
 
     if (!locationDetails.value || locationDetails.value.formattedAddress.trim() !== trimmed) {
-        return 'Pick a complete street address from the list.';
+        return 'Pick a location from the list.';
     }
     return undefined;
 };
@@ -415,7 +415,7 @@ defineExpose({ submit });
                     :delay="300"
                     :loading="loadingAddresses || resolvingAddress"
                     :invalid="!!showError('location')"
-                    placeholder="Street and number, city"
+                    placeholder="Search places or addresses"
                     fluid
                     @update:model-value="onLocationModel"
                     @complete="searchAddresses"
@@ -423,20 +423,20 @@ defineExpose({ submit });
                     <template #option="{ option }">
                         <div class="flex min-w-0 flex-col">
                             <span class="text-body text-fg truncate font-medium">
-                                {{ option.street }} {{ option.houseNumber }}
+                                {{ option.name }}
                             </span>
-                            <span class="text-meta text-muted truncate">
-                                {{ [option.postcode, option.city, option.country].filter(Boolean).join(', ') }}
+                            <span v-if="option.description" class="text-meta text-muted truncate">
+                                {{ option.description }}
                             </span>
                         </div>
                     </template>
                 </AutoComplete>
                 <small v-if="showError('location')" class="text-meta text-rose-300">{{ showError('location') }}</small>
                 <small v-else-if="addressSearchError" class="text-meta text-rose-300"
-                    >Address search is unavailable. Try again.</small
+                    >Location search is unavailable. Try again.</small
                 >
                 <small v-else-if="addressResolveError" class="text-meta text-rose-300"
-                    >Could not confirm that address. Pick it from the list again.</small
+                    >Could not confirm that location. Pick it from the list again.</small
                 >
             </div>
 

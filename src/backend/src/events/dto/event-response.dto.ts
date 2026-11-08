@@ -101,7 +101,7 @@ export class EventResponseDto {
 
     @ApiProperty({
         type: () => AddressDetailsDto,
-        description: 'Structured details of the selected street address',
+        description: 'Structured details of the selected location',
         required: false,
         nullable: true
     })

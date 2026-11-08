@@ -622,45 +622,45 @@ export interface components {
         };
         AddressDetailsDto: {
             /**
-             * @description Provider identifier for the selected address
+             * @description Provider identifier for the selected location
              * @example 511b0b0a2c3d4e5f6a7b8c9d0e1f2a3b
              */
             placeId: string;
             /**
-             * @description Full address as shown to the user
+             * @description Full location label as shown to the user
              * @example Via Roma 10, 00100 Roma, Italy
              */
             formattedAddress: string;
             /**
-             * @description Street name
+             * @description Street name, when available
              * @example Via Roma
              */
-            street: string;
+            street?: string;
             /**
-             * @description House number
+             * @description House number, when available
              * @example 10
              */
-            houseNumber: string;
+            houseNumber?: string;
             /**
-             * @description City or municipality
+             * @description City or municipality, when available
              * @example Roma
              */
-            city: string;
+            city?: string;
             /**
-             * @description Postal code
+             * @description Postal code, when available
              * @example 00100
              */
             postcode?: string;
             /**
-             * @description Country name
+             * @description Country name, when available
              * @example Italy
              */
-            country: string;
+            country?: string;
             /**
-             * @description ISO 3166-1 alpha-2 country code
+             * @description ISO 3166-1 alpha-2 country code, when available
              * @example IT
              */
-            countryCode: string;
+            countryCode?: string;
             /**
              * @description Latitude
              * @example 41.9028
@@ -715,11 +715,11 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Complete street address of the event (optional)
+             * @description Complete location of the event (optional)
              * @example Via Roma 10, 00100 Roma, Italy
              */
             location?: string;
-            /** @description Structured details of the selected street address */
+            /** @description Structured details of the selected location */
             locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.
@@ -1015,7 +1015,7 @@ export interface components {
              * @example Meeting Room A
              */
             location?: string | null;
-            /** @description Structured details of the selected street address */
+            /** @description Structured details of the selected location */
             locationDetails?: components["schemas"]["AddressDetailsDto"] | null;
             /**
              * Format: date-time
@@ -1071,11 +1071,11 @@ export interface components {
              */
             description?: string;
             /**
-             * @description Complete street address of the event (optional)
+             * @description Complete location of the event (optional)
              * @example Via Roma 10, 00100 Roma, Italy
              */
             location?: string;
-            /** @description Structured details of the selected street address */
+            /** @description Structured details of the selected location */
             locationDetails?: components["schemas"]["AddressDetailsDto"];
             /**
              * @description Start time (ISO 8601). Must be today or within 1 year from now.

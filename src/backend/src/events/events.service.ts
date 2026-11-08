@@ -871,13 +871,13 @@ export class EventsService {
         const trimmedLocation = location?.trim();
         if (!trimmedLocation) {
             if (details) {
-                throw new BadRequestException('Location is required when address details are provided');
+                throw new BadRequestException('Location is required when location details are provided');
             }
             return;
         }
 
         if (!details) {
-            throw new BadRequestException('Pick a complete street address from the suggestions');
+            throw new BadRequestException('Pick a location from the suggestions');
         }
 
         this.assertLocationDetailsMatch(trimmedLocation, details);
@@ -901,9 +901,9 @@ export class EventsService {
 
         const trimmedLocation = location?.trim() ?? '';
         if (!trimmedLocation) {
-            // Clearing the location is allowed, but not together with address details.
+            // Clearing the location is allowed, but not together with location details.
             if (detailsProvided) {
-                throw new BadRequestException('Location is required when address details are provided');
+                throw new BadRequestException('Location is required when location details are provided');
             }
             return;
         }
@@ -914,7 +914,7 @@ export class EventsService {
                 return;
             }
 
-            throw new BadRequestException('Pick a complete street address from the suggestions');
+            throw new BadRequestException('Pick a location from the suggestions');
         }
 
         this.assertLocationDetailsMatch(trimmedLocation, details);
@@ -922,7 +922,7 @@ export class EventsService {
 
     private assertLocationDetailsMatch(location: string, details: AddressDetailsDto): void {
         if (details.formattedAddress.trim() !== location) {
-            throw new BadRequestException('The address details do not match the selected address');
+            throw new BadRequestException('The location details do not match the selected location');
         }
     }
 

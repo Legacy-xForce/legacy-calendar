@@ -232,7 +232,7 @@ describe('API surface through personal tokens', () => {
         expect(gone.status).toBe(404);
     });
 
-    test('makes the address optional, validates it when given and leaves legacy locations unchanged', async () => {
+    test('makes the location optional, validates it when given and leaves legacy locations unchanged', async () => {
         const start = futureDate(60);
         const eventWithAddress = { ...TEST_ADDRESS };
         type AddressEventJson = EventJson & { location?: string; locationDetails?: { placeId: string } };
@@ -273,6 +273,23 @@ describe('API surface through personal tokens', () => {
         });
         expect(created.status).toBe(201);
         expect(created.body.locationDetails?.placeId).toBe(TEST_ADDRESS.locationDetails.placeId);
+
+        const venueOnly = await http<AddressEventJson>(app, 'POST', '/events', {
+            apiToken: hostWrite,
+            body: {
+                title: 'Venue event',
+                startTime: start.toISOString(),
+                location: 'Museum of Modern Art, New York, NY, United States',
+                locationDetails: {
+                    placeId: 'test-place-moma',
+                    formattedAddress: 'Museum of Modern Art, New York, NY, United States',
+                    lat: 40.7614,
+                    lon: -73.9776
+                }
+            }
+        });
+        expect(venueOnly.status).toBe(201);
+        expect(venueOnly.body.locationDetails?.placeId).toBe('test-place-moma');
 
         const invalidUpdate = await http(app, 'PATCH', `/events/${created.body.id}`, {
             apiToken: hostWrite,

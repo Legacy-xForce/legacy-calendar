@@ -1823,42 +1823,42 @@
           "placeId": {
             "type": "string",
             "example": "511b0b0a2c3d4e5f6a7b8c9d0e1f2a3b",
-            "description": "Provider identifier for the selected address"
+            "description": "Provider identifier for the selected location"
           },
           "formattedAddress": {
             "type": "string",
             "example": "Via Roma 10, 00100 Roma, Italy",
-            "description": "Full address as shown to the user"
+            "description": "Full location label as shown to the user"
           },
           "street": {
             "type": "string",
             "example": "Via Roma",
-            "description": "Street name"
+            "description": "Street name, when available"
           },
           "houseNumber": {
             "type": "string",
             "example": "10",
-            "description": "House number"
+            "description": "House number, when available"
           },
           "city": {
             "type": "string",
             "example": "Roma",
-            "description": "City or municipality"
+            "description": "City or municipality, when available"
           },
           "postcode": {
             "type": "string",
             "example": "00100",
-            "description": "Postal code"
+            "description": "Postal code, when available"
           },
           "country": {
             "type": "string",
             "example": "Italy",
-            "description": "Country name"
+            "description": "Country name, when available"
           },
           "countryCode": {
             "type": "string",
             "example": "IT",
-            "description": "ISO 3166-1 alpha-2 country code"
+            "description": "ISO 3166-1 alpha-2 country code, when available"
           },
           "lat": {
             "type": "number",
@@ -1874,11 +1874,6 @@
         "required": [
           "placeId",
           "formattedAddress",
-          "street",
-          "houseNumber",
-          "city",
-          "country",
-          "countryCode",
           "lat",
           "lon"
         ]
@@ -1940,10 +1935,10 @@
           "location": {
             "type": "string",
             "example": "Via Roma 10, 00100 Roma, Italy",
-            "description": "Complete street address of the event (optional)"
+            "description": "Complete location of the event (optional)"
           },
           "locationDetails": {
-            "description": "Structured details of the selected street address",
+            "description": "Structured details of the selected location",
             "allOf": [
               {
                 "$ref": "#/components/schemas/AddressDetailsDto"
@@ -2365,7 +2360,7 @@
             "nullable": true
           },
           "locationDetails": {
-            "description": "Structured details of the selected street address",
+            "description": "Structured details of the selected location",
             "nullable": true,
             "type": "object",
             "allOf": [
@@ -2467,10 +2462,10 @@
           "location": {
             "type": "string",
             "example": "Via Roma 10, 00100 Roma, Italy",
-            "description": "Complete street address of the event (optional)"
+            "description": "Complete location of the event (optional)"
           },
           "locationDetails": {
-            "description": "Structured details of the selected street address",
+            "description": "Structured details of the selected location",
             "allOf": [
               {
                 "$ref": "#/components/schemas/AddressDetailsDto"
