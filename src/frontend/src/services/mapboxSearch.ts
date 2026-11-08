@@ -2,22 +2,24 @@ import type { AddressDetails } from '../types/Address';
 import { createLogger } from './logger';
 
 /**
- * Location autocomplete against the Mapbox Search Box API.
+ * Mapbox location search and geocoding.
  *
- * The REST API is used directly instead of `@mapbox/search-js-core`: the app
- * only needs `/suggest`, `/retrieve` and `/forward`, while the SDK mainly adds
- * UI/session helpers we would not use. Direct requests keep the bundle smaller
- * and let us map results straight to the location shape the event form saves.
+ * Autocomplete uses the Search Box API (`/suggest` + `/retrieve`), while
+ * free-text weather locations are resolved with the Geocoding API v6
+ * (`/search/geocode/v6/forward`). The REST APIs are used directly instead of
+ * adding `@mapbox/search-js-core`: the SDK mainly adds UI/session helpers we
+ * would not use, and direct requests keep the bundle smaller.
  *
  * Searches are intentionally not limited to addresses. Any place Mapbox can
  * return (venues, cities, regions, countries, addresses, ...) is a valid event
  * location.
  *
  * The token is a public browser token, so it is inlined into the client bundle
- * and must never be a secret token. The Search Box API requires no token scopes;
- * a public token with URL restrictions for the app's origins is enough.
+ * and must never be a secret token. Neither API requires token scopes; a public
+ * token with URL restrictions for the app's origins is enough.
  */
 const MAPBOX_SEARCH_URL = 'https://api.mapbox.com/search/searchbox/v1';
+const MAPBOX_GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6';
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_RESULTS = 8;
 
@@ -92,6 +94,22 @@ type MapboxFeatureResponse = {
     features?: MapboxRetrieveFeature[];
 };
 
+type MapboxGeocodeFeature = {
+    geometry?: {
+        coordinates?: [number, number];
+    };
+    properties?: {
+        coordinates?: {
+            latitude?: number;
+            longitude?: number;
+        };
+    };
+};
+
+type MapboxGeocodeResponse = {
+    features?: MapboxGeocodeFeature[];
+};
+
 export function isAddressSearchConfigured(): boolean {
     return Boolean(accessToken());
 }
@@ -111,7 +129,7 @@ export async function suggestAddresses(query: string, sessionToken: string, limi
     url.searchParams.set('session_token', sessionToken);
     url.searchParams.set('access_token', token);
 
-    const payload = await fetchSearchJson<MapboxSuggestResponse>(url);
+    const payload = await fetchMapboxJson<MapboxSuggestResponse>(url);
     const seen = new Set<string>();
     const results: AddressSuggestion[] = [];
 
@@ -132,7 +150,7 @@ export async function retrieveAddress(suggestion: AddressSuggestion): Promise<Ad
     url.searchParams.set('session_token', suggestion.sessionToken);
     url.searchParams.set('access_token', token);
 
-    const payload = await fetchSearchJson<MapboxFeatureResponse>(url);
+    const payload = await fetchMapboxJson<MapboxFeatureResponse>(url);
     return mapRetrievedAddress(payload.features?.[0], suggestion);
 }
 
@@ -140,19 +158,17 @@ export async function retrieveAddress(suggestion: AddressSuggestion): Promise<Ad
  * Resolve free-text locations to coordinates for weather forecasts.
  *
  * Events created from the location picker already carry coordinates, so this
- * is only used for legacy/free-text locations. `/forward` shares the same
- * Search Box token and ranking behaviour as `/suggest`.
+ * is only used for legacy/free-text locations. This is a simple forward
+ * geocode, so it uses the Geocoding API rather than Search Box.
  */
 export async function forwardGeocode(query: string): Promise<{ lat: number; lon: number } | null> {
     const token = requireAccessToken();
-    const url = new URL(`${MAPBOX_SEARCH_URL}/forward`);
+    const url = new URL(`${MAPBOX_GEOCODE_URL}/forward`);
     url.searchParams.set('q', query);
     url.searchParams.set('limit', '1');
-    // Mapbox defaults proximity to the caller's IP, so no explicit proximity
-    // parameter is needed.
     url.searchParams.set('access_token', token);
 
-    const payload = await fetchSearchJson<MapboxFeatureResponse>(url);
+    const payload = await fetchMapboxJson<MapboxGeocodeResponse>(url);
     const feature = payload.features?.[0];
     const coordinates = feature?.geometry?.coordinates;
     const lat = feature?.properties?.coordinates?.latitude ?? coordinates?.[1];
@@ -179,24 +195,24 @@ function requireAccessToken(): string {
     return token;
 }
 
-async function fetchSearchJson<T>(url: URL): Promise<T> {
+async function fetchMapboxJson<T>(url: URL): Promise<T> {
     let response: Response;
     try {
         response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     } catch (error) {
-        logger.warn('Location search request failed', error);
+        logger.warn('Mapbox request failed', error);
         throw new Error('Location search is unavailable', { cause: error });
     }
 
     if (!response.ok) {
-        logger.warn('Location search provider returned an error', { status: response.status });
+        logger.warn('Mapbox provider returned an error', { status: response.status });
         throw new Error('Location search is unavailable');
     }
 
     try {
         return (await response.json()) as T;
     } catch (error) {
-        logger.warn('Location search returned an invalid payload', error);
+        logger.warn('Mapbox returned an invalid payload', error);
         throw new Error('Location search is unavailable', { cause: error });
     }
 }
