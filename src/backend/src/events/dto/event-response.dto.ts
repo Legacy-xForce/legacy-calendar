@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from '../../users/dto/user.dto.js';
 import { InviteStatus, TransportMode } from '../../../prisma/generated/client.js';
 import { FeatureDto } from '../../features/dto/feature.dto.js';
-import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
+import { AddressDetailsDto } from './address-details.dto.js';
 
 /**
  * The host view of a user. The payment fields (`paypalLink`, `ibanNumber`,

@@ -10,7 +10,13 @@ import SelectButton from 'primevue/selectbutton';
 import type { CreateEventDto, Event, EventFeatureDraft } from '../../types/Event';
 import type { AddressDetails } from '../../types/Address';
 import type { User } from '../../types/User';
-import api from '../../services/API';
+import {
+    createAddressSearchSessionToken,
+    isAddressSearchConfigured,
+    retrieveAddress,
+    suggestAddresses,
+    type AddressSuggestion
+} from '../../services/mapboxSearch';
 import { VISIBILITY_OPTIONS, type EventVisibility } from '../../constants/visibility';
 import { DEFAULT_COLOR } from '../../constants/colors';
 import UserMultiSelect from '../UserMultiSelect.vue';
@@ -51,10 +57,14 @@ const title = ref('');
 const description = ref('');
 const location = ref('');
 const locationDetails = ref<AddressDetails | null>(null);
-const addressSuggestions = ref<AddressDetails[]>([]);
+const addressSuggestions = ref<AddressSuggestion[]>([]);
 const loadingAddresses = ref(false);
+const resolvingAddress = ref(false);
 const addressSearchError = ref(false);
+const addressResolveError = ref(false);
 let addressRequestId = 0;
+let addressDetailsRequestId = 0;
+let addressSessionToken = createAddressSearchSessionToken();
 const eventVisibility = ref<EventVisibility>('open');
 const eventColor = ref(DEFAULT_COLOR);
 const start = ref<Date | null>(null);
@@ -167,9 +177,13 @@ const initialize = () => {
     showEnd.value = !!end.value;
     showDeadline.value = !!deadline.value;
     addressRequestId += 1;
+    addressDetailsRequestId += 1;
+    addressSessionToken = createAddressSearchSessionToken();
     addressSuggestions.value = [];
     loadingAddresses.value = false;
+    resolvingAddress.value = false;
     addressSearchError.value = false;
+    addressResolveError.value = false;
 };
 
 watch(() => [props.event, props.initialDate], initialize, { immediate: true });
@@ -191,19 +205,28 @@ const searchAddresses = async (event: { query: string }) => {
     const query = event.query.trim();
     if (query.length < 3) {
         addressRequestId += 1;
+        addressSessionToken = createAddressSearchSessionToken();
         addressSuggestions.value = [];
         loadingAddresses.value = false;
         return;
     }
 
+    if (!isAddressSearchConfigured()) {
+        addressSuggestions.value = [];
+        addressSearchError.value = true;
+        loadingAddresses.value = false;
+        return;
+    }
+
     const requestId = ++addressRequestId;
+    const sessionToken = addressSessionToken;
     loadingAddresses.value = true;
     addressSearchError.value = false;
 
     try {
-        const response = await api.autocompleteAddresses(query);
+        const suggestions = await suggestAddresses(query, sessionToken);
         if (requestId === addressRequestId) {
-            addressSuggestions.value = response.data;
+            addressSuggestions.value = suggestions;
         }
     } catch {
         if (requestId === addressRequestId) {
@@ -217,12 +240,55 @@ const searchAddresses = async (event: { query: string }) => {
     }
 };
 
-const onLocationModel = (value: string | AddressDetails | null | undefined) => {
+const resolveAddressDetails = async (suggestion: AddressSuggestion, requestId: number) => {
+    try {
+        const details = await retrieveAddress(suggestion);
+        if (requestId !== addressDetailsRequestId) return;
+
+        if (!details) {
+            locationDetails.value = null;
+            addressResolveError.value = true;
+            return;
+        }
+
+        location.value = details.formattedAddress;
+        locationDetails.value = details;
+    } catch {
+        if (requestId === addressDetailsRequestId) {
+            locationDetails.value = null;
+            addressResolveError.value = true;
+        }
+    } finally {
+        if (requestId === addressDetailsRequestId) {
+            resolvingAddress.value = false;
+            addressSessionToken = createAddressSearchSessionToken();
+        }
+    }
+};
+
+const onLocationModel = (value: string | AddressSuggestion | null | undefined) => {
     if (value && typeof value === 'object') {
         location.value = value.formattedAddress;
-        locationDetails.value = value;
+        locationDetails.value = null;
+        addressResolveError.value = false;
+        addressRequestId += 1;
+        addressSuggestions.value = [];
+        loadingAddresses.value = false;
+
+        const requestId = ++addressDetailsRequestId;
+        if (isAddressSearchConfigured()) {
+            resolvingAddress.value = true;
+            void resolveAddressDetails(value, requestId);
+        } else {
+            resolvingAddress.value = false;
+            addressResolveError.value = true;
+        }
         return;
     }
+
+    addressDetailsRequestId += 1;
+    resolvingAddress.value = false;
+    addressResolveError.value = false;
 
     const next = typeof value === 'string' ? value : '';
     if (next !== location.value) {
@@ -232,6 +298,7 @@ const onLocationModel = (value: string | AddressDetails | null | undefined) => {
 
     if (next.trim().length < 3) {
         addressRequestId += 1;
+        addressSessionToken = createAddressSearchSessionToken();
         addressSuggestions.value = [];
         loadingAddresses.value = false;
     }
@@ -343,10 +410,10 @@ defineExpose({ submit });
                     input-id="event-location"
                     :suggestions="addressSuggestions"
                     option-label="formattedAddress"
-                    data-key="placeId"
+                    data-key="mapboxId"
                     :min-length="3"
                     :delay="300"
-                    :loading="loadingAddresses"
+                    :loading="loadingAddresses || resolvingAddress"
                     :invalid="!!showError('location')"
                     placeholder="Street and number, city"
                     fluid
@@ -367,6 +434,9 @@ defineExpose({ submit });
                 <small v-if="showError('location')" class="text-meta text-rose-300">{{ showError('location') }}</small>
                 <small v-else-if="addressSearchError" class="text-meta text-rose-300"
                     >Address search is unavailable. Try again.</small
+                >
+                <small v-else-if="addressResolveError" class="text-meta text-rose-300"
+                    >Could not confirm that address. Pick it from the list again.</small
                 >
             </div>
 

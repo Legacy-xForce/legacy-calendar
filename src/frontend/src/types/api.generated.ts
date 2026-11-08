@@ -532,23 +532,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/geocoding/autocomplete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search complete street addresses for autocomplete */
-        get: operations["GeocodingController_search"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/features": {
         parameters: {
             query?: never;
@@ -2639,45 +2622,6 @@ export interface operations {
             };
             /** @description API token not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    GeocodingController_search: {
-        parameters: {
-            query: {
-                /** @description Text typed by the user; at least 3 characters */
-                q: string;
-                /** @description Maximum number of suggestions (1-8) */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Matching street addresses */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AddressDetailsDto"][];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Address search is not configured */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

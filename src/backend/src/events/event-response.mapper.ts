@@ -1,5 +1,5 @@
 import { EventHostDto, EventParticipantDto, EventResponseDto } from './dto/event-response.dto.js';
-import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
+import { AddressDetailsDto } from './dto/address-details.dto.js';
 import { UserDto } from '../users/dto/user.dto.js';
 import { mapGuestToDto, mapUserToDto, type MappableUser } from '../users/user.mapper.js';
 import { EventWithRelations } from './events.repository.js';
