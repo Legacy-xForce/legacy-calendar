@@ -17,7 +17,7 @@ import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEventStartTimeWithinAllowedRange } from '../validators/is-event-start-time-within-allowed-range.validator.js';
 import { SINGLE_EMOJI_PATTERN } from '../../features/dto/create-feature.dto.js';
-import { AddressDetailsDto } from '../../geocoding/dto/address-details.dto.js';
+import { AddressDetailsDto } from './address-details.dto.js';
 
 export const MAX_ONE_TIME_FEATURES = 10;
 

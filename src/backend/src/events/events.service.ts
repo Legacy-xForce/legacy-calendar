@@ -24,7 +24,7 @@ import { buildNotificationData } from '../notifications/notification-data.util.j
 import { assertEventNotEnded, resolveFeatureSelection } from './event-guards.js';
 import { isEventManager } from './event-access.util.js';
 import { EventsRealtime } from './events-realtime.service.js';
-import { AddressDetailsDto } from '../geocoding/dto/address-details.dto.js';
+import { AddressDetailsDto } from './dto/address-details.dto.js';
 
 @Injectable()
 export class EventsService {

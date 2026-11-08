@@ -173,11 +173,7 @@ Create a `.env` file in `src/backend` using the example below:
 ```bash
 DATABASE_URL=postgresql://user:password@host/database
 LOG_LEVEL=trace
-MAPBOX_ACCESS_TOKEN=your-mapbox-access-token
 ```
-
-`MAPBOX_ACCESS_TOKEN` (Mapbox Geocoding API) powers the street-address autocomplete in the event form. Without it, the
-autocomplete endpoint returns `503` and the form cannot create events or change their address.
 
 Then run Prisma and start the API:
 
@@ -215,6 +211,7 @@ VITE_FIREBASE_APP_ID=your-value
 VITE_FIREBASE_MEASUREMENT_ID=your-value
 VITE_FIREBASE_VAPID_KEY=your-value
 VITE_GOOGLE_MAPS_EMBED_API_KEY=your-value
+VITE_MAPBOX_ACCESS_TOKEN=your-public-mapbox-token
 ```
 
 Then start the client:
@@ -222,6 +219,17 @@ Then start the client:
 ```bash
 npm run dev
 ```
+
+#### Address autocomplete token
+
+The event form searches street addresses in the browser through the [Mapbox Search Box API](https://docs.mapbox.com/api/search/search-box/)
+using `VITE_MAPBOX_ACCESS_TOKEN`. We call the REST API directly instead of adding the `@mapbox/search-js` SDK because the
+form only needs `/suggest` + `/retrieve`; the SDK's UI and map integrations would be unused weight.
+
+Use a **public** token (`pk.*`), never a secret token: Vite inlines it into the client bundle. The Search Box API does
+**not require any token scopes**, so create a public token with no scopes and add URL restrictions for the frontend
+origins (for example `https://calendar.legacy-group.tech` and `http://localhost:5173`). Without a token, address search
+is unavailable and events can only be saved without a location.
 
 ## Common Scripts
 

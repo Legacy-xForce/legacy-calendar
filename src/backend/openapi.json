@@ -1568,69 +1568,6 @@
         ]
       }
     },
-    "/geocoding/autocomplete": {
-      "get": {
-        "operationId": "GeocodingController_search",
-        "parameters": [
-          {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "description": "Text typed by the user; at least 3 characters",
-            "schema": {
-              "example": "Via Roma 10, Roma",
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "Maximum number of suggestions (1-8)",
-            "schema": {
-              "minimum": 1,
-              "maximum": 8,
-              "default": 5,
-              "example": 5,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Matching street addresses",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AddressDetailsDto"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "503": {
-            "description": "Address search is not configured"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "api-token": []
-          }
-        ],
-        "summary": "Search complete street addresses for autocomplete",
-        "tags": [
-          "geocoding"
-        ]
-      }
-    },
     "/features": {
       "get": {
         "operationId": "FeaturesController_findAll",
