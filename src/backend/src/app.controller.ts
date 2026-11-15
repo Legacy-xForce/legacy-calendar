@@ -1,13 +1,15 @@
-import { Controller, Get, Inject } from '@nestjs/common';
-import { AppService } from './app.service.js';
+import { Controller, Get, Res } from '@nestjs/common';
+import { ApiExcludeEndpoint } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { getWebAppUrl } from './config/frontend-url.js';
 
 @Controller()
 export class AppController {
-    constructor(@Inject(AppService) private readonly appService: AppService) {}
-
+    /** A browser opening the API root wants the calendar, not a JSON hello. */
     @Get()
-    getHello(): string {
-        return this.appService.getHello();
+    @ApiExcludeEndpoint()
+    getRoot(@Res() response: Response): void {
+        response.redirect(302, getWebAppUrl());
     }
 
     @Get('health')
