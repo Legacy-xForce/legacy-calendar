@@ -334,9 +334,9 @@ const feedLoading = ref(false);
 const feedSaving = ref(false);
 const feedCopied = ref(false);
 
-const googleCalendarUrl = computed(() =>
-    feedUrl.value ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedUrl.value)}` : ''
-);
+// Google's documented "Add by URL" page. The undocumented `?cid=<url>` deep link
+// is rejected for arbitrary ICS URLs, so copy the link and let the user paste it.
+const GOOGLE_CALENDAR_ADD_URL = 'https://calendar.google.com/calendar/u/0/r/settings/addbyurl';
 
 const loadCalendarFeed = async () => {
     feedLoading.value = true;
@@ -375,8 +375,27 @@ const createFeedLink = async () => {
     }
 };
 
-const openGoogleCalendar = () => {
-    if (googleCalendarUrl.value) window.open(googleCalendarUrl.value, '_blank', 'noopener,noreferrer');
+const openGoogleCalendar = async () => {
+    if (!feedUrl.value) return;
+    try {
+        await navigator.clipboard.writeText(feedUrl.value);
+        feedCopied.value = true;
+        window.setTimeout(() => (feedCopied.value = false), 2000);
+        toast.add({
+            severity: 'info',
+            summary: 'Link copied',
+            detail: "Paste it (Ctrl/⌘+V) into Google's Add calendar by URL box.",
+            life: 4000
+        });
+    } catch {
+        toast.add({
+            severity: 'warn',
+            summary: "Couldn't copy automatically",
+            detail: 'Copy the URL above, then paste it into Google Calendar.',
+            life: 4000
+        });
+    }
+    window.open(GOOGLE_CALENDAR_ADD_URL, '_blank', 'noopener,noreferrer');
 };
 
 const copyFeedLink = async () => {
@@ -987,7 +1006,7 @@ const handleClearCache = () => {
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <Button
-                        label="Open in Google Calendar"
+                        label="Add to Google Calendar"
                         icon="pi pi-external-link"
                         size="small"
                         severity="secondary"
@@ -1003,8 +1022,9 @@ const handleClearCache = () => {
                     />
                 </div>
                 <p class="text-meta text-muted m-0">
-                    In Google Calendar: <strong>Other calendars → + → Add by URL</strong>. Google refreshes the feed
-                    periodically, so edits can take a few hours to appear. Changes made in Google stay there.
+                    The button copies the URL and opens Google's <strong>Add calendar by URL</strong> page — paste it
+                    there (Ctrl/⌘+V). Google refreshes the feed periodically, so edits can take a few hours to appear.
+                    Changes made in Google stay there.
                 </p>
             </div>
 
