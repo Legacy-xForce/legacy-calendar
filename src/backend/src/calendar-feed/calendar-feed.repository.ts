@@ -53,20 +53,16 @@ export class CalendarFeedRepository {
     /**
      * Mirrors EventsRepository's visibility rules: public events, plus anything
      * the feed owner hosts, co-hosts or participates in (including private ones).
+     * No date filter: the calendar UI can browse any month, so the feed can too.
      */
-    findVisibleEvents(userId: number, from: Date, to: Date): Promise<FeedEvent[]> {
+    findVisibleEvents(userId: number): Promise<FeedEvent[]> {
         return this.prisma.event.findMany({
             where: {
-                AND: [
-                    {
-                        OR: [
-                            { isPrivate: false },
-                            { hostId: userId },
-                            { participants: { some: { userId } } },
-                            { coHosts: { some: { userId } } }
-                        ]
-                    },
-                    { startTime: { gte: from, lte: to } }
+                OR: [
+                    { isPrivate: false },
+                    { hostId: userId },
+                    { participants: { some: { userId } } },
+                    { coHosts: { some: { userId } } }
                 ]
             },
             select: FEED_EVENT_SELECT,

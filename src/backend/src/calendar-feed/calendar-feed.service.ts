@@ -6,9 +6,6 @@ import { feedTokenHint, generateFeedToken, hashFeedToken, isFeedTokenShape } fro
 import { buildCalendarIcs } from './ics.util.js';
 import { CalendarFeedResponseDto, CreatedCalendarFeedResponseDto } from './dto/calendar-feed.dto.js';
 
-/** How far ahead the feed reaches. Older events would only clutter subscribers. */
-const FEED_WINDOW_MONTHS = 6;
-
 @Injectable()
 export class CalendarFeedService {
     constructor(@Inject(CalendarFeedRepository) private readonly repository: CalendarFeedRepository) {}
@@ -37,12 +34,7 @@ export class CalendarFeedService {
 
     /** Builds the document and a content hash so repeat polls can return 304. */
     async buildFeed(userId: number): Promise<{ body: string; etag: string }> {
-        const from = new Date();
-        from.setUTCHours(0, 0, 0, 0);
-        const to = new Date(from);
-        to.setUTCMonth(to.getUTCMonth() + FEED_WINDOW_MONTHS);
-
-        const events = await this.repository.findVisibleEvents(userId, from, to);
+        const events = await this.repository.findVisibleEvents(userId);
         const body = buildCalendarIcs(events);
         const etag = `"${createHash('sha256').update(body).digest('hex')}"`;
         return { body, etag };

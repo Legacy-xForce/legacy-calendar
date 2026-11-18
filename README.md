@@ -311,7 +311,7 @@ The chat gateway accepts API tokens during the handshake through `auth.apiToken`
 
 ## Notes On The Calendar Feed
 
-A user can create a secret ICS link from the Profile page and paste it into Google Calendar under **Other calendars → Add by URL**. The link is a bearer credential (calendar clients cannot send an `Authorization` header), so only its SHA-256 hash is stored; rotating or revoking it invalidates the old URL immediately. The feed includes events the user can see — public ones plus events they host, co-host or participate in — within the current month to six months ahead. Entries use stable UIDs and the document supports `ETag`/`304` responses so repeated polls stay cheap.
+A user can create a secret ICS link from the Profile page and paste it into Google Calendar under **Other calendars → Add by URL**. The link is a bearer credential (calendar clients cannot send an `Authorization` header), so only its SHA-256 hash is stored; rotating or revoking it invalidates the old URL immediately. The feed includes every event the user can see — public ones plus events they host, co-host or participate in — with no date limit, so past and future events both appear. Entries use stable UIDs and the document supports `ETag`/`304` responses so repeated polls stay cheap.
 
 Subscribers only ever receive a read-only snapshot: Google refreshes on its own schedule, edits can take hours to appear, and changes made in Google are not written back. Private events are readable by anyone who has the link, so it should be treated like a password.
 

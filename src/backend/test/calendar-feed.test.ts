@@ -113,6 +113,22 @@ describe('Calendar ICS feed', () => {
         expect(response.body).not.toContain(`UID:event-${hidden.body.id}@legacy-calendar`);
     });
 
+    test('includes past events, matching the calendar UI', async () => {
+        // The API validator only allows future start times, so seed a past event directly.
+        const past = await app.prisma.event.create({
+            data: {
+                title: 'A long forgotten gathering',
+                startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+                hostId: owner.id
+            }
+        });
+
+        const response = await http<string>(app, 'GET', feedPath(ownerToken));
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(`UID:event-${past.id}@legacy-calendar`);
+        expect(response.body).toContain('SUMMARY:A long forgotten gathering');
+    });
+
     test('changing an event changes the ETag without changing its UID', async () => {
         const event = await createEvent(app, owner, 'Before the change');
         const before = await http<string>(app, 'GET', feedPath(ownerToken));

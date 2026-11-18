@@ -937,11 +937,12 @@ const handleClearCache = () => {
                     </p>
                 </div>
                 <Button
-                    v-if="!feedUrl"
-                    :label="calendarFeed ? 'Replace link' : 'Create link'"
+                    v-if="!calendarFeed && !feedUrl"
+                    label="Create link"
                     icon="pi pi-link"
                     size="small"
                     severity="secondary"
+                    class="shrink-0 whitespace-nowrap"
                     :loading="feedSaving"
                     @click="createFeedLink"
                 />
