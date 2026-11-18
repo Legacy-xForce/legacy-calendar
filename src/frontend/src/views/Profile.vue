@@ -17,12 +17,13 @@ import { useConfirm } from 'primevue/useconfirm';
 import { notificationStorage } from '../services/notificationStorage';
 import { NotificationCode, type NotificationSettings } from '../types/Notification';
 import { createLogger } from '../services/logger';
-import api from '../services/API';
+import api, { baseURL } from '../services/API';
 import { accountSettingsURL } from '../services/oidc';
 import { useUsersStore } from '../stores/users';
 import { useUserGroupsStore } from '../stores/userGroups';
 import type { UserGroup } from '../types/UserGroup';
 import type { ApiToken, ApiTokenScope } from '../types/ApiToken';
+import type { CalendarFeedToken } from '../types/CalendarFeed';
 import { formatIban, getItalianBankName, isValidIban, normalizeIban } from '../utils/iban';
 
 const sessionStore = useSessionStore();
@@ -325,6 +326,99 @@ const deleteApiToken = (token: ApiToken) => {
     });
 };
 
+// ---------- Calendar feed: a secret ICS URL other apps can subscribe to ----------
+
+const calendarFeed = ref<CalendarFeedToken | null>(null);
+const feedUrl = ref('');
+const feedLoading = ref(false);
+const feedSaving = ref(false);
+const feedCopied = ref(false);
+
+const googleCalendarUrl = computed(() =>
+    feedUrl.value ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feedUrl.value)}` : ''
+);
+
+const loadCalendarFeed = async () => {
+    feedLoading.value = true;
+    try {
+        calendarFeed.value = (await api.getCalendarFeed()).data;
+    } catch (error) {
+        logger.warn('Failed to load calendar feed link', error);
+        toast.add({ severity: 'error', summary: "Couldn't load the calendar link", life: 3500 });
+    } finally {
+        feedLoading.value = false;
+    }
+};
+
+const createFeedLink = async () => {
+    feedSaving.value = true;
+    try {
+        const hadLink = Boolean(calendarFeed.value);
+        const { token, ...metadata } = (await api.createCalendarFeed()).data;
+        calendarFeed.value = metadata;
+        feedUrl.value = `${baseURL.replace(/\/$/, '')}/calendar-feed/feed/${token}.ics`;
+        feedCopied.value = false;
+        toast.add({
+            severity: 'success',
+            summary: hadLink ? 'Calendar link replaced' : 'Calendar link ready',
+            life: 2500
+        });
+    } catch (error: any) {
+        toast.add({
+            severity: 'error',
+            summary: "Couldn't create the calendar link",
+            detail: error.response?.data?.message || 'Please try again.',
+            life: 4000
+        });
+    } finally {
+        feedSaving.value = false;
+    }
+};
+
+const openGoogleCalendar = () => {
+    if (googleCalendarUrl.value) window.open(googleCalendarUrl.value, '_blank', 'noopener,noreferrer');
+};
+
+const copyFeedLink = async () => {
+    if (!feedUrl.value) return;
+    try {
+        await navigator.clipboard.writeText(feedUrl.value);
+        feedCopied.value = true;
+        window.setTimeout(() => (feedCopied.value = false), 2000);
+    } catch {
+        toast.add({
+            severity: 'error',
+            summary: "Couldn't copy automatically",
+            detail: 'Select the URL and copy it manually.',
+            life: 4000
+        });
+    }
+};
+
+const revokeFeedLink = () => {
+    confirm.require({
+        header: 'Revoke the calendar link?',
+        message: 'Google Calendar will stop receiving updates. You can create a new link at any time.',
+        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
+        acceptProps: { label: 'Revoke', severity: 'danger' },
+        accept: async () => {
+            try {
+                await api.deleteCalendarFeed();
+                calendarFeed.value = null;
+                feedUrl.value = '';
+                toast.add({ severity: 'success', summary: 'Calendar link revoked', life: 2500 });
+            } catch (error: any) {
+                toast.add({
+                    severity: 'error',
+                    summary: "Couldn't revoke the link",
+                    detail: error.response?.data?.message || 'Please try again.',
+                    life: 4000
+                });
+            }
+        }
+    });
+};
+
 const notificationGroups: { title: string; items: { code: NotificationCode; label: string; hint?: string }[] }[] = [
     {
         title: 'Events',
@@ -358,6 +452,7 @@ onMounted(async () => {
         usersStore.fetchUsers(),
         userGroupsStore.fetchGroups(),
         loadApiTokens(),
+        loadCalendarFeed(),
         !currentUser.value ? sessionStore.load() : Promise.resolve()
     ]);
 });
@@ -831,6 +926,127 @@ const handleClearCache = () => {
                 <span class="flex-1">API documentation · every endpoint, header and scope</span>
                 <i class="pi pi-chevron-right text-[0.625rem]"></i>
             </router-link>
+        </section>
+
+        <section class="flex flex-col gap-2">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="eyebrow m-0">Google Calendar</h2>
+                    <p class="text-meta text-subtle m-0 mt-1">
+                        Subscribe to a read-only feed of your events. No Google sign-in or approval needed.
+                    </p>
+                </div>
+                <Button
+                    v-if="!feedUrl"
+                    :label="calendarFeed ? 'Replace link' : 'Create link'"
+                    icon="pi pi-link"
+                    size="small"
+                    severity="secondary"
+                    :loading="feedSaving"
+                    @click="createFeedLink"
+                />
+            </div>
+
+            <div
+                v-if="feedUrl"
+                class="border-accent/40 bg-accent-soft animate-rise-in flex flex-col gap-3 rounded-2xl border p-4"
+            >
+                <div class="flex items-start gap-3">
+                    <span
+                        class="bg-accent-soft text-accent flex size-9 shrink-0 items-center justify-center rounded-xl"
+                    >
+                        <i class="pi pi-calendar text-sm"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-body text-fg m-0 font-medium">Your feed link is ready</p>
+                        <p class="text-meta text-muted m-0">
+                            Copy it now — the full URL won't be shown again. Anyone with it can see your events,
+                            including private ones.
+                        </p>
+                    </div>
+                    <Button
+                        icon="pi pi-times"
+                        text
+                        rounded
+                        severity="secondary"
+                        aria-label="Dismiss the feed link"
+                        @click="feedUrl = ''"
+                    />
+                </div>
+                <div class="bg-canvas/60 border-line flex items-center gap-2 rounded-xl border p-2.5">
+                    <code class="text-meta text-fg min-w-0 flex-1 font-mono break-all">{{ feedUrl }}</code>
+                    <Button
+                        :icon="feedCopied ? 'pi pi-check' : 'pi pi-copy'"
+                        :severity="feedCopied ? 'success' : 'secondary'"
+                        text
+                        rounded
+                        :aria-label="feedCopied ? 'Link copied' : 'Copy feed link'"
+                        @click="copyFeedLink"
+                    />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <Button
+                        label="Open in Google Calendar"
+                        icon="pi pi-external-link"
+                        size="small"
+                        severity="secondary"
+                        @click="openGoogleCalendar"
+                    />
+                    <Button
+                        label="Revoke link"
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        text
+                        @click="revokeFeedLink"
+                    />
+                </div>
+                <p class="text-meta text-muted m-0">
+                    In Google Calendar: <strong>Other calendars → + → Add by URL</strong>. Google refreshes the feed
+                    periodically, so edits can take a few hours to appear. Changes made in Google stay there.
+                </p>
+            </div>
+
+            <p v-else-if="feedLoading" class="text-meta text-muted m-0">Loading calendar link…</p>
+            <div v-else-if="calendarFeed" class="border-line bg-raised overflow-hidden rounded-2xl border">
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <span class="bg-surface-900 text-muted flex size-9 shrink-0 items-center justify-center rounded-xl">
+                        <i class="pi pi-calendar text-sm"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="text-body text-fg block font-medium">Feed active</span>
+                        <span class="text-meta text-subtle tabular block font-mono">{{ calendarFeed.tokenHint }}</span>
+                        <span class="text-meta text-subtle block">
+                            Created {{ new Date(calendarFeed.createdAt).toLocaleDateString() }}
+                        </span>
+                    </span>
+                    <div class="flex shrink-0 items-center">
+                        <Button
+                            icon="pi pi-refresh"
+                            text
+                            rounded
+                            severity="secondary"
+                            aria-label="Replace calendar link"
+                            v-tooltip.top="'Replace link'"
+                            @click="createFeedLink"
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            text
+                            rounded
+                            severity="danger"
+                            aria-label="Revoke calendar link"
+                            @click="revokeFeedLink"
+                        />
+                    </div>
+                </div>
+            </div>
+            <p
+                v-else
+                class="text-meta text-muted border-line m-0 rounded-2xl border border-dashed px-4 py-4 text-center"
+            >
+                No feed link yet. Create one to see your events in Google Calendar without signing in with Google.
+            </p>
         </section>
 
         <section v-if="notificationSettings" class="flex flex-col gap-4">

@@ -516,6 +516,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current calendar feed link
+         * @description Returns metadata only. The full URL is returned once when the link is created or rotated.
+         */
+        get: operations["CalendarFeedController_findLink"];
+        put?: never;
+        /**
+         * Create or rotate the calendar feed link
+         * @description Invalidates any previous link immediately and returns the new secret token once. Requires a session token.
+         */
+        post: operations["CalendarFeedController_create"];
+        /** Revoke the calendar feed link */
+        delete: operations["CalendarFeedController_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar-feed/feed/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Subscribe to an ICS calendar feed
+         * @description Paste the full URL into Google Calendar under Other calendars > Add by URL.
+         */
+        get: operations["CalendarFeedController_feed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/features": {
         parameters: {
             query?: never;
@@ -1339,6 +1384,49 @@ export interface components {
              * @example legacy-calendar-01a15968-64aa-707d-8904-a6a408611289
              */
             token: string;
+        };
+        CalendarFeedResponseDto: {
+            /**
+             * @description Feed link id
+             * @example 1
+             */
+            id: number;
+            /**
+             * @description Non-secret hint that identifies the link
+             * @example legacy-calendar-feed-01a1…1289
+             */
+            tokenHint: string;
+            /**
+             * Format: date-time
+             * @description When the link was created or last rotated
+             */
+            createdAt: string;
+        };
+        CreatedCalendarFeedResponseDto: {
+            /**
+             * @description Feed link id
+             * @example 1
+             */
+            id: number;
+            /**
+             * @description Non-secret hint that identifies the link
+             * @example legacy-calendar-feed-01a1…1289
+             */
+            tokenHint: string;
+            /**
+             * Format: date-time
+             * @description When the link was created or last rotated
+             */
+            createdAt: string;
+            /**
+             * @description The full secret token. Append it to /calendar-feed/feed/ to build the URL. Shown only once; store it immediately.
+             * @example legacy-calendar-feed-01a15968-64aa-707d-8904-a6a408611289
+             */
+            token: string;
+        };
+        CalendarFeedDeletedResponseDto: {
+            /** @example true */
+            success: boolean;
         };
         FeatureDto: {
             /** @example 1 */
@@ -2588,6 +2676,102 @@ export interface operations {
                 content?: never;
             };
             /** @description API token not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarFeedController_findLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link metadata, or null when none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedResponseDto"];
+                };
+            };
+        };
+    };
+    CalendarFeedController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link created or rotated */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCalendarFeedResponseDto"];
+                };
+            };
+        };
+    };
+    CalendarFeedController_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedDeletedResponseDto"];
+                };
+            };
+        };
+    };
+    CalendarFeedController_feed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An iCalendar document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/calendar": unknown;
+                };
+            };
+            /** @description Nothing changed since the last poll */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown or revoked feed link */
             404: {
                 headers: {
                     [name: string]: unknown;

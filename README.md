@@ -53,6 +53,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 - Event participation flow with invite statuses
 - Ride assignment support for passengers and drivers
 - Shared event deep links that open directly inside the calendar experience
+- Per-user ICS subscription feed so events can be followed in Google Calendar or any other calendar app, without OAuth
 
 ### Upcoming View
 
@@ -278,6 +279,7 @@ The OpenAPI document is tagged for:
 - notifications
 - user groups
 - API tokens
+- calendar feed
 
 That documentation is generated from the NestJS controllers and DTOs, so it stays close to the actual request and response shapes.
 
@@ -306,6 +308,12 @@ API tokens behave like a session token, except they do not rotate periodically. 
 
 The chat gateway accepts API tokens during the handshake through `auth.apiToken`, the `X-API-Token` header, or `auth.token` when the value starts with `legacy-calendar-`. Read-only tokens may join rooms and receive events but cannot send chat mutations.
 
+
+## Notes On The Calendar Feed
+
+A user can create a secret ICS link from the Profile page and paste it into Google Calendar under **Other calendars → Add by URL**. The link is a bearer credential (calendar clients cannot send an `Authorization` header), so only its SHA-256 hash is stored; rotating or revoking it invalidates the old URL immediately. The feed includes events the user can see — public ones plus events they host, co-host or participate in — within the current month to six months ahead. Entries use stable UIDs and the document supports `ETag`/`304` responses so repeated polls stay cheap.
+
+Subscribers only ever receive a read-only snapshot: Google refreshes on its own schedule, edits can take hours to appear, and changes made in Google are not written back. Private events are readable by anyone who has the link, so it should be treated like a password.
 
 ## Notes On Notifications
 

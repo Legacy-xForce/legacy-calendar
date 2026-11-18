@@ -1554,6 +1554,128 @@
         ]
       }
     },
+    "/calendar-feed": {
+      "get": {
+        "description": "Returns metadata only. The full URL is returned once when the link is created or rotated.",
+        "operationId": "CalendarFeedController_findLink",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Link metadata, or null when none exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "api-token": []
+          }
+        ],
+        "summary": "Get the current calendar feed link",
+        "tags": [
+          "calendar-feed"
+        ]
+      },
+      "post": {
+        "description": "Invalidates any previous link immediately and returns the new secret token once. Requires a session token.",
+        "operationId": "CalendarFeedController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Link created or rotated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCalendarFeedResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "api-token": []
+          }
+        ],
+        "summary": "Create or rotate the calendar feed link",
+        "tags": [
+          "calendar-feed"
+        ]
+      },
+      "delete": {
+        "operationId": "CalendarFeedController_revoke",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Link revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedDeletedResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "api-token": []
+          }
+        ],
+        "summary": "Revoke the calendar feed link",
+        "tags": [
+          "calendar-feed"
+        ]
+      }
+    },
+    "/calendar-feed/feed/{token}": {
+      "get": {
+        "description": "Paste the full URL into Google Calendar under Other calendars > Add by URL.",
+        "operationId": "CalendarFeedController_feed",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An iCalendar document",
+            "content": {
+              "text/calendar": {}
+            }
+          },
+          "304": {
+            "description": "Nothing changed since the last poll"
+          },
+          "404": {
+            "description": "Unknown or revoked feed link"
+          }
+        },
+        "summary": "Subscribe to an ICS calendar feed",
+        "tags": [
+          "calendar-feed"
+        ]
+      }
+    },
     "/features": {
       "get": {
         "operationId": "FeaturesController_findAll",
@@ -2877,6 +2999,74 @@
           "lastUsedAt",
           "rotatedAt",
           "token"
+        ]
+      },
+      "CalendarFeedResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "Feed link id"
+          },
+          "tokenHint": {
+            "type": "string",
+            "example": "legacy-calendar-feed-01a1…1289",
+            "description": "Non-secret hint that identifies the link"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the link was created or last rotated"
+          }
+        },
+        "required": [
+          "id",
+          "tokenHint",
+          "createdAt"
+        ]
+      },
+      "CreatedCalendarFeedResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "Feed link id"
+          },
+          "tokenHint": {
+            "type": "string",
+            "example": "legacy-calendar-feed-01a1…1289",
+            "description": "Non-secret hint that identifies the link"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the link was created or last rotated"
+          },
+          "token": {
+            "type": "string",
+            "example": "legacy-calendar-feed-01a15968-64aa-707d-8904-a6a408611289",
+            "description": "The full secret token. Append it to /calendar-feed/feed/ to build the URL. Shown only once; store it immediately."
+          }
+        },
+        "required": [
+          "id",
+          "tokenHint",
+          "createdAt",
+          "token"
+        ]
+      },
+      "CalendarFeedDeletedResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
         ]
       },
       "FeatureDto": {

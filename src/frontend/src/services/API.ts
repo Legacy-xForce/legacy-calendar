@@ -17,6 +17,7 @@ import type { AuditLogEntry } from '../types/AuditLog';
 import type { CreateGuestInviteResponse, GuestInviteResponse, GuestParticipateDto } from '../types/GuestInvite';
 import type { UserGroup, CreateUserGroupDto, UpdateUserGroupDto } from '../types/UserGroup';
 import type { ApiToken, CreateApiTokenDto, CreatedApiToken } from '../types/ApiToken';
+import type { CalendarFeedToken, CreatedCalendarFeedToken } from '../types/CalendarFeed';
 import type { CreateFeatureDto, Feature, UpdateFeatureDto } from '../types/Event';
 
 // --- API Class ---
@@ -348,6 +349,20 @@ class API {
 
     async deleteApiToken(id: number): Promise<AxiosResponse<{ success: boolean }>> {
         return this.client.delete(`/api-tokens/${id}`);
+    }
+
+    // --- Calendar feed ---
+
+    async getCalendarFeed(): Promise<AxiosResponse<CalendarFeedToken | null>> {
+        return this.client.get('/calendar-feed');
+    }
+
+    async createCalendarFeed(): Promise<AxiosResponse<CreatedCalendarFeedToken>> {
+        return this.client.post('/calendar-feed');
+    }
+
+    async deleteCalendarFeed(): Promise<AxiosResponse<{ success: boolean }>> {
+        return this.client.delete('/calendar-feed');
     }
 }
 

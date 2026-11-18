@@ -29,6 +29,7 @@ model User {
   auditLogEntriesAsImpersonator AuditLogEntry[] @relation("AuditLogImpersonator")
   userGroups                    UserGroup[]
   apiTokens                     ApiToken[]
+  calendarFeedTokens            CalendarFeedToken[]
 }
 
 enum ApiTokenScope {
@@ -50,6 +51,19 @@ model ApiToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Secret URL that lets a calendar client (for example Google Calendar) follow
+/// the events visible to one user. Only the hash is stored: the raw token is
+/// shown once when the link is created or rotated.
+model CalendarFeedToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  tokenHash String   @unique
+  tokenHint String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GuestParticipant {
@@ -78,6 +92,8 @@ model Event {
   locationDetails       Json?
   startTime             DateTime
   endTime               DateTime?
+  /// Used for ICS LAST-MODIFIED and conditional (ETag) feed responses.
+  updatedAt             DateTime  @updatedAt
   hostId                Int
   isOpen                Boolean            @default(true)
   isPrivate             Boolean            @default(false)
