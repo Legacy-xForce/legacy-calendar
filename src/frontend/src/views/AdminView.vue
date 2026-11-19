@@ -6,7 +6,7 @@ import { useUsersStore } from '../stores/users';
 import { useSessionStore } from '../stores/session';
 import { storeToRefs } from 'pinia';
 import Button from 'primevue/button';
-import ToggleSwitch from 'primevue/toggleswitch';
+import SelectButton from 'primevue/selectbutton';
 import InputText from 'primevue/inputtext';
 import FeaturesAdminSection from '../components/FeaturesAdminSection.vue';
 import UserAvatar from '../components/UserAvatar.vue';
@@ -20,21 +20,25 @@ const { fetchUsers, updateUser } = usersStore;
 const sessionStore = useSessionStore();
 const { currentUser } = storeToRefs(sessionStore);
 
+const ROLE_OPTIONS = [
+    { label: 'User', value: false },
+    { label: 'Admin', value: true }
+];
+
 const search = ref('');
 const togglingAdminIds = ref<number[]>([]);
 
 const isSelf = (user: User) => currentUser.value?.id === user.id;
 
-const toggleAdmin = async (user: User) => {
-    if (isSelf(user) || togglingAdminIds.value.includes(user.id)) return;
+const setAdminStatus = async (user: User, isAdmin: boolean) => {
+    if (isSelf(user) || isAdmin === user.isAdmin || togglingAdminIds.value.includes(user.id)) return;
 
-    const wasAdmin = user.isAdmin;
     togglingAdminIds.value.push(user.id);
     try {
-        await updateUser(user.id, { isAdmin: !wasAdmin });
+        await updateUser(user.id, { isAdmin });
         toast.add({
             severity: 'success',
-            summary: wasAdmin ? `${user.username} is no longer an admin` : `${user.username} is now an admin`,
+            summary: isAdmin ? `${user.username} is now an admin` : `${user.username} is no longer an admin`,
             life: 3000
         });
     } catch (err: any) {
@@ -118,24 +122,22 @@ onMounted(() => {
                                 @click="impersonateUser(user)"
                             />
                             <div
-                                class="flex items-center gap-2"
+                                class="flex items-center"
                                 v-tooltip.top="
-                                    isSelf(user) ? 'You cannot change your own admin status' : 'Toggle admin access'
+                                    isSelf(user)
+                                        ? 'You cannot change your own admin status'
+                                        : 'Change access level for this user'
                                 "
                             >
-                                <label
-                                    :for="`admin-toggle-${user.id}`"
-                                    class="text-meta text-muted"
-                                    :class="isSelf(user) ? 'cursor-default' : 'cursor-pointer'"
-                                >
-                                    Admin
-                                </label>
-                                <ToggleSwitch
-                                    :inputId="`admin-toggle-${user.id}`"
+                                <SelectButton
                                     :modelValue="user.isAdmin"
+                                    :options="ROLE_OPTIONS"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    :allowEmpty="false"
                                     :disabled="isSelf(user) || togglingAdminIds.includes(user.id)"
-                                    :aria-label="`${user.isAdmin ? 'Revoke' : 'Grant'} admin access for ${user.username}`"
-                                    @update:modelValue="toggleAdmin(user)"
+                                    :aria-label="`Access level for ${user.username}`"
+                                    @update:modelValue="(value: boolean) => setAdminStatus(user, value)"
                                 />
                             </div>
                         </div>
