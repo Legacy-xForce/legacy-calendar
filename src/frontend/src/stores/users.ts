@@ -65,12 +65,6 @@ export const useUsersStore = defineStore('users', () => {
         return response.data;
     }
 
-    async function removeUser(id: number) {
-        logger.warn('Removing user', { userId: id });
-        await api.removeUser(id);
-        await fetchUsers(true);
-    }
-
     function clearCache() {
         users.value = [];
         lastFetched.value = null;
@@ -83,7 +77,6 @@ export const useUsersStore = defineStore('users', () => {
         fetchUsers,
         createUser,
         updateUser,
-        removeUser,
         clearCache
     };
 });

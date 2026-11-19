@@ -79,11 +79,4 @@ export class UsersRepository {
             select: USER_SELECT
         });
     }
-
-    remove(id: number): Promise<UserRecord> {
-        return this.prisma.user.delete({
-            where: { id },
-            select: USER_SELECT
-        });
-    }
 }

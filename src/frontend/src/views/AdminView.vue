@@ -2,10 +2,11 @@
 import { ref, computed, onMounted } from 'vue';
 import type { User } from '../types/User';
 import { useToast } from 'primevue/usetoast';
-import { useConfirm } from 'primevue/useconfirm';
 import { useUsersStore } from '../stores/users';
+import { useSessionStore } from '../stores/session';
 import { storeToRefs } from 'pinia';
 import Button from 'primevue/button';
+import ToggleSwitch from 'primevue/toggleswitch';
 import InputText from 'primevue/inputtext';
 import FeaturesAdminSection from '../components/FeaturesAdminSection.vue';
 import UserAvatar from '../components/UserAvatar.vue';
@@ -13,36 +14,39 @@ import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 
 const toast = useToast();
-const confirm = useConfirm();
 const usersStore = useUsersStore();
 const { users, loading } = storeToRefs(usersStore);
-const { fetchUsers, removeUser } = usersStore;
+const { fetchUsers, updateUser } = usersStore;
+const sessionStore = useSessionStore();
+const { currentUser } = storeToRefs(sessionStore);
 
 const search = ref('');
+const togglingAdminIds = ref<number[]>([]);
 
-const handleDeleteUser = async (user: User) => {
+const isSelf = (user: User) => currentUser.value?.id === user.id;
+
+const toggleAdmin = async (user: User) => {
+    if (isSelf(user) || togglingAdminIds.value.includes(user.id)) return;
+
+    const wasAdmin = user.isAdmin;
+    togglingAdminIds.value.push(user.id);
     try {
-        await removeUser(user.id);
-        toast.add({ severity: 'success', summary: `${user.username} deleted`, life: 3000 });
+        await updateUser(user.id, { isAdmin: !wasAdmin });
+        toast.add({
+            severity: 'success',
+            summary: wasAdmin ? `${user.username} is no longer an admin` : `${user.username} is now an admin`,
+            life: 3000
+        });
     } catch (err: any) {
         toast.add({
             severity: 'error',
-            summary: "Couldn't delete user",
-            detail: err.message || 'Please try again.',
+            summary: "Couldn't update admin status",
+            detail: err.response?.data?.message || err.message || 'Please try again.',
             life: 3000
         });
+    } finally {
+        togglingAdminIds.value = togglingAdminIds.value.filter((id) => id !== user.id);
     }
-};
-
-const confirmDelete = (user: User) => {
-    confirm.require({
-        message: `${user.username} will lose access and disappear from events. This can't be undone.`,
-        header: `Delete ${user.username}?`,
-        icon: 'pi pi-exclamation-triangle',
-        rejectProps: { label: 'Cancel', severity: 'secondary', text: true },
-        acceptProps: { label: 'Delete', severity: 'danger' },
-        accept: () => handleDeleteUser(user)
-    });
 };
 
 const impersonateUser = (user: User) => {
@@ -100,18 +104,10 @@ onMounted(() => {
                             class="size-9!"
                         />
                         <div class="min-w-0 flex-1">
-                            <p class="text-body text-fg m-0 flex items-center gap-2 truncate font-medium">
-                                {{ user.username }}
-                                <span
-                                    v-if="user.isAdmin"
-                                    class="bg-surface-850 text-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
-                                >
-                                    Admin
-                                </span>
-                            </p>
+                            <p class="text-body text-fg m-0 truncate font-medium">{{ user.username }}</p>
                             <p class="text-meta text-subtle tabular m-0">#{{ user.id }}</p>
                         </div>
-                        <div class="flex shrink-0 items-center">
+                        <div class="flex shrink-0 items-center gap-2">
                             <Button
                                 icon="pi pi-eye"
                                 text
@@ -121,15 +117,27 @@ onMounted(() => {
                                 v-tooltip.top="'View as this user'"
                                 @click="impersonateUser(user)"
                             />
-                            <Button
-                                icon="pi pi-trash"
-                                text
-                                rounded
-                                severity="danger"
-                                :aria-label="`Delete ${user.username}`"
-                                v-tooltip.top="'Delete'"
-                                @click="confirmDelete(user)"
-                            />
+                            <div
+                                class="flex items-center gap-2"
+                                v-tooltip.top="
+                                    isSelf(user) ? 'You cannot change your own admin status' : 'Toggle admin access'
+                                "
+                            >
+                                <label
+                                    :for="`admin-toggle-${user.id}`"
+                                    class="text-meta text-muted"
+                                    :class="isSelf(user) ? 'cursor-default' : 'cursor-pointer'"
+                                >
+                                    Admin
+                                </label>
+                                <ToggleSwitch
+                                    :inputId="`admin-toggle-${user.id}`"
+                                    :modelValue="user.isAdmin"
+                                    :disabled="isSelf(user) || togglingAdminIds.includes(user.id)"
+                                    :aria-label="`${user.isAdmin ? 'Revoke' : 'Grant'} admin access for ${user.username}`"
+                                    @update:modelValue="toggleAdmin(user)"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

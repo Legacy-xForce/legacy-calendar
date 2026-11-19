@@ -34,10 +34,4 @@ $updateBody = @{ username = $updatedUsername } | ConvertTo-Json
 $update = Invoke-RestMethod -Method Patch -Uri "$url/users/$id" -Body $updateBody -ContentType 'application/json'
 $update | ConvertTo-Json -Depth 5
 
-# 6. DELETE
-Write-Host "`nDeleting user $id..." -ForegroundColor Red
-$delete = Invoke-RestMethod -Method Delete -Uri "$url/users/$id"
-Write-Host "Delete response:"
-$delete | ConvertTo-Json -Depth 5
-
 Write-Host "`n--- CRUD Test Complete ---" -ForegroundColor Green
