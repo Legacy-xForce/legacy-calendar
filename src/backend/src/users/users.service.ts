@@ -134,19 +134,6 @@ export class UsersService {
         }
     }
 
-    async remove(id: number): Promise<UserDto> {
-        this.logger.warn('Removing user', { userId: id });
-        try {
-            const user = await this.usersRepo.remove(id);
-            this.logger.info('User removed', { userId: id, username: user.username });
-            return this.toDto(user);
-        } catch (error) {
-            this.handleUserWriteError(error, id);
-            this.logger.error('Failed to remove user', error);
-            throw error;
-        }
-    }
-
     private toDto(user: UserRecord, options: { includePaymentInfo?: boolean } = {}): UserDto {
         return mapUserToDto(user, options);
     }

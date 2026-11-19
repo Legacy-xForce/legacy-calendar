@@ -66,8 +66,7 @@ export interface paths {
         get: operations["UsersController_findOne"];
         put?: never;
         post?: never;
-        /** Delete a user (Admin only) */
-        delete: operations["UsersController_remove"];
+        delete?: never;
         options?: never;
         head?: never;
         /** Update a user (Admin only) */
@@ -1591,40 +1590,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description User not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    UsersController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description User deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden - Admin access required */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

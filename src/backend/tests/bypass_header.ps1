@@ -45,11 +45,3 @@ try {
 } catch {
     Write-Error "FAILURE: User update failed: $($_.Exception.Message)"
 }
-
-Write-Host "`n5. Testing user deletion WITH CORRECT X-Bypass header (Expect Success)"
-try {
-    Invoke-RestMethod -Uri "http://localhost:3000/users/$userId" -Method Delete -Headers @{ "X-Bypass" = $bypassKey } -ErrorAction Stop
-    Write-Host "SUCCESS: User deleted."
-} catch {
-    Write-Error "FAILURE: User deletion failed: $($_.Exception.Message)"
-}

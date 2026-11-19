@@ -1,16 +1,4 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseIntPipe,
-    Patch,
-    Post,
-    Request,
-    UseGuards,
-    Inject
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Request, UseGuards, Inject } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AdminGuard } from '../auth/guards/admin.guard.js';
 import { UserAuthGuard } from '../auth/guards/user-auth.guard.js';
@@ -77,16 +65,5 @@ export class UsersController {
     @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
     update(@Param('id', ParseIntPipe) id: number, @Body() updateUserDto: UpdateUserDto) {
         return this.usersService.update(id, updateUserDto);
-    }
-
-    @Delete(':id')
-    @UseGuards(UserAuthGuard, AdminGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Delete a user (Admin only)' })
-    @ApiResponse({ status: 200, description: 'User deleted' })
-    @ApiResponse({ status: 404, description: 'User not found' })
-    @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
-    remove(@Param('id', ParseIntPipe) id: number) {
-        return this.usersService.remove(id);
     }
 }

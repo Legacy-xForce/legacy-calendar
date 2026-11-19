@@ -292,11 +292,17 @@ describe('API tokens', () => {
             const listed = await http(app, 'GET', '/users', { apiToken: read.token });
             expect(listed.status).toBe(200);
 
-            const readCannotDelete = await http(app, 'DELETE', `/users/${created.body.id}`, { apiToken: read.token });
-            expect(readCannotDelete.status).toBe(403);
+            const readCannotUpdate = await http(app, 'PATCH', `/users/${created.body.id}`, {
+                apiToken: read.token,
+                body: { isAdmin: true }
+            });
+            expect(readCannotUpdate.status).toBe(403);
 
-            const writeCanDelete = await http(app, 'DELETE', `/users/${created.body.id}`, { apiToken: write.token });
-            expect(writeCanDelete.status).toBe(200);
+            const writeCanUpdate = await http(app, 'PATCH', `/users/${created.body.id}`, {
+                apiToken: write.token,
+                body: { isAdmin: true }
+            });
+            expect(writeCanUpdate.status).toBe(200);
         });
     });
 

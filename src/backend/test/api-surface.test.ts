@@ -454,7 +454,6 @@ describe('API surface through personal tokens', () => {
         expect(list.body.some((user) => user.id === member.id)).toBe(true);
 
         const adminWrite = (await createApiToken(app, admin, 'write', 'Admin write')).token;
-        const adminRead = (await createApiToken(app, admin, 'read', 'Admin read')).token;
         const username = `managed${Date.now().toString(36)}`.slice(0, 30);
 
         const created = await http<{ id: number; username: string }>(app, 'POST', '/users', {
@@ -470,11 +469,8 @@ describe('API surface through personal tokens', () => {
         expect(renamed.status).toBe(200);
         expect(renamed.body.username).toBe(`${username}x`);
 
-        const deniedReadDelete = await http(app, 'DELETE', `/users/${created.body.id}`, { apiToken: adminRead });
-        expect(deniedReadDelete.status).toBe(403);
-
-        const deleted = await http(app, 'DELETE', `/users/${created.body.id}`, { apiToken: adminWrite });
-        expect(deleted.status).toBe(200);
+        const deleteGone = await http(app, 'DELETE', `/users/${created.body.id}`, { apiToken: adminWrite });
+        expect(deleteGone.status).toBe(404);
 
         const notAdmin = await http(app, 'POST', '/users', {
             apiToken: hostWrite,

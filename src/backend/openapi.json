@@ -183,42 +183,6 @@
         "tags": [
           "users"
         ]
-      },
-      "delete": {
-        "operationId": "UsersController_remove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User deleted"
-          },
-          "403": {
-            "description": "Forbidden - Admin access required"
-          },
-          "404": {
-            "description": "User not found"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "api-token": []
-          }
-        ],
-        "summary": "Delete a user (Admin only)",
-        "tags": [
-          "users"
-        ]
       }
     },
     "/users/me/payment-info": {

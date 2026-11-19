@@ -154,10 +154,6 @@ class API {
         return this.client.patch('/users/me/payment-info', dto);
     }
 
-    async removeUser(id: number): Promise<AxiosResponse<void>> {
-        return this.client.delete(`/users/${id}`);
-    }
-
     // --- Events ---
 
     async findCalendarEvents(range: Pick<CalendarVisibleRange, 'start' | 'end'>): Promise<AxiosResponse<Event[]>> {
