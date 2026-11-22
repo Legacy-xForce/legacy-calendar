@@ -87,7 +87,7 @@ export default defineConfig({
             },
             manifest: {
                 name: 'Legacy Calendar',
-                short_name: 'Calendar',
+                short_name: 'Legacy Calendar',
                 description: "Legacy's calendar",
                 theme_color: '#000000',
                 background_color: '#000000',
