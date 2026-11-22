@@ -95,6 +95,8 @@ export default defineConfig({
                 start_url: '/',
                 id: '/',
                 orientation: 'portrait',
+                // Launchers mask maskable icons to a squircle/circle, so their
+                // artwork keeps the wordmarks inside the 80% safe zone.
                 icons: [
                     {
                         src: 'icon.svg',
@@ -103,17 +105,25 @@ export default defineConfig({
                         purpose: 'any'
                     },
                     {
-                        src: 'icon.png',
+                        src: 'icon-192.png',
                         sizes: '192x192',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any'
                     },
                     {
                         src: 'icon.png',
                         sizes: '512x512',
-                        type: 'image/png'
+                        type: 'image/png',
+                        purpose: 'any'
                     },
                     {
-                        src: 'icon.png',
+                        src: 'icon-maskable-192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                        purpose: 'maskable'
+                    },
+                    {
+                        src: 'icon-maskable-512.png',
                         sizes: '512x512',
                         type: 'image/png',
                         purpose: 'maskable'
