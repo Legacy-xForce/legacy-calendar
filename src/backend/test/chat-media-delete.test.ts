@@ -28,11 +28,11 @@ test('deleting a message cannot delete a file outside its chat uploads directory
     } as ChatMessageWithRelations;
 
     const chatRepo = {
-        findMessageById: async () => message,
-        deleteMessage: async () => message
+        findMessageById: () => Promise.resolve(message),
+        deleteMessage: () => Promise.resolve(message)
     } as unknown as ChatRepository;
     const eventsRepo = {
-        findChatAccessById: async () => ({ hostId: 999 })
+        findChatAccessById: () => Promise.resolve({ hostId: 999 })
     } as unknown as EventsRepository;
     const notifications = {} as NotificationsService;
     const service = new ChatService(chatRepo, eventsRepo, notifications);
