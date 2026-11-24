@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { writeFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import * as path from 'path';
 import { ChatService } from '../src/chat/chat.service.js';
@@ -9,7 +10,7 @@ import type { NotificationsService } from '../src/notifications/notifications.se
 import { ChatMediaType } from '../prisma/generated/client.js';
 
 test('deleting a message cannot delete a file outside its chat uploads directory', async () => {
-    const victim = join('/tmp/opencode', `chat-media-delete-${crypto.randomUUID()}.txt`);
+    const victim = join(tmpdir(), `chat-media-delete-${crypto.randomUUID()}.txt`);
     writeFileSync(victim, 'do not delete me');
 
     // A socket client can store any string as mediaUrl; this one escapes uploads/.
