@@ -291,9 +291,16 @@ export function useEventChatDialogState(eventRef: EventRef, closeChat: () => voi
 
         const previousHeight = container.scrollHeight;
         const previousTop = container.scrollTop;
+        const previousCount = chat.messages.value.length;
         suppressAutoScroll.value = true;
         await chat.loadMoreHistory();
         await nextTick();
+        if (chat.messages.value.length === previousCount) {
+            // No messages arrived (e.g. the request failed): the watcher that
+            // normally clears this flag would never run.
+            suppressAutoScroll.value = false;
+            return;
+        }
         container.scrollTop = previousTop + (container.scrollHeight - previousHeight);
     };
 

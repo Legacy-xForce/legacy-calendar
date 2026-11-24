@@ -100,6 +100,7 @@ test('history from an abandoned event does not leak into the new event', async (
 });
 
 test('switching events leaves only one chat socket connected', async () => {
+    const socketStart = sockets.length;
     const eventId = ref(10);
     useEventChat(eventId);
     eventId.value = 11;
@@ -108,5 +109,6 @@ test('switching events leaves only one chat socket connected', async () => {
     settlePendingHistory();
     await flush();
 
-    expect(sockets.filter((socket) => !socket.disconnected).length).toBe(1);
+    const createdInThisTest = sockets.slice(socketStart);
+    expect(createdInThisTest.filter((socket) => !socket.disconnected).length).toBe(1);
 });
