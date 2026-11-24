@@ -417,7 +417,7 @@ export class EventsRepository {
     async getParticipantTokens(eventId: number, status?: InviteStatus): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
             where: { eventId, ...(status ? { status } : {}), userId: { not: null } },
-            include: { user: { include: { fcmTokens: true } } }
+            select: { user: { select: { fcmTokens: { select: { token: true } } } } }
         });
 
         return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);
