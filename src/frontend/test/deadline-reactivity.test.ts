@@ -6,7 +6,10 @@ const now = ref(new Date('2026-01-01T00:00:00.000Z'));
 await mock.module('../src/composables/useNow', () => ({ useNow: () => ({ now }) }));
 await mock.module('pinia', () => ({ storeToRefs: (store: unknown) => store }));
 await mock.module('../src/stores/session', () => ({
-    useSessionStore: () => ({ currentUser: { id: 1, username: 'tester', isAdmin: false }, getAccessToken: () => Promise.resolve('t') })
+    useSessionStore: () => ({
+        currentUser: { id: 1, username: 'tester', isAdmin: false },
+        getAccessToken: () => Promise.resolve('t')
+    })
 }));
 await mock.module('../src/stores/users', () => ({ useUsersStore: () => ({ users: ref([]) }) }));
 await mock.module('../src/services/API', () => ({

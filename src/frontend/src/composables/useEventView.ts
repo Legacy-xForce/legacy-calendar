@@ -14,6 +14,7 @@ export function injectEventView() {
 }
 import type { Event, FeatureId, EventParticipant, EventPersonSummary, RideDirection } from '../types/Event';
 import { useSessionStore } from '../stores/session';
+import { useNow } from './useNow';
 import { useUsersStore } from '../stores/users';
 import {
     canUserRespondToEvent,
@@ -139,14 +140,16 @@ export function useEventView(eventRef: Ref<Event | null>, options: UseEventViewO
         );
     });
 
+    const { now } = useNow();
+
     const isDeadlinePassed = computed(() => {
         if (!eventRef.value?.participationDeadline) return false;
-        return new Date() > new Date(eventRef.value.participationDeadline);
+        return now.value > new Date(eventRef.value.participationDeadline);
     });
 
     const isEnded = computed(() => {
         if (!eventRef.value?.endTime) return false;
-        return new Date() > new Date(eventRef.value.endTime);
+        return now.value > new Date(eventRef.value.endTime);
     });
 
     const canAccept = computed(() => {
