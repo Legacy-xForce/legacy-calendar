@@ -1,12 +1,5 @@
 import { NotificationCode, type NotificationSettings } from '../types/Notification';
 
-export type NotificationPayloadData = {
-    type?: string;
-    eventId?: string;
-    messageId?: string;
-    actorUsername?: string;
-};
-
 const knownCodes = new Set(Object.values(NotificationCode));
 
 export function isKnownNotificationCode(value: unknown): value is NotificationCode {

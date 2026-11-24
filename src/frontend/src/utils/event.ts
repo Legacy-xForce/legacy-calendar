@@ -2,18 +2,6 @@ import type { Event, EventFeatureDraft, EventParticipant, FeatureId, Participant
 
 const MAX_EVENT_START_TIME_YEARS_AHEAD = 1;
 
-export const PARTICIPANT_STATUS_SEVERITY: Record<ParticipantStatus, 'success' | 'danger' | 'warn'> = {
-    ACCEPTED: 'success',
-    DECLINED: 'danger',
-    PENDING: 'warn'
-};
-
-export const PARTICIPANT_STATUS_ICON: Record<ParticipantStatus, string> = {
-    ACCEPTED: 'pi pi-check',
-    DECLINED: 'pi pi-times',
-    PENDING: 'pi pi-clock'
-};
-
 export function createFeatureRecord<T>(
     featureIds: readonly FeatureId[],
     factory: (feature: FeatureId) => T
@@ -135,14 +123,6 @@ export function canUserRespondToEvent(args: {
     if (args.isHost) return true;
     if (args.userParticipantStatus) return true;
     return args.isOpen;
-}
-
-export function getParticipantStatusSeverity(status: string) {
-    return PARTICIPANT_STATUS_SEVERITY[status as ParticipantStatus] ?? 'secondary';
-}
-
-export function getParticipantStatusIcon(status: string) {
-    return PARTICIPANT_STATUS_ICON[status as ParticipantStatus] ?? 'pi pi-info-circle';
 }
 
 export function getActiveParticipants(participants: EventParticipant[] | undefined) {

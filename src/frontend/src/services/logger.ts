@@ -140,8 +140,6 @@ export function createLogger(scope: string) {
     return new FrontendLogger(scope, DEFAULT_LEVEL);
 }
 
-export const logger = createLogger('App');
-
 function normalizeLevel(level: string): LogLevel {
     const normalized = level.toLowerCase();
     if (
