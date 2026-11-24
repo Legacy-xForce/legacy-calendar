@@ -206,11 +206,7 @@ export class EventsService {
         const updateData: Prisma.EventUpdateInput = this.buildUpdateEventInput(eventData);
         let participantDiff: { toAdd: number[]; toRemove: number[] } | undefined;
 
-        if (features) {
-            // Replacing the features also reconciles participants: dropped or newly
-            // restricted features leave their opt-ins, mandatory ones are added.
-            await this.eventsRepo.replaceFeatures(id, await this.planFeatures(features, event.features));
-        }
+        const plannedFeatures = features ? await this.planFeatures(features, event.features) : undefined;
 
         if (participants) {
             const existingParticipantIds = this.getParticipantUserIds(event);
@@ -224,31 +220,35 @@ export class EventsService {
             if (participantsUpdate) {
                 updateData.participants = participantsUpdate;
             }
-
-            if (toRemove.length > 0) {
-                this.logger.debug('Removing ride assignments for departing participants', {
-                    eventId: id,
-                    userIds: toRemove
-                });
-                await this.eventsRepo.deleteRideAssignmentsForUsers(id, toRemove);
-            }
         }
 
         let coHostsChanged = false;
+        let finalCoHostIds: number[] | undefined;
+        let coHostDiff: { toAdd: number[]; toRemove: number[] } | undefined;
         if (coHosts) {
             const existingCoHostIds = event.coHosts.map((coHost) => coHost.userId);
             const nextCoHostIds = this.normalizeUserIds(coHosts).filter((id) => id !== event.hostId);
-            const { toAdd, toRemove } = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
-            if (toAdd.length > 0 || toRemove.length > 0) {
+            coHostDiff = this.diffParticipantIds(existingCoHostIds, nextCoHostIds);
+            if (coHostDiff.toAdd.length > 0 || coHostDiff.toRemove.length > 0) {
                 coHostsChanged = true;
-                await this.applyCoHostDiff(id, toAdd, toRemove, { actorId: userId, impersonatorId }, existingCoHostIds);
+                finalCoHostIds = [
+                    ...existingCoHostIds.filter((existing) => !coHostDiff!.toRemove.includes(existing)),
+                    ...coHostDiff.toAdd.filter((added) => !existingCoHostIds.includes(added))
+                ];
             }
         }
 
-        // Applying the co-host diff first means the update response already
-        // contains the final co-host list, so no second event fetch is needed.
-        const updatedEvent = await this.eventsRepo.update(id, updateData);
+        // One transaction for all writes; the response already reflects the final co-host list.
+        const updatedEvent = await this.eventsRepo.applyEventUpdate(id, updateData, {
+            features: plannedFeatures,
+            rideAssignmentUserIds: participantDiff?.toRemove,
+            coHostIds: finalCoHostIds
+        });
         const finalEvent = updatedEvent;
+
+        if (coHostDiff) {
+            await this.recordCoHostDiff(id, coHostDiff.toAdd, coHostDiff.toRemove, { actorId: userId, impersonatorId });
+        }
 
         await this.auditLogService.recordEventUpdated(id, event, finalEvent, { actorId: userId, impersonatorId });
 
@@ -719,21 +719,12 @@ export class EventsService {
         return isEventManager(event, userId);
     }
 
-    private async applyCoHostDiff(
+    private async recordCoHostDiff(
         eventId: number,
         toAdd: number[],
         toRemove: number[],
-        actor: { actorId: number; impersonatorId: number | null },
-        currentIds?: number[]
+        actor: { actorId: number; impersonatorId: number | null }
     ) {
-        if (toAdd.length > 0 || toRemove.length > 0) {
-            const existingIds = currentIds ?? (await this.eventsRepo.getCoHostIds(eventId));
-            await this.eventsRepo.setCoHosts(eventId, [
-                ...existingIds.filter((id) => !toRemove.includes(id)),
-                ...toAdd.filter((id) => !existingIds.includes(id))
-            ]);
-        }
-
         const [addedUsers, removedUsers] = await Promise.all([
             Promise.all(toAdd.map((coHostId) => this.eventsRepo.getUserById(coHostId))),
             Promise.all(toRemove.map((coHostId) => this.eventsRepo.getUserById(coHostId)))

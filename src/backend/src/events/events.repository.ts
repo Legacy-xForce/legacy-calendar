@@ -368,6 +368,54 @@ export class EventsRepository {
         });
     }
 
+    /**
+     * Applies every write of an event edit in one transaction so a failure
+     * cannot leave features, participants, co-hosts and fields out of sync.
+     */
+    async applyEventUpdate(
+        id: number,
+        data: Prisma.EventUpdateInput,
+        changes: {
+            features?: PlannedFeature[];
+            rideAssignmentUserIds?: number[];
+            coHostIds?: number[];
+        }
+    ): Promise<EventWithRelations> {
+        return this.prisma.$transaction(async (tx) => {
+            if (changes.features) {
+                await writeEventFeatures(tx, id, changes.features);
+            }
+            if (changes.rideAssignmentUserIds && changes.rideAssignmentUserIds.length > 0) {
+                await tx.rideAssignment.deleteMany({
+                    where: {
+                        eventId: id,
+                        OR: [
+                            { passengerId: { in: changes.rideAssignmentUserIds } },
+                            { driverId: { in: changes.rideAssignmentUserIds } }
+                        ]
+                    }
+                });
+            }
+            if (changes.coHostIds) {
+                await tx.eventCoHost.deleteMany({
+                    where: { eventId: id, userId: { notIn: changes.coHostIds } }
+                });
+                for (const userId of changes.coHostIds) {
+                    await tx.eventCoHost.upsert({
+                        where: { eventId_userId: { eventId: id, userId } },
+                        update: {},
+                        create: { eventId: id, userId }
+                    });
+                }
+            }
+            return tx.event.update({
+                where: { id },
+                data,
+                include: EVENT_INCLUDE
+            });
+        });
+    }
+
     async getCoHostIds(eventId: number): Promise<number[]> {
         const coHosts = await this.prisma.eventCoHost.findMany({
             where: { eventId },
