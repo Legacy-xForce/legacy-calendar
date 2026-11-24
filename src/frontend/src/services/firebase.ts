@@ -49,7 +49,7 @@ export const requestNotificationPermission = async () => {
 
 export const onMessageListener = (callback: (payload: any) => void) => {
     if (!messaging) return;
-    onMessage(messaging, (payload) => {
+    return onMessage(messaging, (payload) => {
         logger.debug('Message received in foreground', payload);
         callback(payload);
     });
