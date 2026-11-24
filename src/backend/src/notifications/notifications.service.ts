@@ -6,6 +6,10 @@ import { AppLogger } from '../logging/app-logger.js';
 import { NotificationCode } from './notification-codes.js';
 
 // Firebase error codes that mean the device token itself is no longer usable.
+// firebase-admin rejects multicast batches larger than this, which would drop
+// notifications for every recipient in an oversized event.
+const FCM_MAX_BATCH_SIZE = 500;
+
 const STALE_FCM_TOKEN_CODES = new Set([
     'messaging/registration-token-not-registered',
     'messaging/invalid-registration-token'
@@ -103,23 +107,26 @@ export class NotificationsService implements OnModuleInit {
             return;
         }
 
-        try {
-            const response = await admin.messaging().sendEachForMulticast({
-                tokens,
-                data: payloadData
-            });
-            this.logger.info('Multicast notification sent', {
-                successCount: response.successCount,
-                failureCount: response.failureCount,
-                tokenCount: tokens.length,
-                title
-            });
-            await this.pruneStaleTokens(tokens, response);
-        } catch (error) {
-            this.logger.error(
-                'Failed to send multicast notifications',
-                error instanceof Error ? (error.stack ?? error.message) : String(error)
-            );
+        for (let offset = 0; offset < tokens.length; offset += FCM_MAX_BATCH_SIZE) {
+            const batch = tokens.slice(offset, offset + FCM_MAX_BATCH_SIZE);
+            try {
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens: batch,
+                    data: payloadData
+                });
+                this.logger.info('Multicast notification sent', {
+                    successCount: response.successCount,
+                    failureCount: response.failureCount,
+                    tokenCount: batch.length,
+                    title
+                });
+                await this.pruneStaleTokens(batch, response);
+            } catch (error) {
+                this.logger.error(
+                    'Failed to send multicast notifications',
+                    error instanceof Error ? (error.stack ?? error.message) : String(error)
+                );
+            }
         }
     }
 
