@@ -11,7 +11,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{vue,ts,js,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{vue,ts,js,css,json}\"",
-    "generate:api": "bunx openapi-typescript ../backend/openapi.json -o src/types/api.generated.ts"
+    "generate:api": "bunx openapi-typescript ../backend/openapi.json -o src/types/api.generated.ts",
+    "test": "bun test"
   },
   "dependencies": {
     "@meteocons/lottie": "^0.1.0",
