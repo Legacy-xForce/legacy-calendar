@@ -13,7 +13,9 @@ await mock.module('../src/stores/session', () => ({
 }));
 await mock.module('../src/stores/users', () => ({ useUsersStore: () => ({ users: ref([]) }) }));
 await mock.module('../src/services/API', () => ({
-    default: { getChatHistory: () => Promise.resolve({ data: { messages: [] } }) }
+    default: { getChatHistory: () => Promise.resolve({ data: { messages: [] } }) },
+    socketBaseURL: 'http://localhost:3000',
+    socketPath: '/socket.io'
 }));
 await mock.module('../src/services/logger', () => ({
     createLogger: () => ({ info: () => {}, debug: () => {}, trace: () => {}, warn: () => {}, error: () => {} })
