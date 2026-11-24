@@ -6,6 +6,7 @@ import BankLogo from '../../BankLogo.vue';
 import PaymentLinkRow from './PaymentLinkRow.vue';
 import type { Event, EventPersonSummary } from '../../../types/Event';
 import { formatCurrency } from '../../../utils/format';
+import { copyText } from '../../../utils/clipboard';
 import { formatIban, getItalianBankName, normalizeIban } from '../../../utils/iban';
 import { injectEventView } from '../../../composables/useEventView';
 
@@ -35,10 +36,12 @@ const hostsWithPaymentInfo = computed(() =>
     allEventHosts.value.filter((host) => host.paypalLink || host.ibanNumber || host.revolutLink)
 );
 
-const copyIban = (iban: string) => {
-    navigator.clipboard.writeText(normalizeIban(iban)).then(() => {
-        toast.add({ severity: 'success', summary: 'IBAN copied', life: 2500 });
-    });
+const copyIban = async (iban: string) => {
+    if (!(await copyText(normalizeIban(iban)))) {
+        toast.add({ severity: 'error', summary: "Couldn't copy IBAN", life: 2500 });
+        return;
+    }
+    toast.add({ severity: 'success', summary: 'IBAN copied', life: 2500 });
 };
 
 /** Secondary line under the IBAN: the bank (when known) and the account holder. */

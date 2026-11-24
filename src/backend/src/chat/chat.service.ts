@@ -196,10 +196,17 @@ export class ChatService {
         const message = await this.loadModeratableMessage(messageId, userId, isAdmin, 'delete', { allowAuthor: true });
 
         if (message.mediaUrl) {
-            const filePath = path.join(process.cwd(), message.mediaUrl);
-            const f = Bun.file(filePath);
-            if (await f.exists()) {
-                await f.delete();
+            const filePath = this.resolveChatMediaPath(message.mediaUrl, message.eventId);
+            if (!filePath) {
+                this.logger.warn('Refusing to delete media outside the event chat uploads directory', {
+                    messageId,
+                    mediaUrl: message.mediaUrl
+                });
+            } else {
+                const f = Bun.file(filePath);
+                if (await f.exists()) {
+                    await f.delete();
+                }
             }
         }
 
@@ -244,6 +251,23 @@ export class ChatService {
      * Load a message and enforce the moderation rule shared by pin/unpin/delete:
      * host or admin, plus the author for delete only.
      */
+    /**
+     * Media URLs arrive from socket clients, so never trust them as file paths.
+     * Only files inside this event's chat upload directory may be deleted.
+     */
+    private resolveChatMediaPath(mediaUrl: string, eventId: number): string | null {
+        if (path.isAbsolute(mediaUrl)) return null;
+
+        const chatRoot = path.resolve(process.cwd(), 'uploads', 'chat', String(eventId));
+        const resolved = path.resolve(process.cwd(), mediaUrl);
+        const relativeToRoot = path.relative(chatRoot, resolved);
+        if (!relativeToRoot || relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+            return null;
+        }
+
+        return resolved;
+    }
+
     private async loadModeratableMessage(
         messageId: number,
         userId: number,

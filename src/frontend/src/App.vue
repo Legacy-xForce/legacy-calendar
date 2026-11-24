@@ -32,6 +32,7 @@ type ForegroundNotification = {
 const foregroundNotifications = ref<ForegroundNotification[]>([]);
 let nextForegroundNotificationId = 0;
 const foregroundTimers = new Map<number, number>();
+let unsubscribeForegroundMessages: (() => void) | undefined;
 
 const dismissForegroundNotification = (id: number) => {
     const timer = foregroundTimers.get(id);
@@ -69,7 +70,7 @@ onMounted(async () => {
     }
 
     // Set up foreground notification listener
-    onMessageListener(async (payload) => {
+    unsubscribeForegroundMessages = onMessageListener(async (payload) => {
         const type = payload.data?.type;
         const eventId = payload.data?.eventId;
         const title = payload.notification?.title || payload.data?.title || 'New Notification';
@@ -95,6 +96,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    unsubscribeForegroundMessages?.();
     for (const timer of foregroundTimers.values()) {
         window.clearTimeout(timer);
     }

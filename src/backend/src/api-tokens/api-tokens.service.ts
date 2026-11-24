@@ -31,21 +31,30 @@ export class ApiTokensService {
     }
 
     async create(userId: number, dto: CreateApiTokenDto): Promise<CreatedApiTokenResponseDto> {
+        const limitMessage = `You already have the maximum of ${MAX_API_TOKENS_PER_USER} API tokens. Delete one before creating another.`;
         const count = await this.apiTokensRepo.countForUser(userId);
         if (count >= MAX_API_TOKENS_PER_USER) {
-            throw new BadRequestException(
-                `You already have the maximum of ${MAX_API_TOKENS_PER_USER} API tokens. Delete one before creating another.`
-            );
+            throw new BadRequestException(limitMessage);
         }
 
         const token = generateApiToken();
-        const created = await this.apiTokensRepo.create({
-            userId,
-            name: dto.name?.trim() || API_TOKEN_DEFAULT_NAME,
-            scope: dto.scope,
-            tokenHash: hashApiToken(token),
-            tokenHint: buildApiTokenHint(token)
-        });
+        let created: ApiToken;
+        try {
+            created = await this.apiTokensRepo.create({
+                userId,
+                name: dto.name?.trim() || API_TOKEN_DEFAULT_NAME,
+                scope: dto.scope,
+                tokenHash: hashApiToken(token),
+                tokenHint: buildApiTokenHint(token)
+            });
+        } catch (error) {
+            // The database trigger closes the concurrent-create race; translate
+            // its rejection into the same friendly error as the count check.
+            if (error instanceof Error && error.message.includes('API token limit exceeded')) {
+                throw new BadRequestException(limitMessage);
+            }
+            throw error;
+        }
 
         this.logger.info('API token created', { userId, tokenId: created.id, scope: created.scope });
         return { ...this.toPublic(created), token };

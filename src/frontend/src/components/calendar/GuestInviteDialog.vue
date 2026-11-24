@@ -6,6 +6,7 @@ import InputText from 'primevue/inputtext';
 import Skeleton from 'primevue/skeleton';
 import { useToast } from 'primevue/usetoast';
 import api from '../../services/API';
+import { copyText } from '../../utils/clipboard';
 
 const props = defineProps<{
     visible: boolean;
@@ -37,11 +38,13 @@ const generateInvite = async () => {
     }
 };
 
-const copyLink = () => {
+const copyLink = async () => {
     if (!inviteUrl.value) return;
-    navigator.clipboard.writeText(inviteUrl.value).then(() => {
-        toast.add({ severity: 'success', summary: 'Invite link copied', life: 2500 });
-    });
+    if (!(await copyText(inviteUrl.value))) {
+        toast.add({ severity: 'error', summary: "Couldn't copy invite link", life: 2500 });
+        return;
+    }
+    toast.add({ severity: 'success', summary: 'Invite link copied', life: 2500 });
 };
 
 watch(

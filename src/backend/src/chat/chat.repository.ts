@@ -54,15 +54,24 @@ export class ChatRepository {
 
         let cursorMessage: { id: number; createdAt: Date } | null = null;
         if (cursorMessageId !== undefined) {
-            cursorMessage = await this.prisma.chatMessage.findUnique({
-                where: { id: cursorMessageId },
+            cursorMessage = await this.prisma.chatMessage.findFirst({
+                where: { id: cursorMessageId, eventId },
                 select: { id: true, createdAt: true }
             });
         }
 
+        // Ordering uses (createdAt, id), so the cursor must use both fields:
+        // filtering on createdAt alone skips rows that share the timestamp.
         const where: Prisma.ChatMessageWhereInput = {
             eventId,
-            ...(cursorMessage ? { createdAt: { lt: cursorMessage.createdAt } } : {})
+            ...(cursorMessage
+                ? {
+                      OR: [
+                          { createdAt: { lt: cursorMessage.createdAt } },
+                          { createdAt: cursorMessage.createdAt, id: { lt: cursorMessage.id } }
+                      ]
+                  }
+                : {})
         };
 
         const messages = await this.prisma.chatMessage.findMany({

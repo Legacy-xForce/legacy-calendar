@@ -47,6 +47,17 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     ) {}
 
     afterInit(server: Server) {
+        this.realtime.onChatAccessRevoked((eventId, userIds) => {
+            const roomName = `chat:${eventId}`;
+            for (const socketId of server.sockets.adapter.rooms.get(roomName) ?? []) {
+                const socket = server.sockets.sockets.get(socketId);
+                const user = socket ? this.getSocketUser(socket) : undefined;
+                if (!socket || !user || !userIds.includes(user.userId)) continue;
+                void socket.leave(roomName);
+                socket.emit('chatAccessRevoked', { eventId });
+            }
+        });
+
         server.use((socket, next) => {
             void this.authenticateSocket(socket, next);
         });
@@ -73,23 +84,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         }
 
-        const user = this.requireSocketUser(client);
-        const isParticipant = await this.chatService.isParticipant(eventId, user.userId);
-        const roomName = `chat:${eventId}`;
+        try {
+            const user = this.requireSocketUser(client);
+            const isParticipant = await this.chatService.isParticipant(eventId, user.userId);
+            const roomName = `chat:${eventId}`;
 
-        if (!isParticipant) {
-            this.logger.warn('Room join rejected: user is not a participant', {
-                socketId: client.id,
-                userId: user.userId,
-                eventId
-            });
-            client.emit('error', { code: 403, message: 'Forbidden' });
-            await client.leave(roomName);
-            return;
+            if (!isParticipant) {
+                this.logger.warn('Room join rejected: user is not a participant', {
+                    socketId: client.id,
+                    userId: user.userId,
+                    eventId
+                });
+                client.emit('error', { code: 403, message: 'Forbidden' });
+                await client.leave(roomName);
+                return;
+            }
+
+            await client.join(roomName);
+            this.logger.info('Room joined', { socketId: client.id, userId: user.userId, roomName });
+        } catch (error) {
+            this.emitSocketError(client, error);
         }
-
-        await client.join(roomName);
-        this.logger.info('Room joined', { socketId: client.id, userId: user.userId, roomName });
     }
 
     @SubscribeMessage('leaveRoom')
@@ -201,45 +216,21 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     @SubscribeMessage('pinMessage')
-    async handlePinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
-        const user = this.requireWritableSocketUser(client);
-        if (!user) return;
-        const messageId = this.parseEventId(messageIdInput);
-        if (messageId === null) {
-            client.emit('error', { code: 400, message: 'Invalid messageId' });
-            return;
-        }
-
-        try {
-            const message = await this.chatService.pinMessage(messageId, user.userId, user.isAdmin);
-            this.logger.info('Socket message pinned', { socketId: client.id, userId: user.userId, messageId });
-            this.server.to(`chat:${message.eventId}`).emit('messagePinned', { messageId });
-        } catch (error) {
-            this.emitSocketError(client, error);
-        }
+    handlePinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
+        return this.handleMessageAction(client, messageIdInput, 'pin');
     }
 
     @SubscribeMessage('unpinMessage')
-    async handleUnpinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
-        const user = this.requireWritableSocketUser(client);
-        if (!user) return;
-        const messageId = this.parseEventId(messageIdInput);
-        if (messageId === null) {
-            client.emit('error', { code: 400, message: 'Invalid messageId' });
-            return;
-        }
-
-        try {
-            const message = await this.chatService.unpinMessage(messageId, user.userId, user.isAdmin);
-            this.logger.info('Socket message unpinned', { socketId: client.id, userId: user.userId, messageId });
-            this.server.to(`chat:${message.eventId}`).emit('messageUnpinned', { messageId });
-        } catch (error) {
-            this.emitSocketError(client, error);
-        }
+    handleUnpinMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
+        return this.handleMessageAction(client, messageIdInput, 'unpin');
     }
 
     @SubscribeMessage('deleteMessage')
-    async handleDeleteMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
+    handleDeleteMessage(@ConnectedSocket() client: Socket, @MessageBody('messageId') messageIdInput: number) {
+        return this.handleMessageAction(client, messageIdInput, 'delete');
+    }
+
+    private async handleMessageAction(client: Socket, messageIdInput: number, action: 'pin' | 'unpin' | 'delete') {
         const user = this.requireWritableSocketUser(client);
         if (!user) return;
         const messageId = this.parseEventId(messageIdInput);
@@ -248,11 +239,30 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         }
 
+        const details = {
+            pin: { verb: 'pinned', event: 'messagePinned', level: 'info' },
+            unpin: { verb: 'unpinned', event: 'messageUnpinned', level: 'info' },
+            delete: { verb: 'deleted', event: 'messageDeleted', level: 'warn' }
+        }[action];
+
         try {
-            const message = await this.chatService.deleteMessage(messageId, user.userId, user.isAdmin);
-            this.logger.warn('Socket message deleted', { socketId: client.id, userId: user.userId, messageId });
-            this.server.to(`chat:${message.eventId}`).emit('messageDeleted', { messageId });
-            this.realtime.chatChanged(message.eventId);
+            const message =
+                action === 'pin'
+                    ? await this.chatService.pinMessage(messageId, user.userId, user.isAdmin)
+                    : action === 'unpin'
+                      ? await this.chatService.unpinMessage(messageId, user.userId, user.isAdmin)
+                      : await this.chatService.deleteMessage(messageId, user.userId, user.isAdmin);
+
+            const context = { socketId: client.id, userId: user.userId, messageId };
+            if (details.level === 'warn') {
+                this.logger.warn(`Socket message ${details.verb}`, context);
+            } else {
+                this.logger.info(`Socket message ${details.verb}`, context);
+            }
+            this.server.to(`chat:${message.eventId}`).emit(details.event, { messageId });
+            if (action === 'delete') {
+                this.realtime.chatChanged(message.eventId);
+            }
         } catch (error) {
             this.emitSocketError(client, error);
         }

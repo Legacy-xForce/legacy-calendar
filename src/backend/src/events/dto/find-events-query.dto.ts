@@ -1,6 +1,29 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsNotEmpty } from 'class-validator';
+import {
+    IsDate,
+    IsNotEmpty,
+    Validate,
+    ValidationArguments,
+    ValidatorConstraint,
+    ValidatorConstraintInterface
+} from 'class-validator';
+
+const MAX_RANGE_DAYS = 366;
+
+@ValidatorConstraint({ name: 'eventRange', async: false })
+class EventRangeConstraint implements ValidatorConstraintInterface {
+    validate(_value: unknown, args: ValidationArguments) {
+        const dto = args.object as FindEventsQueryDto;
+        if (!(dto.start instanceof Date) || !(dto.end instanceof Date)) return false;
+        const span = dto.end.getTime() - dto.start.getTime();
+        return span >= 0 && span <= MAX_RANGE_DAYS * 24 * 60 * 60 * 1000;
+    }
+
+    defaultMessage() {
+        return `end must be after start and the range must not exceed ${MAX_RANGE_DAYS} days`;
+    }
+}
 
 export class FindEventsQueryDto {
     @ApiProperty({
@@ -21,5 +44,6 @@ export class FindEventsQueryDto {
     @IsNotEmpty()
     @Type(() => Date)
     @IsDate()
+    @Validate(EventRangeConstraint)
     end!: Date;
 }

@@ -8,7 +8,10 @@ const logger = createLogger('Firebase');
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' && firebaseConfig.measurementId ? getAnalytics(app) : null;
+// Firebase Analytics is initialized for its own telemetry; nothing in the app consumes the instance.
+if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+    getAnalytics(app);
+}
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 export const requestNotificationPermission = async () => {
@@ -46,10 +49,8 @@ export const requestNotificationPermission = async () => {
 
 export const onMessageListener = (callback: (payload: any) => void) => {
     if (!messaging) return;
-    onMessage(messaging, (payload) => {
+    return onMessage(messaging, (payload) => {
         logger.debug('Message received in foreground', payload);
         callback(payload);
     });
 };
-
-export { app, analytics, messaging };

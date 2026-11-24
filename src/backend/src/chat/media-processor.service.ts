@@ -6,6 +6,7 @@ import { AppLogger } from '../logging/app-logger.js';
 @Injectable()
 export class MediaProcessorService {
     private readonly logger = new AppLogger(MediaProcessorService.name);
+    private readonly timeoutMs = 300_000;
 
     async processImage(inputPath: string, outputPath: string): Promise<void> {
         this.logger.debug('Processing chat image', { inputPath, outputPath });
@@ -21,7 +22,16 @@ export class MediaProcessorService {
     async processVideo(inputPath: string, outputPath: string): Promise<void> {
         this.logger.debug('Processing chat video', { inputPath, outputPath });
         return new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
+            let settled = false;
+            const state: { timer: ReturnType<typeof setTimeout> | undefined } = { timer: undefined };
+            const settle = (finish: () => void) => {
+                if (settled) return;
+                settled = true;
+                if (state.timer) clearTimeout(state.timer);
+                finish();
+            };
+
+            const command = ffmpeg(inputPath)
                 .outputOptions([
                     '-vcodec libx264',
                     '-crf 28',
@@ -29,16 +39,39 @@ export class MediaProcessorService {
                     '-vf scale=w=1280:h=720:force_original_aspect_ratio=decrease',
                     '-acodec aac'
                 ])
-                .toFormat('mp4')
+                .toFormat('mp4');
+
+            // A malformed upload can make ffmpeg stall forever, leaving the
+            // request hanging and a child process running.
+            state.timer = setTimeout(() => {
+                this.logger.error('Chat video transcoding timed out', {
+                    inputPath,
+                    outputPath,
+                    timeoutMs: this.timeoutMs
+                });
+                command.kill('SIGKILL');
+                settle(() => reject(new Error('Video transcoding timed out')));
+                void this.removePartialOutput(outputPath);
+            }, this.timeoutMs);
+
+            command
                 .on('error', (err) => {
                     this.logger.error('Error processing video', err);
-                    reject(err);
+                    settle(() => reject(err));
+                    void this.removePartialOutput(outputPath);
                 })
                 .on('end', () => {
                     this.logger.info('Chat video processed', { inputPath, outputPath });
-                    resolve();
+                    settle(() => resolve());
                 })
                 .save(outputPath);
         });
+    }
+
+    private async removePartialOutput(outputPath: string) {
+        const f = Bun.file(outputPath);
+        if (await f.exists()) {
+            await f.delete();
+        }
     }
 }

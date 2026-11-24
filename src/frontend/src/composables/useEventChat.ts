@@ -47,6 +47,9 @@ export function useEventChat(
 
     let socket: Socket | null = null;
     let eventRoomId: number | null = null;
+    // Incremented on every event/enabled change so in-flight work from an
+    // abandoned event cannot write into the new event's state.
+    let requestGeneration = 0;
 
     const currentUserId = computed(() => sessionStore.currentUser?.id ?? null);
     const currentUsername = computed(() => sessionStore.currentUser?.username ?? '');
@@ -57,9 +60,10 @@ export function useEventChat(
         await connect();
     };
 
-    const connect = async () => {
+    const connect = async (generation = requestGeneration) => {
         const id = eventId.value;
         const token = await useSessionStore().getAccessToken();
+        if (generation !== requestGeneration) return;
         if (!id || !token || !isEnabled.value) {
             logger.trace('Skipping chat connection', {
                 eventId: id,
@@ -182,7 +186,7 @@ export function useEventChat(
         logger.debug('Chat socket disconnected locally');
     };
 
-    const loadHistory = async () => {
+    const loadHistory = async (generation = requestGeneration) => {
         const id = eventId.value;
         if (!id || !isEnabled.value) return;
 
@@ -190,6 +194,7 @@ export function useEventChat(
         try {
             logger.debug('Loading chat history', { eventId: id });
             const response = await api.getChatHistory(id, undefined, PAGE_SIZE);
+            if (generation !== requestGeneration) return;
             applyHistory(response.data);
         } catch (error: any) {
             connectionError.value = error?.response?.data?.message || 'Failed to load chat history';
@@ -203,7 +208,7 @@ export function useEventChat(
         }
     };
 
-    const loadPinnedMessages = async () => {
+    const loadPinnedMessages = async (generation = requestGeneration) => {
         const id = eventId.value;
         if (!id || !isEnabled.value) return;
 
@@ -211,6 +216,7 @@ export function useEventChat(
         try {
             logger.debug('Loading pinned chat messages', { eventId: id });
             const response = await api.getPinnedChatMessages(id);
+            if (generation !== requestGeneration) return;
             pinnedMessages.value = applyMessages(pinnedMessages.value, response.data.map(normalizeMessage));
         } catch (error: any) {
             connectionError.value = error?.response?.data?.message || 'Failed to load pinned messages';
@@ -230,13 +236,21 @@ export function useEventChat(
         const id = eventId.value;
         if (!id) return;
 
+        const generation = requestGeneration;
         loadingMore.value = true;
         try {
             logger.debug('Loading more chat history', { eventId: id, cursor: nextCursor.value });
             const response = await api.getChatHistory(id, nextCursor.value, PAGE_SIZE);
+            if (generation !== requestGeneration) return;
             messages.value = applyMessages(messages.value, response.data.messages.map(normalizeMessage));
             nextCursor.value = response.data.nextCursor;
             hasMore.value = response.data.nextCursor !== null;
+        } catch (error: any) {
+            connectionError.value = error?.response?.data?.message || 'Failed to load older messages';
+            logger.warn('Failed to load older messages', {
+                eventId: id,
+                message: error?.response?.data?.message ?? error.message
+            });
         } finally {
             loadingMore.value = false;
         }
@@ -368,6 +382,7 @@ export function useEventChat(
                 enabled: nextEnabled
             });
 
+            const generation = ++requestGeneration;
             disconnect();
             messages.value = [];
             pinnedMessages.value = [];
@@ -378,8 +393,9 @@ export function useEventChat(
                 return;
             }
 
-            await Promise.all([loadHistory(), loadPinnedMessages()]);
-            await connect();
+            await Promise.all([loadHistory(generation), loadPinnedMessages(generation)]);
+            if (generation !== requestGeneration) return;
+            await connect(generation);
         },
         { immediate: true }
     );

@@ -50,6 +50,14 @@ export class UploadsController {
 
             res.set('Content-Length', stat.size.toString());
             const file = createReadStream(filePath);
+            file.on('error', (error) => {
+                this.logger.error('Failed to stream upload', { filePath, error });
+                if (res.headersSent) {
+                    res.destroy(error);
+                } else {
+                    res.status(500).end();
+                }
+            });
             file.pipe(res);
             return;
         }

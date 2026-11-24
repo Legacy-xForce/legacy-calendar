@@ -162,12 +162,14 @@ export class ChatController {
 
     private resolveMediaUpload(file: Express.Multer.File): { mediaType: ChatMediaType; ext: string } {
         const mimeType = file.mimetype;
-        const originalExt = path.extname(file.originalname).toLowerCase();
 
         if (mimeType === 'image/gif') {
+            // The uploaded bytes are stored verbatim and served with a
+            // Content-Type derived from this extension. Never let the client's
+            // filename choose it (e.g. "payload.html" would become stored XSS).
             return {
                 mediaType: ChatMediaType.gif,
-                ext: originalExt || '.gif'
+                ext: '.gif'
             };
         }
 
@@ -190,7 +192,7 @@ export class ChatController {
         if (mimeType.startsWith('audio/')) {
             return {
                 mediaType: ChatMediaType.audio,
-                ext: originalExt || this.extensionFromMime(mimeType) || '.bin'
+                ext: this.extensionFromMime(mimeType) || '.bin'
             };
         }
 

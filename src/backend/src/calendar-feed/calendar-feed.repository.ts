@@ -55,6 +55,31 @@ export class CalendarFeedRepository {
      * the feed owner hosts, co-hosts or participates in (including private ones).
      * No date filter: the calendar UI can browse any month, so the feed can too.
      */
+    /**
+     * Cheap change signal for the built ICS document: event count, newest
+     * update, and the user's attendance count (visibility changes).
+     */
+    async getFeedSignature(userId: number): Promise<string> {
+        const where = {
+            OR: [
+                { isPrivate: false },
+                { hostId: userId },
+                { participants: { some: { userId } } },
+                { coHosts: { some: { userId } } }
+            ]
+        };
+        const [eventCount, latest, attendanceCount] = await Promise.all([
+            this.prisma.event.count({ where }),
+            this.prisma.event.findFirst({
+                where,
+                orderBy: { updatedAt: 'desc' },
+                select: { updatedAt: true }
+            }),
+            this.prisma.attendance.count({ where: { userId } })
+        ]);
+        return `${eventCount}:${latest?.updatedAt.getTime() ?? 0}:${attendanceCount}`;
+    }
+
     findVisibleEvents(userId: number): Promise<FeedEvent[]> {
         return this.prisma.event.findMany({
             where: {

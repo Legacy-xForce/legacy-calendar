@@ -6,7 +6,7 @@ import {
     WebSocketGateway,
     WebSocketServer
 } from '@nestjs/websockets';
-import { Inject } from '@nestjs/common';
+import { HttpException, Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { isOriginAllowed } from '../config/cors.js';
 import { AppLogger } from '../logging/app-logger.js';
@@ -45,14 +45,21 @@ export class EventsGateway implements OnGatewayInit {
             return;
         }
 
-        const event = await this.eventsRepo.findOne(eventId, userId);
-        if (!event) {
-            this.logger.warn('Event watch rejected: event not visible', { socketId: client.id, userId, eventId });
-            client.emit('error', { code: 403, message: 'Forbidden' });
-            return;
-        }
+        try {
+            const event = await this.eventsRepo.findOne(eventId, userId);
+            if (!event) {
+                this.logger.warn('Event watch rejected: event not visible', { socketId: client.id, userId, eventId });
+                client.emit('error', { code: 403, message: 'Forbidden' });
+                return;
+            }
 
-        await client.join(eventRoom(eventId));
+            await client.join(eventRoom(eventId));
+        } catch (error) {
+            const status = error instanceof HttpException ? error.getStatus() : 500;
+            const message = error instanceof Error ? error.message : 'Internal server error';
+            this.logger.error('Event watch failed', { socketId: client.id, status, message });
+            client.emit('error', { code: status, message });
+        }
     }
 
     @SubscribeMessage('unwatchEvent')

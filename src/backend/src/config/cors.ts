@@ -67,10 +67,6 @@ function matchesOriginRule(origin: URL, rule: OriginRule): boolean {
     return origin.hostname === rule.hostname || origin.hostname.endsWith(`.${rule.hostname}`);
 }
 
-export function getAllowedOrigins(): string[] {
-    return [...new Set([...getConfiguredOrigins(), ...TRUSTED_APP_ORIGINS, ...LOCAL_DEV_ORIGINS])];
-}
-
 /**
  * A missing origin means a non-browser client (curl, server-to-server) or a
  * same-origin request; those are allowed. Browser requests must match the list.

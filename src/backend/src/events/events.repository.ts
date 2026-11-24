@@ -148,11 +148,6 @@ export class EventsRepository {
         });
     }
 
-    /** Replaces the event's features and reconciles every participant's opt-ins with the new rules. */
-    async replaceFeatures(eventId: number, features: PlannedFeature[]): Promise<void> {
-        await this.prisma.$transaction((tx) => writeEventFeatures(tx, eventId, features));
-    }
-
     async findCatalogFeatures(ids: number[]) {
         if (ids.length === 0) return [];
         return this.prisma.feature.findMany({
@@ -171,7 +166,8 @@ export class EventsRepository {
                 AND: [this.buildVisibleEventsWhere(userId), { startTime: { gte: start, lte: end } }]
             },
             include: EVENT_INCLUDE,
-            orderBy: [{ startTime: 'asc' }, { id: 'asc' }]
+            orderBy: [{ startTime: 'asc' }, { id: 'asc' }],
+            take: 2_000
         });
     }
 
@@ -368,6 +364,54 @@ export class EventsRepository {
         });
     }
 
+    /**
+     * Applies every write of an event edit in one transaction so a failure
+     * cannot leave features, participants, co-hosts and fields out of sync.
+     */
+    async applyEventUpdate(
+        id: number,
+        data: Prisma.EventUpdateInput,
+        changes: {
+            features?: PlannedFeature[];
+            rideAssignmentUserIds?: number[];
+            coHostIds?: number[];
+        }
+    ): Promise<EventWithRelations> {
+        return this.prisma.$transaction(async (tx) => {
+            if (changes.features) {
+                await writeEventFeatures(tx, id, changes.features);
+            }
+            if (changes.rideAssignmentUserIds && changes.rideAssignmentUserIds.length > 0) {
+                await tx.rideAssignment.deleteMany({
+                    where: {
+                        eventId: id,
+                        OR: [
+                            { passengerId: { in: changes.rideAssignmentUserIds } },
+                            { driverId: { in: changes.rideAssignmentUserIds } }
+                        ]
+                    }
+                });
+            }
+            if (changes.coHostIds) {
+                await tx.eventCoHost.deleteMany({
+                    where: { eventId: id, userId: { notIn: changes.coHostIds } }
+                });
+                for (const userId of changes.coHostIds) {
+                    await tx.eventCoHost.upsert({
+                        where: { eventId_userId: { eventId: id, userId } },
+                        update: {},
+                        create: { eventId: id, userId }
+                    });
+                }
+            }
+            return tx.event.update({
+                where: { id },
+                data,
+                include: EVENT_INCLUDE
+            });
+        });
+    }
+
     async getCoHostIds(eventId: number): Promise<number[]> {
         const coHosts = await this.prisma.eventCoHost.findMany({
             where: { eventId },
@@ -376,35 +420,18 @@ export class EventsRepository {
         return coHosts.map((coHost) => coHost.userId);
     }
 
-    async setCoHosts(eventId: number, userIds: number[]): Promise<void> {
-        await this.prisma.$transaction([
-            this.prisma.eventCoHost.deleteMany({
-                where: { eventId, userId: { notIn: userIds } }
-            }),
-            ...userIds.map((userId) =>
-                this.prisma.eventCoHost.upsert({
-                    where: { eventId_userId: { eventId, userId } },
-                    update: {},
-                    create: { eventId, userId }
-                })
-            )
-        ]);
-    }
-
     async inviteUser(eventId: number, username: string) {
         const user = await this.prisma.user.findUnique({ where: { username } });
         if (!user) {
             return null;
         }
 
-        const existing = await this.prisma.attendance.findUnique({
-            where: { userId_eventId: { userId: user.id, eventId } }
-        });
-
-        if (existing) return user;
-
-        await this.prisma.attendance.create({
-            data: {
+        // Upsert instead of find-then-create: two concurrent invites for the
+        // same user would otherwise race against the unique (userId, eventId) index.
+        await this.prisma.attendance.upsert({
+            where: { userId_eventId: { userId: user.id, eventId } },
+            update: {},
+            create: {
                 userId: user.id,
                 eventId,
                 status: InviteStatus.PENDING
@@ -417,7 +444,7 @@ export class EventsRepository {
     async getParticipantTokens(eventId: number, status?: InviteStatus): Promise<string[]> {
         const attendances = await this.prisma.attendance.findMany({
             where: { eventId, ...(status ? { status } : {}), userId: { not: null } },
-            include: { user: { include: { fcmTokens: true } } }
+            select: { user: { select: { fcmTokens: { select: { token: true } } } } }
         });
 
         return attendances.flatMap((a) => a.user?.fcmTokens.map((t) => t.token) ?? []);

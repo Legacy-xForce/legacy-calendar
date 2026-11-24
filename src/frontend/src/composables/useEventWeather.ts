@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue';
+import { ref, watch, onBeforeUnmount, type Ref } from 'vue';
 import { fetchWeatherApi } from 'openmeteo';
 import type { Event } from '../types/Event';
 import type { EventWeather } from '../types/Weather';
@@ -142,6 +142,7 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
 
 export function useEventWeather(events?: Ref<Event[]>) {
     let isProcessing = false;
+    let rerunRequested = false;
     const { getOrResolveCoords } = useGeocode();
 
     const fetchForecast = async (lat: number, lon: number, targetDate: Date) => {
@@ -352,7 +353,12 @@ export function useEventWeather(events?: Ref<Event[]>) {
     };
 
     const loadWeatherForEvents = async () => {
-        if (!events || events.value.length === 0 || isProcessing) return;
+        if (!events || events.value.length === 0) return;
+        if (isProcessing) {
+            // Remember the change; dropping it would leave new events without weather.
+            rerunRequested = true;
+            return;
+        }
 
         isProcessing = true;
         loadingWeather.value = true;
@@ -373,6 +379,10 @@ export function useEventWeather(events?: Ref<Event[]>) {
         } finally {
             loadingWeather.value = false;
             isProcessing = false;
+            if (rerunRequested) {
+                rerunRequested = false;
+                void loadWeatherForEvents();
+            }
         }
     };
 
@@ -393,6 +403,10 @@ export function useEventWeather(events?: Ref<Event[]>) {
         },
         { deep: true }
     );
+
+    onBeforeUnmount(() => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+    });
 
     return {
         weatherByEventId,

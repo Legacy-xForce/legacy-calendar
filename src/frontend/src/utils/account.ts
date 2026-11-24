@@ -67,18 +67,6 @@ export function redirectToAccountNotice(issue: AccountIssue): void {
     window.location.href = path;
 }
 
-/**
- * Redirect when the token belongs to an unusable account.
- * Returns false when a redirect happened, true when the session may continue.
- */
-export function assertAccountUsable(token: string): boolean {
-    const issue = accountIssueFromToken(token);
-    if (!issue) return true;
-
-    redirectToAccountNotice(issue);
-    return false;
-}
-
 function tokenHasCalendarScope(payload: any): boolean {
     if (payload.scope === undefined && payload.scopes === undefined) return true;
 
