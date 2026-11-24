@@ -632,6 +632,48 @@ export class EventsService {
             };
         });
 
+        if (driverId !== null) {
+            const targetDriver = this.getParticipant(event, driverId);
+            if (targetDriver) {
+                for (const direction of ['OUTBOUND', 'RETURN'] as const) {
+                    const totalSeats =
+                        direction === 'RETURN'
+                            ? (targetDriver.vehicleSeatsReturn ?? targetDriver.vehicleSeats ?? 0)
+                            : (targetDriver.vehicleSeatsOutbound ?? targetDriver.vehicleSeats ?? 0);
+                    // The driver occupies one seat themselves.
+                    const capacity = Math.max(0, totalSeats - 1);
+                    const projected = new Set(
+                        event.rideAssignments
+                            .filter(
+                                (assignment) => assignment.driverId === driverId && assignment.direction === direction
+                            )
+                            .map((assignment) => assignment.passengerId)
+                    );
+
+                    for (const assignment of assignments) {
+                        if (!assignment.directions.includes(direction)) continue;
+                        if (assignment.previousDriverId === driverId) {
+                            projected.delete(assignment.passengerId);
+                        }
+                        if (assignment.driverId !== null) {
+                            projected.add(assignment.passengerId);
+                        }
+                    }
+
+                    if (projected.size > capacity) {
+                        this.logger.warn('Ride assignment rejected: no free seats', {
+                            eventId,
+                            driverId,
+                            direction,
+                            capacity,
+                            requested: projected.size
+                        });
+                        throw new BadRequestException('This driver has no free seats left for this trip');
+                    }
+                }
+            }
+        }
+
         await this.eventsRepo.assignRides(eventId, assignments);
 
         if (driverId !== null) {
