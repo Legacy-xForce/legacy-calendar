@@ -8,9 +8,7 @@ type UploadInfo = { mediaType: ChatMediaType; ext: string };
 
 function resolveUpload(originalname: string, mimetype: string): UploadInfo {
     const controller = new ChatController({} as ChatService, {} as MediaProcessorService);
-    const resolve = (controller as unknown as { resolveMediaUpload: (file: Express.Multer.File) => UploadInfo })
-        .resolveMediaUpload;
-    return resolve.call(controller, { originalname, mimetype } as unknown as Express.Multer.File);
+    return controller['resolveMediaUpload']({ originalname, mimetype } as unknown as Express.Multer.File);
 }
 
 test('GIF uploads never reuse a client-controlled, executable extension', () => {
