@@ -21,10 +21,9 @@ function fakeSocket(userId = 1) {
     socket.join = () => Promise.resolve();
     socket.emitted = [];
     socket.on('error', () => {});
-    const emit = socket.emit.bind(socket);
     socket.emit = ((event: string, payload: unknown) => {
         socket.emitted.push({ event, payload });
-        return emit(event, payload);
+        return true;
     }) as typeof socket.emit;
     return socket;
 }

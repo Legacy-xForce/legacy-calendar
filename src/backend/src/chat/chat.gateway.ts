@@ -84,23 +84,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         }
 
-        const user = this.requireSocketUser(client);
-        const isParticipant = await this.chatService.isParticipant(eventId, user.userId);
-        const roomName = `chat:${eventId}`;
+        try {
+            const user = this.requireSocketUser(client);
+            const isParticipant = await this.chatService.isParticipant(eventId, user.userId);
+            const roomName = `chat:${eventId}`;
 
-        if (!isParticipant) {
-            this.logger.warn('Room join rejected: user is not a participant', {
-                socketId: client.id,
-                userId: user.userId,
-                eventId
-            });
-            client.emit('error', { code: 403, message: 'Forbidden' });
-            await client.leave(roomName);
-            return;
+            if (!isParticipant) {
+                this.logger.warn('Room join rejected: user is not a participant', {
+                    socketId: client.id,
+                    userId: user.userId,
+                    eventId
+                });
+                client.emit('error', { code: 403, message: 'Forbidden' });
+                await client.leave(roomName);
+                return;
+            }
+
+            await client.join(roomName);
+            this.logger.info('Room joined', { socketId: client.id, userId: user.userId, roomName });
+        } catch (error) {
+            this.emitSocketError(client, error);
         }
-
-        await client.join(roomName);
-        this.logger.info('Room joined', { socketId: client.id, userId: user.userId, roomName });
     }
 
     @SubscribeMessage('leaveRoom')
