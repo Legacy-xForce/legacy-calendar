@@ -58,20 +58,21 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     function applyEvent(event: Event) {
+        const eventStart = new Date(event.startTime);
+        const eventEnd = event.endTime ? new Date(event.endTime) : new Date(eventStart.getTime() + 60 * 60 * 1000);
         if (activeRange.value) {
-            const start = new Date(event.startTime);
-            const inRange = start >= activeRange.value.start && start <= activeRange.value.end;
+            const inRange = eventStart <= activeRange.value.end && eventEnd >= activeRange.value.start;
             const withoutEvent = events.value.filter((item) => item.id !== event.id);
             events.value = inRange ? [...withoutEvent, event].sort(sortEvents) : withoutEvent;
         }
 
-        const monthKey = event.startTime.slice(0, 7);
-        const cached = rangeCache.value[monthKey];
+        const startMonthKey = event.startTime.slice(0, 7);
+        const endMonthKey = event.endTime?.slice(0, 7) ?? startMonthKey;
         for (const key of Object.keys(rangeCache.value)) {
-            rangeCache.value[key] = rangeCache.value[key].filter((item) => item.id !== event.id);
-        }
-        if (cached) {
-            rangeCache.value[monthKey] = [...rangeCache.value[monthKey], event].sort(sortEvents);
+            const withoutEvent = rangeCache.value[key].filter((item) => item.id !== event.id);
+            // A multi-day event belongs to every cached month it overlaps.
+            rangeCache.value[key] =
+                key >= startMonthKey && key <= endMonthKey ? [...withoutEvent, event].sort(sortEvents) : withoutEvent;
         }
 
         if (upcomingLoaded.value) {

@@ -5,6 +5,7 @@ import {
     startOfWeek,
     endOfWeek,
     eachDayOfInterval,
+    addDays,
     addMonths,
     subMonths,
     isSameMonth,
@@ -84,14 +85,22 @@ export function useCalendar() {
     const eventsByDay = computed<Map<number, Event[]>>(() => {
         const groupedEvents = new Map<number, Event[]>();
 
+        const range = visibleRange.value;
         for (const event of events.value) {
-            const dayKey = buildDayKey(parseISO(event.startTime));
-            const existingEvents = groupedEvents.get(dayKey);
+            const eventStart = startOfDay(parseISO(event.startTime));
+            const eventEnd = startOfDay(event.endTime ? parseISO(event.endTime) : parseISO(event.startTime));
+            const from = eventStart < range.start ? range.start : eventStart;
+            const to = eventEnd > range.end ? range.end : eventEnd;
 
-            if (existingEvents) {
-                existingEvents.push(event);
-            } else {
-                groupedEvents.set(dayKey, [event]);
+            for (let day = from; day <= to; day = addDays(day, 1)) {
+                const dayKey = buildDayKey(day);
+                const existingEvents = groupedEvents.get(dayKey);
+
+                if (existingEvents) {
+                    if (!existingEvents.some((entry) => entry.id === event.id)) existingEvents.push(event);
+                } else {
+                    groupedEvents.set(dayKey, [event]);
+                }
             }
         }
 

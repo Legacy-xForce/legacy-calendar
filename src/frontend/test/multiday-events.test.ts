@@ -26,8 +26,7 @@ test('an event spanning midnight appears on both days', async () => {
 
     const firstDay = startOfDay(new Date('2026-08-28T12:00:00.000Z')).getTime();
     const nextDay = startOfDay(new Date('2026-08-29T12:00:00.000Z')).getTime();
-    const eventsOn = (key: number) =>
-        calendar.days.value.find((day) => day.date.getTime() === key)?.events ?? [];
+    const eventsOn = (key: number) => calendar.days.value.find((day) => day.date.getTime() === key)?.events ?? [];
 
     expect(eventsOn(firstDay).some((event) => event.id === 42)).toBe(true);
     expect(eventsOn(nextDay).some((event) => event.id === 42)).toBe(true);
