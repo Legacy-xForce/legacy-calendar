@@ -148,11 +148,6 @@ export class EventsRepository {
         });
     }
 
-    /** Replaces the event's features and reconciles every participant's opt-ins with the new rules. */
-    async replaceFeatures(eventId: number, features: PlannedFeature[]): Promise<void> {
-        await this.prisma.$transaction((tx) => writeEventFeatures(tx, eventId, features));
-    }
-
     async findCatalogFeatures(ids: number[]) {
         if (ids.length === 0) return [];
         return this.prisma.feature.findMany({
@@ -422,21 +417,6 @@ export class EventsRepository {
             select: { userId: true }
         });
         return coHosts.map((coHost) => coHost.userId);
-    }
-
-    async setCoHosts(eventId: number, userIds: number[]): Promise<void> {
-        await this.prisma.$transaction([
-            this.prisma.eventCoHost.deleteMany({
-                where: { eventId, userId: { notIn: userIds } }
-            }),
-            ...userIds.map((userId) =>
-                this.prisma.eventCoHost.upsert({
-                    where: { eventId_userId: { eventId, userId } },
-                    update: {},
-                    create: { eventId, userId }
-                })
-            )
-        ]);
     }
 
     async inviteUser(eventId: number, username: string) {
