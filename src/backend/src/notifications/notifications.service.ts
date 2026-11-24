@@ -198,25 +198,13 @@ export class NotificationsService implements OnModuleInit {
             return removed.count > 0;
         }
 
-        const existing = await this.prisma.chatMute.findUnique({
-            where: {
-                userId_eventId: {
-                    userId,
-                    eventId
-                }
-            }
+        // createMany with skipDuplicates avoids a find-then-create race while
+        // still reporting whether the stored state actually changed.
+        const created = await this.prisma.chatMute.createMany({
+            data: { userId, eventId },
+            skipDuplicates: true
         });
-        if (existing) {
-            return false;
-        }
-
-        await this.prisma.chatMute.create({
-            data: {
-                userId,
-                eventId
-            }
-        });
-        return true;
+        return created.count > 0;
     }
 
     private validateNotificationData(data?: Record<string, string>) {

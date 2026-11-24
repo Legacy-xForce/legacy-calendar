@@ -17,7 +17,7 @@ test('concurrent chat-mute writes do not surface a unique-constraint error', asy
                         clientVersion: 'test'
                     })
                 ),
-            upsert: () => Promise.resolve({}),
+            createMany: () => Promise.resolve({ count: 1 }),
             deleteMany: () => Promise.resolve({ count: 0 })
         }
     } as unknown as PrismaService;
