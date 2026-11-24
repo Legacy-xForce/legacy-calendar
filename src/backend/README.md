@@ -39,26 +39,21 @@ $ npm install
 
 ```bash
 # development
-$ npm run start
+$ bun run start
 
 # watch mode
-$ npm run start:dev
+$ bun run start:dev
 
 # production mode
-$ npm run start:prod
+$ bun run start:prod
 ```
 
 ## Run tests
 
+The suite runs against an in-process PGlite database; no external database is needed.
+
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+$ bun test
 ```
 
 ## Deployment

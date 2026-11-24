@@ -22,7 +22,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 - NestJS 11
 - Prisma 7 with PostgreSQL
 - Socket.IO for event chat and live updates
-- Passport JWT and local auth strategies
+- Legacy Auth (OIDC) access tokens, verified via JWKS through Passport JWT
 - Scalar for interactive API documentation (generated from the OpenAPI schema)
 - Firebase Admin for push notifications
 - Multer-based file uploads
@@ -82,7 +82,7 @@ The project is designed around a real-time, mobile-friendly workflow: users can 
 
 The backend is organized by domain and keeps controllers, services, and repositories separated.
 
-- `auth` handles login, JWT issuance, password changes, and auth guards
+- `auth` verifies Legacy Auth access tokens and provides auth guards
 - `users` handles user CRUD and profile picture management
 - `events` handles calendar events, participation, invitations, and ride assignments
 - `chat` handles message history, media uploads, reactions, pinning, editing, and Socket.IO realtime delivery
@@ -201,7 +201,10 @@ Create a `.env` file in `src/frontend` with the client and Firebase settings exp
 
 ```bash
 VITE_API_URL=http://localhost:3000
-VITE_UPLOADS_API_URL=http://localhost:3000
+VITE_UPLOADS_URL=http://localhost:3000
+VITE_WS_URL=http://localhost:3000
+VITE_AUTH_URL=https://auth.legacy-group.tech
+VITE_OIDC_CLIENT_ID=calendar-spa
 VITE_LOG_LEVEL=trace
 VITE_FIREBASE_API_KEY=your-value
 VITE_FIREBASE_AUTH_DOMAIN=your-value
@@ -213,6 +216,8 @@ VITE_FIREBASE_MEASUREMENT_ID=your-value
 VITE_FIREBASE_VAPID_KEY=your-value
 VITE_GOOGLE_MAPS_EMBED_API_KEY=your-value
 VITE_MAPBOX_ACCESS_TOKEN=your-public-mapbox-token
+VITE_BRANDFETCH_CLIENT_ID=your-brandfetch-client-id
+VITE_PRIMEUI_LICENSE=your-primeui-license
 ```
 
 Then start the client:
@@ -240,15 +245,15 @@ free-text locations cannot be used to fetch weather forecasts.
 
 ### Backend
 
-- `npm run dev` - run the NestJS app with `tsx`
-- `npm run start:dev` - run in watch mode
-- `npm run build` - compile TypeScript
-- `npm run start` - run the compiled app from `dist`
-- `npm run generate` - generate Prisma client
-- `npm run migrate` - run Prisma migrations in development
-- `npm run lint` - lint backend TypeScript
-- `npm run format` - format backend TypeScript
-- `npm test` - run the backend integration test suite against in-process PGlite
+- `bun run dev` - run the NestJS app with Bun
+- `bun run start:dev` - run in watch mode
+- `bun run build` - bundle the app with `bun build.js`
+- `bun run start` - run `src/main.ts`
+- `bun run generate` - generate Prisma client
+- `bun run migrate` - run Prisma migrations in development
+- `bun run lint` - lint backend TypeScript
+- `bun run format` - format backend TypeScript
+- `bun test` - run the backend integration test suite against in-process PGlite
 
 ### Frontend
 
