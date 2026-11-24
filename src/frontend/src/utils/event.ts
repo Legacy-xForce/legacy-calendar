@@ -1,4 +1,16 @@
+import { isToday } from 'date-fns';
 import type { Event, EventFeatureDraft, EventParticipant, FeatureId, ParticipantStatus } from '../types/Event';
+
+/** Next full hour strictly after `now`, or 20:00 on a different day. */
+export function defaultEventStart(date: Date, now = new Date()): Date {
+    if (isToday(date)) {
+        return new Date((Math.floor(now.getTime() / 3_600_000) + 1) * 3_600_000);
+    }
+
+    const result = new Date(date);
+    result.setHours(20, 0, 0, 0);
+    return result;
+}
 
 const MAX_EVENT_START_TIME_YEARS_AHEAD = 1;
 

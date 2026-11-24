@@ -12,7 +12,7 @@ import CalendarCell from '../components/calendar/CalendarCell.vue';
 import EventListItem from '../components/EventListItem.vue';
 import { useEventDialogs, createEventViewDialogs } from '../composables/useEventDialogs';
 import { useMediaQuery, MOBILE_QUERY } from '../composables/useMediaQuery';
-import { getUserEventRole } from '../utils/event';
+import { defaultEventStart, getUserEventRole } from '../utils/event';
 import { normalizeHexColor } from '../utils/color';
 import { DEFAULT_COLOR } from '../constants/colors';
 import type { CalendarDay } from '../types/Calendar';
@@ -219,16 +219,7 @@ const createDate = ref(new Date());
 const isSaving = ref(false);
 
 /** Sensible default start: the next full hour today, otherwise 20:00 on the chosen day. */
-const withDefaultStartTime = (date: Date) => {
-    const result = new Date(date);
-    if (isTodayDate(result)) {
-        const now = new Date();
-        result.setHours(Math.min(now.getHours() + 1, 23), 0, 0, 0);
-    } else {
-        result.setHours(20, 0, 0, 0);
-    }
-    return result;
-};
+const withDefaultStartTime = (date: Date) => defaultEventStart(date);
 
 const openAddEvent = (date: Date) => {
     createDate.value = withDefaultStartTime(date);
