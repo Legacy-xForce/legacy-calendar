@@ -166,7 +166,8 @@ export class EventsRepository {
                 AND: [this.buildVisibleEventsWhere(userId), { startTime: { gte: start, lte: end } }]
             },
             include: EVENT_INCLUDE,
-            orderBy: [{ startTime: 'asc' }, { id: 'asc' }]
+            orderBy: [{ startTime: 'asc' }, { id: 'asc' }],
+            take: 2_000
         });
     }
 
