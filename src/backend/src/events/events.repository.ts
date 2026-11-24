@@ -397,14 +397,12 @@ export class EventsRepository {
             return null;
         }
 
-        const existing = await this.prisma.attendance.findUnique({
-            where: { userId_eventId: { userId: user.id, eventId } }
-        });
-
-        if (existing) return user;
-
-        await this.prisma.attendance.create({
-            data: {
+        // Upsert instead of find-then-create: two concurrent invites for the
+        // same user would otherwise race against the unique (userId, eventId) index.
+        await this.prisma.attendance.upsert({
+            where: { userId_eventId: { userId: user.id, eventId } },
+            update: {},
+            create: {
                 userId: user.id,
                 eventId,
                 status: InviteStatus.PENDING
