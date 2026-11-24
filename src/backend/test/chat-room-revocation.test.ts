@@ -89,8 +89,8 @@ describe('chat room access revocation', () => {
     });
 
     test('a removed participant stops receiving chat messages', async () => {
-        const hostSocket = sockets[0]!;
-        const participantSocket = sockets[1]!;
+        const hostSocket = sockets[0];
+        const participantSocket = sockets[1];
 
         // Baseline: the participant can receive messages while still a member.
         const before = nextEvent<ChatMessage>(participantSocket, 'newMessage');

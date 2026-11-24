@@ -252,6 +252,10 @@ export class EventsService {
 
         await this.auditLogService.recordEventUpdated(id, event, finalEvent, { actorId: userId, impersonatorId });
 
+        if (participantDiff?.toRemove.length) {
+            this.realtime.revokeChatAccess(id, participantDiff.toRemove);
+        }
+
         if (participantDiff) {
             const { toAdd } = participantDiff;
 
@@ -514,6 +518,7 @@ export class EventsService {
 
             this.logger.info('Event participation removed', { eventId, userId });
             this.realtime.eventChanged(eventId);
+            this.realtime.revokeChatAccess(eventId, [userId]);
             return result;
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {

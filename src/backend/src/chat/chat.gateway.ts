@@ -47,6 +47,17 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     ) {}
 
     afterInit(server: Server) {
+        this.realtime.onChatAccessRevoked((eventId, userIds) => {
+            const roomName = `chat:${eventId}`;
+            for (const socketId of server.sockets.adapter.rooms.get(roomName) ?? []) {
+                const socket = server.sockets.sockets.get(socketId);
+                const user = socket ? this.getSocketUser(socket) : undefined;
+                if (!socket || !user || !userIds.includes(user.userId)) continue;
+                void socket.leave(roomName);
+                socket.emit('chatAccessRevoked', { eventId });
+            }
+        });
+
         server.use((socket, next) => {
             void this.authenticateSocket(socket, next);
         });
